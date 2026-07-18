@@ -1,0 +1,61 @@
+package database
+
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
+
+// Household represents a shared group (family, roommates)
+type Household struct {
+	ID        uint           `gorm:"primaryKey"`
+	Name      string         `gorm:"size:100;not null"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
+// User represents an authenticated user
+type User struct {
+	ID           uint           `gorm:"primaryKey"`
+	Email        string         `gorm:"size:255;uniqueIndex;not null"`
+	PasswordHash string         `gorm:"size:255;not null"`
+	Role         string         `gorm:"size:20;default:'member'"`
+	HouseholdID  *uint          `gorm:"default:null"`
+	Household    *Household     `gorm:"foreignKey:HouseholdID"`
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+// VisibilityType controls who can see/edit an expense
+type VisibilityType string
+
+const (
+	VisibleEditable VisibilityType = "visible_editable"
+	VisibleOnly     VisibilityType = "visible_only"
+	HiddenPrivate   VisibilityType = "hidden_private"
+)
+
+// Expense tracks fixed and variable payments
+type Expense struct {
+	ID          uint           `gorm:"primaryKey"`
+	Amount      float64        `gorm:"type:decimal(10,2);not null"`
+	Description string         `gorm:"size:255;not null"`
+	Category    string         `gorm:"size:50;not null"`
+	HouseholdID uint           `gorm:"not null"`
+	Household   Household      `gorm:"foreignKey:HouseholdID"`
+	CreatedByID uint           `gorm:"not null"`
+	CreatedBy   User           `gorm:"foreignKey:CreatedByID"`
+	Visibility  VisibilityType `gorm:"type:varchar(20);default:'visible_editable'"`
+	Date        time.Time      `gorm:"not null"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   gorm.DeletedAt `gorm:"index"`
+}
+
+// ExpenseFilters defines query filters for listing expenses.
+type ExpenseFilters struct {
+	Category string
+	Limit    int
+	Offset   int
+}
