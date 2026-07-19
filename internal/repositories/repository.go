@@ -27,7 +27,7 @@ type HouseholdRepository interface {
 type ExpenseRepository interface {
 	Create(expense *database.Expense) error
 	FindByID(id uint) (*database.Expense, error)
-	FindByHousehold(householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
+	FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
 	Update(expense *database.Expense) error
 	Delete(id uint) error
 }

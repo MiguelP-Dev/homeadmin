@@ -47,6 +47,7 @@ type Expense struct {
 	CreatedByID uint           `gorm:"not null"`
 	CreatedBy   User           `gorm:"foreignKey:CreatedByID"`
 	Visibility  VisibilityType `gorm:"type:varchar(20);default:'visible_editable'"`
+	IsFixed     bool           `gorm:"default:false"`
 	Date        time.Time      `gorm:"not null"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
