@@ -7,7 +7,7 @@ import (
 
 func TestLoadDefaults(t *testing.T) {
 	// Clear all env vars to ensure defaults are used
-	keys := []string{"PORT", "ENV", "DATABASE_URL", "JWT_SECRET", "JWT_EXPIRATION_HOURS", "CORS_ORIGINS", "CSRF_KEY"}
+	keys := []string{"PORT", "ENV", "DATABASE_URL", "JWT_SECRET", "JWT_EXPIRATION_HOURS", "CORS_ORIGINS", "CSRF_KEY", "DB_DRIVER"}
 	for _, k := range keys {
 		os.Unsetenv(k)
 	}
@@ -38,6 +38,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.CSRFKey != "" {
 		t.Errorf("expected empty CSRFKey, got '%s'", cfg.CSRFKey)
 	}
+	if cfg.DBDriver != "sqlite" {
+		t.Errorf("expected DBDriver 'sqlite', got '%s'", cfg.DBDriver)
+	}
 }
 
 func TestLoadFromEnv(t *testing.T) {
@@ -47,6 +50,7 @@ func TestLoadFromEnv(t *testing.T) {
 	os.Setenv("JWT_SECRET", "super-secret-key")
 	os.Setenv("JWT_EXPIRATION_HOURS", "48")
 	os.Setenv("CSRF_KEY", "csrf-32-byte-key-here-12345678")
+	os.Setenv("DB_DRIVER", "postgres")
 	defer func() {
 		os.Unsetenv("PORT")
 		os.Unsetenv("ENV")
@@ -54,6 +58,7 @@ func TestLoadFromEnv(t *testing.T) {
 		os.Unsetenv("JWT_SECRET")
 		os.Unsetenv("JWT_EXPIRATION_HOURS")
 		os.Unsetenv("CSRF_KEY")
+		os.Unsetenv("DB_DRIVER")
 	}()
 
 	cfg, err := Load()
@@ -78,6 +83,49 @@ func TestLoadFromEnv(t *testing.T) {
 	}
 	if cfg.CSRFKey != "csrf-32-byte-key-here-12345678" {
 		t.Errorf("expected CSRFKey 'csrf-32-byte-key-here-12345678', got '%s'", cfg.CSRFKey)
+	}
+	if cfg.DBDriver != "postgres" {
+		t.Errorf("expected DBDriver 'postgres', got '%s'", cfg.DBDriver)
+	}
+}
+
+func TestDBDriverConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected string
+	}{
+		{
+			name:     "sqlite driver",
+			value:    "sqlite",
+			expected: "sqlite",
+		},
+		{
+			name:     "postgres driver",
+			value:    "postgres",
+			expected: "postgres",
+		},
+		{
+			name:     "empty defaults to sqlite",
+			value:    "",
+			expected: "sqlite",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("DB_DRIVER", tt.value)
+			defer os.Unsetenv("DB_DRIVER")
+
+			cfg, err := Load()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if cfg.DBDriver != tt.expected {
+				t.Errorf("expected DBDriver '%s', got '%s'", tt.expected, cfg.DBDriver)
+			}
+		})
 	}
 }
 

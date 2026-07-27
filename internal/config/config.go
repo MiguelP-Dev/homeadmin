@@ -12,6 +12,7 @@ type Config struct {
 	Port               string
 	Env                string
 	DatabaseURL        string
+	DBDriver           string
 	JWTSecret          string
 	JWTExpirationHours int
 	CORSOrigins        []string
@@ -27,6 +28,7 @@ func Load() (*Config, error) {
 		Port:               getEnv("PORT", "8080"),
 		Env:                getEnv("ENV", "development"),
 		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		DBDriver:           getEnv("DB_DRIVER", "sqlite"),
 		JWTSecret:          os.Getenv("JWT_SECRET"),
 		JWTExpirationHours: expiration,
 		CORSOrigins:        strings.Split(getEnv("CORS_ORIGINS", "http://localhost:8080"), ","),

@@ -1,6 +1,7 @@
 package database
 
 import (
+	"os"
 	"testing"
 )
 
@@ -53,5 +54,51 @@ func TestMigrateIdempotent(t *testing.T) {
 		if !db.Migrator().HasTable(table) {
 			t.Errorf("expected table %s to exist after migration", table)
 		}
+	}
+}
+
+func TestConnectWithDriverSQLite(t *testing.T) {
+	// Test that SQLite driver works when specified
+	os.Setenv("DB_DRIVER", "sqlite")
+	defer os.Unsetenv("DB_DRIVER")
+
+	db, err := ConnectWithDriver("file::memory:?cache=shared", "sqlite")
+	if err != nil {
+		t.Fatalf("expected no error with sqlite driver, got: %v", err)
+	}
+	if db == nil {
+		t.Fatal("expected non-nil *gorm.DB")
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("failed to get underlying sql.DB: %v", err)
+	}
+	if err := sqlDB.Ping(); err != nil {
+		t.Fatalf("failed to ping database: %v", err)
+	}
+}
+
+func TestConnectWithDriverInvalid(t *testing.T) {
+	// Test that invalid driver returns an error
+	db, err := ConnectWithDriver("file::memory:?cache=shared", "invalid_driver")
+	if err == nil {
+		t.Fatal("expected error for invalid driver, got nil")
+	}
+	if db != nil {
+		t.Fatal("expected nil *gorm.DB on error")
+	}
+}
+
+func TestConnectWithDriverUnsupported(t *testing.T) {
+	// Test that unsupported driver returns a clear error message
+	db, err := ConnectWithDriver("file::memory:?cache=shared", "mysql")
+	if err == nil {
+		t.Fatal("expected error for unsupported driver, got nil")
+	}
+	if db != nil {
+		t.Fatal("expected nil *gorm.DB on error")
+	}
+	if err.Error() != "unsupported database driver: mysql (supported: sqlite, postgres)" {
+		t.Errorf("expected clear error message, got: %v", err)
 	}
 }
