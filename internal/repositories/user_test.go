@@ -8,13 +8,7 @@ import (
 
 func setupTestDB(t *testing.T) *UserRepositoryImpl {
 	t.Helper()
-	db, err := database.Connect("file::memory:?cache=shared")
-	if err != nil {
-		t.Fatalf("failed to connect to test db: %v", err)
-	}
-	if err := database.Migrate(db); err != nil {
-		t.Fatalf("failed to migrate test db: %v", err)
-	}
+	db := setupTestDBRaw(t)
 	return NewUserRepository(db)
 }
 
