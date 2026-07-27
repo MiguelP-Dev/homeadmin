@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,16 +12,18 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/repositories"
 	"github.com/homeadmin/internal/services"
 )
 
 // --- Mock ExpenseService ---
 
 type mockExpenseService struct {
-	createFn          func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error
-	findByHouseholdFn func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
-	updateFn          func(userID, expenseID uint, fields services.ExpenseUpdateFields) error
-	deleteFn          func(userID, expenseID uint) error
+	createFn              func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error
+	findByHouseholdFn     func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
+	updateFn              func(userID, expenseID uint, fields services.ExpenseUpdateFields) error
+	deleteFn              func(userID, expenseID uint) error
+	getDashboardSummaryFn func(userID, householdID uint) (*services.DashboardSummary, error)
 }
 
 func (m *mockExpenseService) Create(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error {
@@ -51,6 +54,13 @@ func (m *mockExpenseService) Delete(userID, expenseID uint) error {
 	return nil
 }
 
+func (m *mockExpenseService) GetDashboardSummary(userID, householdID uint) (*services.DashboardSummary, error) {
+	if m.getDashboardSummaryFn != nil {
+		return m.getDashboardSummaryFn(userID, householdID)
+	}
+	return &services.DashboardSummary{}, nil
+}
+
 // Verify interface compliance at compile time
 var _ expenseServiceInterface = (*mockExpenseService)(nil)
 
@@ -71,6 +81,7 @@ func setupExpenseApp(svc expenseServiceInterface) *fiber.App {
 	app.Get("/expenses", handler.List)
 	app.Put("/expenses/:id", handler.Update)
 	app.Delete("/expenses/:id", handler.Delete)
+	app.Get("/dashboard", handler.Dashboard)
 
 	return app
 }
@@ -319,5 +330,107 @@ func TestDeleteHandler_PermissionDenied(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusForbidden {
 		t.Errorf("expected status 403, got %d", resp.StatusCode)
+	}
+}
+
+// --- Dashboard tests ---
+
+func TestDashboardHandler_Success(t *testing.T) {
+	svc := &mockExpenseService{
+		getDashboardSummaryFn: func(userID, householdID uint) (*services.DashboardSummary, error) {
+			return &services.DashboardSummary{
+				MonthlyTotal: 350.50,
+				CategoryTotals: []repositories.CategoryTotal{
+					{Category: "Groceries", Total: 200.00},
+					{Category: "Rent", Total: 150.50},
+				},
+				RecentExpenses: []database.Expense{
+					{ID: 1, Description: "Groceries", Amount: 50, Category: "Groceries", Date: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC)},
+				},
+			}, nil
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "350.50") {
+		t.Error("expected monthly total 350.50 in HTML")
+	}
+	if !strings.Contains(bodyStr, "Groceries") {
+		t.Error("expected 'Groceries' in category breakdown")
+	}
+	if !strings.Contains(bodyStr, "Dashboard") {
+		t.Error("expected 'Dashboard' in page title")
+	}
+	if !strings.Contains(bodyStr, "/expenses") {
+		t.Error("expected link back to /expenses")
+	}
+}
+
+func TestDashboardHandler_Empty(t *testing.T) {
+	svc := &mockExpenseService{
+		getDashboardSummaryFn: func(userID, householdID uint) (*services.DashboardSummary, error) {
+			return &services.DashboardSummary{
+				MonthlyTotal:   0,
+				CategoryTotals: []repositories.CategoryTotal{},
+				RecentExpenses: []database.Expense{},
+			}, nil
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, "0.00") {
+		t.Error("expected 0.00 for empty monthly total")
+	}
+	if !strings.Contains(bodyStr, "No expenses this month") {
+		t.Error("expected 'No expenses this month' empty state")
+	}
+	if !strings.Contains(bodyStr, "No recent expenses") {
+		t.Error("expected 'No recent expenses' empty state")
+	}
+}
+
+func TestDashboardHandler_ServiceError(t *testing.T) {
+	svc := &mockExpenseService{
+		getDashboardSummaryFn: func(userID, householdID uint) (*services.DashboardSummary, error) {
+			return nil, fmt.Errorf("database connection lost")
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("expected status 500, got %d", resp.StatusCode)
 	}
 }

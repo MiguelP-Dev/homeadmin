@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/repositories"
 )
 
 // Sentinel errors for expense service.
@@ -21,6 +22,9 @@ type ExpenseRepository interface {
 	FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
 	Update(expense *database.Expense) error
 	Delete(id uint) error
+	MonthlyTotal(userID, householdID uint, year int, month time.Month) (float64, error)
+	CategoryBreakdown(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error)
+	RecentExpenses(userID, householdID uint, limit int) ([]database.Expense, error)
 }
 
 // ExpenseUpdateFields carries optional field updates for an expense.
@@ -136,4 +140,37 @@ func canEditExpense(userID uint, expense *database.Expense) bool {
 		return true
 	}
 	return expense.Visibility == database.VisibleEditable
+}
+
+// DashboardSummary aggregates monthly totals, category breakdown, and recent expenses.
+type DashboardSummary struct {
+	MonthlyTotal   float64
+	CategoryTotals []repositories.CategoryTotal
+	RecentExpenses []database.Expense
+}
+
+// GetDashboardSummary returns an aggregated summary for the current month's expenses.
+func (s *ExpenseService) GetDashboardSummary(userID, householdID uint) (*DashboardSummary, error) {
+	now := time.Now()
+
+	total, err := s.repo.MonthlyTotal(userID, householdID, now.Year(), now.Month())
+	if err != nil {
+		return nil, err
+	}
+
+	categories, err := s.repo.CategoryBreakdown(userID, householdID, now.Year(), now.Month())
+	if err != nil {
+		return nil, err
+	}
+
+	recent, err := s.repo.RecentExpenses(userID, householdID, 5)
+	if err != nil {
+		return nil, err
+	}
+
+	return &DashboardSummary{
+		MonthlyTotal:   total,
+		CategoryTotals: categories,
+		RecentExpenses: recent,
+	}, nil
 }

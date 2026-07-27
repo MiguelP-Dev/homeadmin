@@ -6,16 +6,20 @@ import (
 	"time"
 
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/repositories"
 )
 
 // --- Mock ExpenseRepository ---
 
 type mockExpenseRepo struct {
-	createFn          func(expense *database.Expense) error
-	findByIDFn        func(id uint) (*database.Expense, error)
-	findByHouseholdFn func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
-	updateFn          func(expense *database.Expense) error
-	deleteFn          func(id uint) error
+	createFn             func(expense *database.Expense) error
+	findByIDFn           func(id uint) (*database.Expense, error)
+	findByHouseholdFn    func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
+	updateFn             func(expense *database.Expense) error
+	deleteFn             func(id uint) error
+	monthlyTotalFn       func(userID, householdID uint, year int, month time.Month) (float64, error)
+	categoryBreakdownFn  func(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error)
+	recentExpensesFn     func(userID, householdID uint, limit int) ([]database.Expense, error)
 }
 
 func (m *mockExpenseRepo) Create(expense *database.Expense) error {
@@ -51,6 +55,27 @@ func (m *mockExpenseRepo) Delete(id uint) error {
 		return m.deleteFn(id)
 	}
 	return nil
+}
+
+func (m *mockExpenseRepo) MonthlyTotal(userID, householdID uint, year int, month time.Month) (float64, error) {
+	if m.monthlyTotalFn != nil {
+		return m.monthlyTotalFn(userID, householdID, year, month)
+	}
+	return 0, nil
+}
+
+func (m *mockExpenseRepo) CategoryBreakdown(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error) {
+	if m.categoryBreakdownFn != nil {
+		return m.categoryBreakdownFn(userID, householdID, year, month)
+	}
+	return nil, nil
+}
+
+func (m *mockExpenseRepo) RecentExpenses(userID, householdID uint, limit int) ([]database.Expense, error) {
+	if m.recentExpensesFn != nil {
+		return m.recentExpensesFn(userID, householdID, limit)
+	}
+	return nil, nil
 }
 
 // Verify interface compliance at compile time
@@ -310,4 +335,70 @@ func TestDelete_BlockNonCreator(t *testing.T) {
 
 func strPtr(s string) *string {
 	return &s
+}
+
+// --- Dashboard tests ---
+
+func TestGetDashboardSummary_Success(t *testing.T) {
+	repo := &mockExpenseRepo{
+		monthlyTotalFn: func(userID, householdID uint, year int, month time.Month) (float64, error) {
+			return 350.50, nil
+		},
+		categoryBreakdownFn: func(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error) {
+			return []repositories.CategoryTotal{
+				{Category: "Groceries", Total: 200.00},
+				{Category: "Rent", Total: 150.50},
+			}, nil
+		},
+		recentExpensesFn: func(userID, householdID uint, limit int) ([]database.Expense, error) {
+			return []database.Expense{
+				{ID: 1, Description: "Groceries", Amount: 50, Category: "Groceries"},
+				{ID: 2, Description: "Rent", Amount: 150, Category: "Rent"},
+			}, nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	summary, err := svc.GetDashboardSummary(1, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if summary.MonthlyTotal != 350.50 {
+		t.Errorf("expected MonthlyTotal = 350.50, got %.2f", summary.MonthlyTotal)
+	}
+	if len(summary.CategoryTotals) != 2 {
+		t.Errorf("expected 2 category totals, got %d", len(summary.CategoryTotals))
+	}
+	if len(summary.RecentExpenses) != 2 {
+		t.Errorf("expected 2 recent expenses, got %d", len(summary.RecentExpenses))
+	}
+}
+
+func TestGetDashboardSummary_Empty(t *testing.T) {
+	repo := &mockExpenseRepo{
+		monthlyTotalFn: func(userID, householdID uint, year int, month time.Month) (float64, error) {
+			return 0, nil
+		},
+		categoryBreakdownFn: func(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error) {
+			return []repositories.CategoryTotal{}, nil
+		},
+		recentExpensesFn: func(userID, householdID uint, limit int) ([]database.Expense, error) {
+			return []database.Expense{}, nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	summary, err := svc.GetDashboardSummary(1, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if summary.MonthlyTotal != 0 {
+		t.Errorf("expected MonthlyTotal = 0, got %.2f", summary.MonthlyTotal)
+	}
+	if len(summary.CategoryTotals) != 0 {
+		t.Errorf("expected 0 category totals, got %d", len(summary.CategoryTotals))
+	}
+	if len(summary.RecentExpenses) != 0 {
+		t.Errorf("expected 0 recent expenses, got %d", len(summary.RecentExpenses))
+	}
 }

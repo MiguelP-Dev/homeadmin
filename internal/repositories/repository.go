@@ -1,6 +1,16 @@
 package repositories
 
-import "github.com/homeadmin/internal/database"
+import (
+	"time"
+
+	"github.com/homeadmin/internal/database"
+)
+
+// CategoryTotal holds aggregated expenses by category.
+type CategoryTotal struct {
+	Category string
+	Total    float64
+}
 
 // UserRepository defines data-access operations for User entities.
 // Service layers depend on this interface, not on GORM directly.
@@ -30,4 +40,9 @@ type ExpenseRepository interface {
 	FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
 	Update(expense *database.Expense) error
 	Delete(id uint) error
+
+	// Dashboard aggregation methods.
+	MonthlyTotal(userID, householdID uint, year int, month time.Month) (float64, error)
+	CategoryBreakdown(userID, householdID uint, year int, month time.Month) ([]CategoryTotal, error)
+	RecentExpenses(userID, householdID uint, limit int) ([]database.Expense, error)
 }

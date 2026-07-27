@@ -75,9 +75,7 @@ func main() {
 
 	// 8. Protected routes — RequireAuth middleware group
 	protected := app.Group("", middleware.RequireAuth(cfg.JWTSecret))
-	protected.Get("/dashboard", func(c *fiber.Ctx) error {
-		return c.SendString("Dashboard (coming soon)")
-	})
+	protected.Get("/dashboard", expenseHandler.Dashboard)
 
 	// Expense routes (Phase 4 — PR #2)
 	protected.Get("/expenses", expenseHandler.List)

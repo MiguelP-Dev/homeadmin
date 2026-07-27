@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -328,5 +329,186 @@ func TestExpenseRepo_FindByHousehold_CategoryFilter(t *testing.T) {
 	}
 	if len(results) != 2 {
 		t.Errorf("expected 2 Groceries expenses, got %d", len(results))
+	}
+}
+
+// --- Dashboard: MonthlyTotal ---
+
+func TestExpenseRepo_MonthlyTotal(t *testing.T) {
+	repo, userRepo, houseRepo := setupExpenseTestDB(t)
+	hhID, u1ID, _ := seedHouseholdAndUsers(t, userRepo, houseRepo)
+
+	// Seed expenses in July 2026
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      100.00, Description: "Rent", Category: "Rent",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	})
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      50.00, Description: "Groceries", Category: "Groceries",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
+	})
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      25.00, Description: "Transport", Category: "Transportation",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleOnly,
+		Date: time.Date(2026, 7, 20, 0, 0, 0, 0, time.UTC),
+	})
+	// Expense in August — should NOT be included
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      999.00, Description: "Next month", Category: "Other",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+	})
+
+	total, err := repo.MonthlyTotal(u1ID, hhID, 2026, time.July)
+	if err != nil {
+		t.Fatalf("MonthlyTotal returned unexpected error: %v", err)
+	}
+	expected := 175.00
+	if total != expected {
+		t.Errorf("expected MonthlyTotal = %.2f, got %.2f", expected, total)
+	}
+}
+
+func TestExpenseRepo_MonthlyTotal_VisibilityFilter(t *testing.T) {
+	repo, userRepo, houseRepo := setupExpenseTestDB(t)
+	hhID, u1ID, u2ID := seedHouseholdAndUsers(t, userRepo, houseRepo)
+
+	// u2 creates hidden_private expense — u1 should NOT see it in total
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      500.00, Description: "u2 private", Category: "Other",
+		HouseholdID: hhID, CreatedByID: u2ID, Visibility: database.HiddenPrivate,
+		Date: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC),
+	})
+	// u1 creates hidden_private — u1 SHOULD see it
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      50.00, Description: "u1 private", Category: "Personal Care",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.HiddenPrivate,
+		Date: time.Date(2026, 7, 12, 0, 0, 0, 0, time.UTC),
+	})
+	// Shared visible expense
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      100.00, Description: "Shared", Category: "Groceries",
+		HouseholdID: hhID, CreatedByID: u2ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
+	})
+
+	total, err := repo.MonthlyTotal(u1ID, hhID, 2026, time.July)
+	if err != nil {
+		t.Fatalf("MonthlyTotal returned unexpected error: %v", err)
+	}
+	// Should be 50 (u1 private) + 100 (shared) = 150, NOT 650
+	expected := 150.00
+	if total != expected {
+		t.Errorf("expected MonthlyTotal = %.2f (visibility filtered), got %.2f", expected, total)
+	}
+}
+
+// --- Dashboard: CategoryBreakdown ---
+
+func TestExpenseRepo_CategoryBreakdown(t *testing.T) {
+	repo, userRepo, houseRepo := setupExpenseTestDB(t)
+	hhID, u1ID, _ := seedHouseholdAndUsers(t, userRepo, houseRepo)
+
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      1200.00, Description: "Rent", Category: "Rent",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	})
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      30.00, Description: "Groceries 1", Category: "Groceries",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 7, 5, 0, 0, 0, 0, time.UTC),
+	})
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      45.00, Description: "Groceries 2", Category: "Groceries",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC),
+	})
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      20.00, Description: "Transport", Category: "Transportation",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC),
+	})
+
+	breakdown, err := repo.CategoryBreakdown(u1ID, hhID, 2026, time.July)
+	if err != nil {
+		t.Fatalf("CategoryBreakdown returned unexpected error: %v", err)
+	}
+	if len(breakdown) != 3 {
+		t.Fatalf("expected 3 categories, got %d", len(breakdown))
+	}
+
+	// Build map for assertion
+	catMap := make(map[string]float64)
+	for _, ct := range breakdown {
+		catMap[ct.Category] = ct.Total
+	}
+	if catMap["Rent"] != 1200.00 {
+		t.Errorf("expected Rent total = 1200.00, got %.2f", catMap["Rent"])
+	}
+	if catMap["Groceries"] != 75.00 {
+		t.Errorf("expected Groceries total = 75.00, got %.2f", catMap["Groceries"])
+	}
+	if catMap["Transportation"] != 20.00 {
+		t.Errorf("expected Transportation total = 20.00, got %.2f", catMap["Transportation"])
+	}
+}
+
+// --- Dashboard: RecentExpenses ---
+
+func TestExpenseRepo_RecentExpenses(t *testing.T) {
+	repo, userRepo, houseRepo := setupExpenseTestDB(t)
+	hhID, u1ID, _ := seedHouseholdAndUsers(t, userRepo, houseRepo)
+
+	// Seed 10 expenses across July 2026
+	for i := 1; i <= 10; i++ {
+		createTestExpense(t, repo, &database.Expense{
+			Amount:      float64(i * 10), Description: fmt.Sprintf("Expense %d", i), Category: "Groceries",
+			HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+			Date: time.Date(2026, 7, i, 0, 0, 0, 0, time.UTC),
+		})
+	}
+
+	recent, err := repo.RecentExpenses(u1ID, hhID, 5)
+	if err != nil {
+		t.Fatalf("RecentExpenses returned unexpected error: %v", err)
+	}
+	if len(recent) != 5 {
+		t.Errorf("expected 5 recent expenses, got %d", len(recent))
+	}
+
+	// Most recent first — Expense 10 should be first
+	if len(recent) > 0 && recent[0].Description != "Expense 10" {
+		t.Errorf("expected most recent 'Expense 10', got '%s'", recent[0].Description)
+	}
+}
+
+func TestExpenseRepo_RecentExpenses_VisibilityFilter(t *testing.T) {
+	repo, userRepo, houseRepo := setupExpenseTestDB(t)
+	hhID, u1ID, u2ID := seedHouseholdAndUsers(t, userRepo, houseRepo)
+
+	// u2 creates hidden_private expense — should not appear for u1
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      999.00, Description: "u2 hidden", Category: "Other",
+		HouseholdID: hhID, CreatedByID: u2ID, Visibility: database.HiddenPrivate,
+		Date: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC),
+	})
+	// u1 creates a visible expense
+	createTestExpense(t, repo, &database.Expense{
+		Amount:      100.00, Description: "u1 visible", Category: "Groceries",
+		HouseholdID: hhID, CreatedByID: u1ID, Visibility: database.VisibleEditable,
+		Date: time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC),
+	})
+
+	recent, err := repo.RecentExpenses(u1ID, hhID, 10)
+	if err != nil {
+		t.Fatalf("RecentExpenses returned unexpected error: %v", err)
+	}
+	for _, e := range recent {
+		if e.Description == "u2 hidden" {
+			t.Error("expected u2's hidden_private expense to be excluded from u1's recent")
+		}
 	}
 }
