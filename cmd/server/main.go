@@ -15,6 +15,7 @@ import (
 	"github.com/homeadmin/internal/handlers"
 	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/repositories"
+	"github.com/homeadmin/internal/services"
 )
 
 func main() {
@@ -37,7 +38,10 @@ func main() {
 
 	// 4. Dependency injection
 	userRepo := repositories.NewUserRepository(dbConn)
+	expenseRepo := repositories.NewExpenseRepository(dbConn)
 	authHandler := handlers.NewAuthHandler(userRepo, cfg.JWTSecret)
+	expenseService := services.NewExpenseService(expenseRepo)
+	expenseHandler := handlers.NewExpenseHandler(expenseService)
 
 	// 5. Create Fiber app
 	app := fiber.New()
@@ -74,6 +78,12 @@ func main() {
 	protected.Get("/dashboard", func(c *fiber.Ctx) error {
 		return c.SendString("Dashboard (coming soon)")
 	})
+
+	// Expense routes (Phase 4 — PR #2)
+	protected.Get("/expenses", expenseHandler.List)
+	protected.Post("/expenses", expenseHandler.Create)
+	protected.Put("/expenses/:id", expenseHandler.Update)
+	protected.Delete("/expenses/:id", expenseHandler.Delete)
 
 	// 9. Start server
 	log.Printf("server starting on :%s (env: %s)", cfg.Port, cfg.Env)
