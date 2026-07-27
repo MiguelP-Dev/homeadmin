@@ -51,6 +51,7 @@ func main() {
 	app.Use(cors.New(cors.Config{ // Position 2: CORS headers
 		AllowOrigins:     strings.Join(cfg.CORSOrigins, ","),
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Content-Type,Authorization,X-CSRF-Token,HX-Request",
 		AllowCredentials: true,
 	}))
 
@@ -92,12 +93,12 @@ func main() {
 
 // csrfMiddleware wraps Fiber's CSRF middleware with form-based token lookup.
 // KeyLookup "form:csrf" extracts the CSRF token from form field "csrf" on POST requests.
-func csrfMiddleware(key string) fiber.Handler {
+// No custom KeyGenerator — Fiber's default uses crypto/rand for secure random tokens.
+func csrfMiddleware(_ string) fiber.Handler {
 	return csrf.New(csrf.Config{
 		KeyLookup:      "form:csrf",
 		CookieName:     "csrf",
 		CookieHTTPOnly: true,
 		CookieSameSite: "Strict",
-		KeyGenerator:   func() string { return key },
 	})
 }

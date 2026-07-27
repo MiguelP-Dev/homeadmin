@@ -22,6 +22,7 @@ func newTestApp(allowedOrigins string) *fiber.App {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Content-Type,Authorization,X-CSRF-Token,HX-Request",
 		AllowCredentials: true,
 	}))
 
@@ -242,6 +243,64 @@ func TestRootRedirectAuthenticated(t *testing.T) {
 	}
 }
 
+// newCSRFTestApp creates a minimal Fiber app with CSRF middleware using the default token generator.
+// Used to verify that CSRF tokens are random per-request (not static).
+func newCSRFTestApp() *fiber.App {
+	app := fiber.New()
+	app.Use(csrfMiddleware("unused")) // key param ignored when no KeyGenerator override
+	app.Get("/", func(c *fiber.Ctx) error {
+		return c.SendString("ok")
+	})
+	return app
+}
+
+// TestCSRFTokenIsRandom verifies that CSRF tokens change per-request.
+// Covers the security requirement that each request must receive a unique token,
+// not the same static string from a hardcoded KeyGenerator.
+func TestCSRFTokenIsRandom(t *testing.T) {
+	app := newCSRFTestApp()
+
+	// First GET — CSRF middleware should set a _csrf cookie
+	req1 := httptest.NewRequest(http.MethodGet, "/", nil)
+	resp1, err := app.Test(req1, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error on first request: %v", err)
+	}
+	cookie1 := getCookieValue(resp1, "csrf")
+
+	// Second GET — should produce a DIFFERENT csrf cookie value
+	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	resp2, err := app.Test(req2, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error on second request: %v", err)
+	}
+	cookie2 := getCookieValue(resp2, "csrf")
+
+	if cookie1 == "" {
+		t.Fatal("csrf cookie not set on first request")
+	}
+	if cookie2 == "" {
+		t.Fatal("csrf cookie not set on second request")
+	}
+	if cookie1 == cookie2 {
+		t.Errorf("CSRF tokens are not random: both requests returned %q", cookie1)
+	}
+}
+
+// getCookieValue extracts a named cookie value from a Set-Cookie response header.
+func getCookieValue(resp *http.Response, name string) string {
+	for _, raw := range resp.Header.Values("Set-Cookie") {
+		parts := strings.SplitN(raw, ";", 2)
+		kv := strings.TrimSpace(parts[0])
+		if i := strings.IndexByte(kv, '='); i >= 0 {
+			if kv[:i] == name {
+				return kv[i+1:]
+			}
+		}
+	}
+	return ""
+}
+
 // TestCSRFBlocksPostWithoutToken verifies POST /login is blocked by CSRF without csrf field.
 // Covers spec §2.1: CSRF middleware returns 403 for state-mutating requests without CSRF token.
 func TestCSRFBlocksPostWithoutToken(t *testing.T) {
@@ -421,6 +480,39 @@ func TestCORSMiddlewareIntegration(t *testing.T) {
 				t.Errorf("Access-Control-Allow-Credentials = %q, want empty", gotCreds)
 			}
 		})
+	}
+}
+
+// TestCORSAllowHeaders_Preflight verifies CORS preflight returns required AllowHeaders.
+// Covers the security requirement that HTHX-Request and X-CSRF-Token headers must be allowed.
+func TestCORSAllowHeaders_Preflight(t *testing.T) {
+	app := newTestApp("http://localhost:8080")
+
+	req := httptest.NewRequest(http.MethodOptions, "/", nil)
+	req.Header.Set("Origin", "http://localhost:8080")
+	req.Header.Set("Access-Control-Request-Method", "POST")
+	req.Header.Set("Access-Control-Request-Headers", "Content-Type,X-CSRF-Token,HX-Request")
+
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error: %v", err)
+	}
+
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("preflight status = %d, want %d", resp.StatusCode, fiber.StatusNoContent)
+	}
+
+	allowHeaders := resp.Header.Get("Access-Control-Allow-Headers")
+	if allowHeaders == "" {
+		t.Fatal("Access-Control-Allow-Headers header is missing")
+	}
+
+	// All of these must be present for HTMX + CSRF to work cross-origin
+	requiredHeaders := []string{"Content-Type", "Authorization", "X-CSRF-Token", "HX-Request"}
+	for _, rh := range requiredHeaders {
+		if !strings.Contains(allowHeaders, rh) {
+			t.Errorf("Access-Control-Allow-Headers = %q, missing required header %q", allowHeaders, rh)
+		}
 	}
 }
 
