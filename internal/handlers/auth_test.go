@@ -10,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/repositories"
 	"github.com/homeadmin/internal/services"
 )
@@ -54,7 +55,9 @@ var _ repositories.UserRepository = (*mockUserRepo)(nil)
 const testJWTSecret = "handler-test-secret"
 
 func setupHandlerApp(repo repositories.UserRepository) *fiber.App {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
 	handler := NewAuthHandler(repo, testJWTSecret)
 
 	app.Get("/login", handler.ShowLogin)
@@ -311,6 +314,7 @@ func TestRegister_Success(t *testing.T) {
 	form := url.Values{}
 	form.Set("email", "new@example.com")
 	form.Set("password", "securepass123")
+	form.Set("name", "Test User")
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -370,6 +374,7 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 	form := url.Values{}
 	form.Set("email", "existing@example.com")
 	form.Set("password", "securepass123")
+	form.Set("name", "Existing User")
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -380,6 +385,7 @@ func TestRegister_DuplicateEmail(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
+	// Duplicate email check returns 200 with HTML (user-facing error)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
@@ -394,10 +400,11 @@ func TestRegister_MissingFields(t *testing.T) {
 	repo := &mockUserRepo{}
 	app := setupHandlerApp(repo)
 
-	// Submit with empty email
+	// Submit with empty email and missing name
 	form := url.Values{}
 	form.Set("email", "")
 	form.Set("password", "securepass123")
+	form.Set("name", "")
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -408,15 +415,18 @@ func TestRegister_MissingFields(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// Should return 200 with validation error (not 302 redirect)
-	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("expected status 200 for validation error, got %d", resp.StatusCode)
+	// Centralized validation returns 400
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400 for validation error, got %d", resp.StatusCode)
 	}
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
-	if !strings.Contains(bodyStr, "Email and password are required") {
-		t.Error("expected 'Email and password are required' message")
+	if !strings.Contains(bodyStr, "email is required") {
+		t.Errorf("expected 'email is required' message, got: %s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "name is required") {
+		t.Errorf("expected 'name is required' message, got: %s", bodyStr)
 	}
 }
 
@@ -432,6 +442,7 @@ func TestRegister_WeakPassword(t *testing.T) {
 	form := url.Values{}
 	form.Set("email", "new@example.com")
 	form.Set("password", "short")
+	form.Set("name", "Test User")
 
 	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -442,14 +453,15 @@ func TestRegister_WeakPassword(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("expected status 200 for weak password validation, got %d", resp.StatusCode)
+	// Centralized validation returns 400
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400 for weak password validation, got %d", resp.StatusCode)
 	}
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
-	if !strings.Contains(bodyStr, "Password must be at least 8 characters") {
-		t.Error("expected 'Password must be at least 8 characters' message")
+	if !strings.Contains(bodyStr, "password must be at least 8 characters") {
+		t.Errorf("expected 'password must be at least 8 characters' message, got: %s", bodyStr)
 	}
 
 	// Should NOT set JWT cookie

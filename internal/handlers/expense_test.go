@@ -138,7 +138,7 @@ func TestCreateHandler_Success(t *testing.T) {
 	form := url.Values{}
 	form.Set("amount", "250.50")
 	form.Set("description", "Groceries")
-	form.Set("category", "Groceries")
+	form.Set("category", "food")
 	form.Set("date", "2026-07-27")
 	form.Set("visibility", "visible_editable")
 	form.Set("isFixed", "false")

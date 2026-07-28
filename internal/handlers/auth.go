@@ -140,13 +140,17 @@ const minPasswordLength = 8
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	email := c.FormValue("email")
 	password := c.FormValue("password")
+	name := c.FormValue("name")
 
-	if email == "" || password == "" {
-		return c.Status(fiber.StatusOK).SendString(registerMissingFieldsHTML)
-	}
-
-	if len(password) < minPasswordLength {
-		return c.Status(fiber.StatusOK).SendString(registerWeakPasswordHTML)
+	// Validate inputs before touching the database.
+	if err := middleware.Validate(
+		middleware.ValidateRequired(email, "email"),
+		middleware.ValidateEmailFormat(email, "email"),
+		middleware.ValidateRequired(password, "password"),
+		middleware.ValidateRequired(name, "name"),
+		middleware.ValidateMinLength(password, "password", minPasswordLength),
+	); err != nil {
+		return err
 	}
 
 	// Check for duplicate email
