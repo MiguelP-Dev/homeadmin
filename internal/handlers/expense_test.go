@@ -12,6 +12,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/repositories"
 	"github.com/homeadmin/internal/services"
 )
@@ -67,7 +68,9 @@ var _ expenseServiceInterface = (*mockExpenseService)(nil)
 // --- Test helpers ---
 
 func setupExpenseApp(svc expenseServiceInterface) *fiber.App {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
 	handler := NewExpenseHandler(svc)
 
 	// Middleware to simulate JWT-validated locals (normally set by RequireAuth)

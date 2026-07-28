@@ -43,8 +43,10 @@ func main() {
 	expenseService := services.NewExpenseService(expenseRepo)
 	expenseHandler := handlers.NewExpenseHandler(expenseService)
 
-	// 5. Create Fiber app
-	app := fiber.New()
+	// 5. Create Fiber app with centralized error handler
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
 
 	// 6. Middleware chain — order matters (spec §9)
 	app.Use(logger.New()) // Position 1: request logging

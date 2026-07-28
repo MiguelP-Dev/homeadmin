@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/services"
 )
 
@@ -37,7 +38,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	amountStr := c.FormValue("amount")
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid amount"})
+		return middleware.BadRequest("invalid amount")
 	}
 
 	description := c.FormValue("description")
@@ -50,7 +51,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	if dateStr != "" {
 		date, err = time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid date format, use YYYY-MM-DD"})
+			return middleware.BadRequest("invalid date format, use YYYY-MM-DD")
 		}
 	} else {
 		date = time.Now()
@@ -64,11 +65,10 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	isFixed := isFixedStr == "true" || isFixedStr == "1"
 
 	if err := h.Service.Create(userID, householdID, amount, description, category, date, visibility, isFixed); err != nil {
-		status := fiber.StatusBadRequest
 		if err == services.ErrPermission {
-			status = fiber.StatusForbidden
+			return middleware.Forbidden(err.Error())
 		}
-		return c.Status(status).JSON(fiber.Map{"error": err.Error()})
+		return middleware.BadRequest(err.Error())
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
@@ -97,7 +97,7 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 
 	expenses, err := h.Service.FindByHousehold(userID, householdID, filters)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch expenses"})
+		return middleware.Internal("failed to fetch expenses")
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -111,7 +111,7 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 
 	expenseID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid expense id"})
+		return middleware.BadRequest("invalid expense id")
 	}
 
 	var fields services.ExpenseUpdateFields
@@ -119,7 +119,7 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	if v := c.FormValue("amount"); v != "" {
 		amount, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid amount"})
+			return middleware.BadRequest("invalid amount")
 		}
 		fields.Amount = &amount
 	}
@@ -132,7 +132,7 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	if v := c.FormValue("date"); v != "" {
 		date, err := time.Parse("2006-01-02", v)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid date format, use YYYY-MM-DD"})
+			return middleware.BadRequest("invalid date format, use YYYY-MM-DD")
 		}
 		fields.Date = &date
 	}
@@ -146,11 +146,10 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	}
 
 	if err := h.Service.Update(userID, uint(expenseID), fields); err != nil {
-		status := fiber.StatusBadRequest
 		if err == services.ErrPermission {
-			status = fiber.StatusForbidden
+			return middleware.Forbidden(err.Error())
 		}
-		return c.Status(status).JSON(fiber.Map{"error": err.Error()})
+		return middleware.BadRequest(err.Error())
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -164,15 +163,14 @@ func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 
 	expenseID, err := strconv.ParseUint(c.Params("id"), 10, 32)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid expense id"})
+		return middleware.BadRequest("invalid expense id")
 	}
 
 	if err := h.Service.Delete(userID, uint(expenseID)); err != nil {
-		status := fiber.StatusBadRequest
 		if err == services.ErrPermission {
-			status = fiber.StatusForbidden
+			return middleware.Forbidden(err.Error())
 		}
-		return c.Status(status).JSON(fiber.Map{"error": err.Error()})
+		return middleware.BadRequest(err.Error())
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -187,7 +185,7 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 
 	summary, err := h.Service.GetDashboardSummary(userID, householdID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Error loading dashboard")
+		return middleware.Internal("failed to load dashboard")
 	}
 
 	return c.Status(fiber.StatusOK).SendString(dashboardHTML(summary))

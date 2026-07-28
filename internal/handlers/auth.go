@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/repositories"
 	"github.com/homeadmin/internal/services"
 )
@@ -91,7 +92,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	user, err := h.UserRepo.FindByEmail(email)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal server error")
+		return middleware.Internal("internal server error")
 	}
 	if user == nil || !h.AuthService.CheckPassword(password, user.PasswordHash) {
 		return c.Status(fiber.StatusOK).SendString(loginErrorHTML)
@@ -99,7 +100,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, h.JWTSecret, 24)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal server error")
+		return middleware.Internal("internal server error")
 	}
 
 	c.Cookie(&fiber.Cookie{
@@ -151,7 +152,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	// Check for duplicate email
 	existing, err := h.UserRepo.FindByEmail(email)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal server error")
+		return middleware.Internal("internal server error")
 	}
 	if existing != nil {
 		return c.Status(fiber.StatusOK).SendString(registerDuplicateEmailHTML)
@@ -159,7 +160,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 
 	hash, err := h.AuthService.HashPassword(password)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal server error")
+		return middleware.Internal("internal server error")
 	}
 
 	user := &database.User{
@@ -168,12 +169,12 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		Role:         "member",
 	}
 	if err := h.UserRepo.Create(user); err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal server error")
+		return middleware.Internal("internal server error")
 	}
 
 	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, h.JWTSecret, 24)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal server error")
+		return middleware.Internal("internal server error")
 	}
 
 	c.Cookie(&fiber.Cookie{
