@@ -1,0 +1,63 @@
+package components
+
+// ToastContainer renders the toast notification container with client-side JS
+// that listens for HTMX HX-Trigger response headers and displays toast notifications.
+templ ToastContainer() {
+	<div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+	<script>
+		(function() {
+			var container = document.getElementById('toast-container');
+			if (!container) return;
+
+			// Color map for toast levels
+			var levelStyles = {
+				success: 'bg-green-500',
+				error:   'bg-red-500',
+				warning: 'bg-yellow-500'
+			};
+
+			// Show a toast notification with auto-dismiss
+			function showToast(message, level) {
+				level = level || 'error';
+				var bgClass = levelStyles[level] || 'bg-red-500';
+
+				var toast = document.createElement('div');
+				toast.className = bgClass + ' text-white px-4 py-3 rounded shadow-lg opacity-0 transition-opacity duration-300';
+				toast.textContent = message;
+				container.appendChild(toast);
+
+				// Fade in
+				requestAnimationFrame(function() {
+					toast.style.opacity = '1';
+				});
+
+				// Auto-dismiss after 4 seconds
+				setTimeout(function() {
+					toast.style.opacity = '0';
+					setTimeout(function() {
+						if (toast.parentNode) {
+							toast.parentNode.removeChild(toast);
+						}
+					}, 300);
+				}, 4000);
+			}
+
+			// Listen for HTMX afterRequest events
+			document.addEventListener('htmx:afterRequest', function(e) {
+				var xhr = e.detail.xhr;
+				if (!xhr) return;
+				var trigger = xhr.getResponseHeader('HX-Trigger');
+				if (!trigger) return;
+				try {
+					var data = JSON.parse(trigger);
+					showToast(data.message, data.level || 'error');
+				} catch(err) {
+					// Non-JSON trigger header — ignore
+				}
+			});
+
+			// Expose for manual use
+			window.showToast = showToast;
+		})();
+	</script>
+}

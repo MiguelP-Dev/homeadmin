@@ -45,6 +45,7 @@ func Internal(msg string) *AppError {
 
 // ErrorHandler is the centralized Fiber error handler.
 // It content-negotiates: JSON for API clients, HTML for browsers.
+// For HTMX requests, it sets the HX-Trigger header so client-side JS can show toasts.
 func ErrorHandler(c *fiber.Ctx, err error) error {
 	// Extract status and message from AppError or fallback to generic error
 	status := fiber.StatusInternalServerError
@@ -60,6 +61,11 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 		fmt.Printf("[ERROR] %d %s\n", status, message)
 	}
 
+	// For HTMX requests, set HX-Trigger header with toast data
+	if isHtmxRequest(c) {
+		c.Set("HX-Trigger", fmt.Sprintf(`{"message":"%s","level":"error"}`, message))
+	}
+
 	// Content negotiation via Accept header
 	accept := c.Get("Accept")
 	if containsHTML(accept) {
@@ -67,6 +73,11 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 	}
 
 	return c.Status(status).JSON(fiber.Map{"error": message})
+}
+
+// isHtmxRequest checks if the request originated from HTMX.
+func isHtmxRequest(c *fiber.Ctx) bool {
+	return c.Get("HX-Request") == "true"
 }
 
 // containsHTML checks if the Accept header indicates HTML preference.

@@ -5,6 +5,7 @@ go 1.26.5
 require github.com/joho/godotenv v1.5.1
 
 require (
+	github.com/a-h/templ v0.3.1020 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/gofiber/fiber/v2 v2.52.14 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect

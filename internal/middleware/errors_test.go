@@ -134,6 +134,56 @@ func TestErrorHandlerDefaultAccept(t *testing.T) {
 	}
 }
 
+func TestErrorHandlerHtmxSetsTriggerHeader(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return BadRequest("invalid email format")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("HX-Request", "true")
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
+	}
+
+	trigger := resp.Header.Get("HX-Trigger")
+	if trigger == "" {
+		t.Fatal("expected HX-Trigger header on HTMX request, got empty")
+	}
+	if !containsStr(trigger, "invalid email format") {
+		t.Errorf("HX-Trigger missing error message: %s", trigger)
+	}
+	if !containsStr(trigger, `"level":"error"`) {
+		t.Errorf("HX-Trigger missing level field: %s", trigger)
+	}
+}
+
+func TestErrorHandlerNonHtmxNoTriggerHeader(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return NotFound("not found")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "application/json")
+	// No HX-Request header — regular request
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	trigger := resp.Header.Get("HX-Trigger")
+	if trigger != "" {
+		t.Errorf("HX-Trigger header should NOT be set for non-HTMX requests, got: %s", trigger)
+	}
+}
+
 func containsStr(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {

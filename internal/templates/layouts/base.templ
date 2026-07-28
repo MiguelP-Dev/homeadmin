@@ -1,0 +1,22 @@
+package layouts
+
+import "github.com/homeadmin/internal/templates/components"
+
+// Base provides the HTML shell for all pages.
+templ Base(title string, csrfToken string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title }</title>
+			<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+			<link rel="stylesheet" href="/static/css/output.css"/>
+			<meta name="csrf-token" content={ csrfToken }/>
+		</head>
+		<body>
+			{ children... }
+			@components.ToastContainer()
+		</body>
+	</html>
+}
