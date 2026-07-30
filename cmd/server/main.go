@@ -26,7 +26,7 @@ func main() {
 	}
 
 	// 2. Connect to database
-	dbConn, err := database.Connect(cfg.DatabaseURL)
+	dbConn, err := database.ConnectWithDriver(cfg.DatabaseURL, cfg.DBDriver)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
@@ -102,6 +102,7 @@ func main() {
 func csrfMiddleware(_ string) fiber.Handler {
 	return csrf.New(csrf.Config{
 		KeyLookup:      "form:csrf",
+		ContextKey:     "csrfToken", // matches handler reads via c.Locals("csrfToken")
 		CookieName:     "csrf",
 		CookieHTTPOnly: true,
 		CookieSameSite: "Strict",
