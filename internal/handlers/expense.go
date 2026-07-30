@@ -32,12 +32,6 @@ func NewExpenseHandler(svc expenseServiceInterface) *ExpenseHandler {
 	return &ExpenseHandler{Service: svc}
 }
 
-// validExpenseCategories defines the allowed expense category values.
-var validExpenseCategories = []string{
-	"food", "rent", "utilities", "transport", "entertainment",
-	"health", "education", "clothing", "household", "other",
-}
-
 // Create handles POST /expenses — parses form data and delegates to service.
 func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
@@ -58,7 +52,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 		middleware.ValidateMaxLength(description, "description", 255),
 		middleware.ValidatePositive(amount, "amount"),
 		middleware.ValidateRequired(category, "category"),
-		middleware.ValidateIn(category, "category", validExpenseCategories),
+		middleware.ValidateIn(category, "category", database.ExpenseCategories),
 	); err != nil {
 		return err
 	}

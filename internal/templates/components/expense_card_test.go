@@ -63,6 +63,14 @@ func TestExpenseCard_ShowsVisibility(t *testing.T) {
 	}
 }
 
+func TestExpenseCard_ShowsVisibleOnly(t *testing.T) {
+	e := database.Expense{ID: 1, Description: "Bill", Amount: 100.00, Category: "utilities", Date: time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC), Visibility: database.VisibleOnly}
+	output := mustRenderExpenseCard(e)
+	if !strings.Contains(output, "yellow") && !strings.Contains(output, "visible") && !strings.Contains(output, "read") {
+		t.Error("expected visibility indicator for visible_only expense")
+	}
+}
+
 func TestExpenseCard_ShowsVisibleEditable(t *testing.T) {
 	e := database.Expense{ID: 1, Description: "Groceries", Amount: 50.00, Category: "food", Date: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC), Visibility: database.VisibleEditable}
 	output := mustRenderExpenseCard(e)

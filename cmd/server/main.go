@@ -58,7 +58,9 @@ func main() {
 	}))
 
 	// Position 3: Static file serving (spec §6.8)
-	app.Static("/static", "./static")
+	app.Static("/static", "./static", fiber.Static{
+		MaxAge: 31536000, // 1 year cache — files are versioned by the build process
+	})
 
 	// Position 4: CSRF protection (spec §2.1)
 	csrfKey := cfg.CSRFKey

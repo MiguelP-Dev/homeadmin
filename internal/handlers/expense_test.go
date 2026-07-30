@@ -138,7 +138,7 @@ func TestCreateHandler_PermissionDenied(t *testing.T) {
 	form := url.Values{}
 	form.Set("amount", "100")
 	form.Set("description", "Some expense")
-	form.Set("category", "rent")
+	form.Set("category", "Rent")
 	form.Set("date", "2026-07-27")
 	form.Set("visibility", "visible_editable")
 
@@ -198,7 +198,7 @@ func TestCreateHandler_Success(t *testing.T) {
 	form := url.Values{}
 	form.Set("amount", "250.50")
 	form.Set("description", "Groceries")
-	form.Set("category", "food")
+	form.Set("category", "Groceries")
 	form.Set("date", "2026-07-27")
 	form.Set("visibility", "visible_editable")
 	form.Set("isFixed", "false")
