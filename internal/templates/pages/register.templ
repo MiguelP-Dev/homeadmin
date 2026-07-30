@@ -1,0 +1,30 @@
+package pages
+
+// Register renders the registration form page content.
+// csrfToken is the CSRF token for the hidden input field.
+// errorMsg is an optional error message displayed above the form; empty means no error.
+templ Register(csrfToken string, errorMsg string) {
+	<div class="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+		<h1 class="text-2xl font-bold mb-4">Register</h1>
+		if errorMsg != "" {
+			<p class="text-red-500 mb-4">{ errorMsg }</p>
+		}
+		<form method="POST" action="/register">
+			<input type="hidden" name="csrf" value={ csrfToken }/>
+			<div class="mb-4">
+				<label for="name" class="block text-sm font-medium text-gray-700">Name:</label>
+				<input type="text" id="name" name="name" required class="w-full border rounded p-2"/>
+			</div>
+			<div class="mb-4">
+				<label for="email" class="block text-sm font-medium text-gray-700">Email:</label>
+				<input type="email" id="email" name="email" required class="w-full border rounded p-2"/>
+			</div>
+			<div class="mb-4">
+				<label for="password" class="block text-sm font-medium text-gray-700">Password:</label>
+				<input type="password" id="password" name="password" required minlength="8" class="w-full border rounded p-2"/>
+			</div>
+			<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Register</button>
+		</form>
+		<p class="mt-4 text-sm"><a href="/login" class="text-blue-500">Already have an account? Login</a></p>
+	</div>
+}

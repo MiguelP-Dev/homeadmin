@@ -35,3 +35,6 @@ sdd/
 
 # Skill registry (internal tooling)
 .atl/
+
+# Local dev database
+homeadmin.db

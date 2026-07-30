@@ -3,7 +3,8 @@ package layouts
 import "github.com/homeadmin/internal/templates/components"
 
 // Base provides the HTML shell for all pages.
-templ Base(title string, csrfToken string) {
+// username indicates authentication state: empty = not logged in, non-empty = logged in.
+templ Base(title string, csrfToken string, username string) {
 	<!DOCTYPE html>
 	<html lang="en">
 		<head>
@@ -15,6 +16,7 @@ templ Base(title string, csrfToken string) {
 			<meta name="csrf-token" content={ csrfToken }/>
 		</head>
 		<body>
+			@components.Nav(username)
 			{ children... }
 			@components.ToastContainer()
 		</body>
