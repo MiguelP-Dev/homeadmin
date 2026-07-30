@@ -143,6 +143,23 @@ func TestCreate_InvalidCategory(t *testing.T) {
 	}
 }
 
+func TestCreate_RepoError(t *testing.T) {
+	repo := &mockExpenseRepo{
+		createFn: func(e *database.Expense) error {
+			return errors.New("db connection lost")
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	err := svc.Create(1, 1, 100.0, "Groceries", "Groceries", fixedDate(), database.VisibleEditable, false)
+	if err == nil {
+		t.Fatal("expected error when repo.Create fails")
+	}
+	if err.Error() != "db connection lost" {
+		t.Errorf("expected 'db connection lost', got '%v'", err)
+	}
+}
+
 func TestCreate_Success(t *testing.T) {
 	var saved *database.Expense
 	repo := &mockExpenseRepo{
@@ -328,6 +345,216 @@ func TestDelete_BlockNonCreator(t *testing.T) {
 	}
 	if !errors.Is(err, ErrPermission) {
 		t.Errorf("expected ErrPermission, got %v", err)
+	}
+}
+
+// --- FindByHousehold tests ---
+
+func TestFindByHousehold_CallsRepo(t *testing.T) {
+	var calledUserID, calledHouseholdID uint
+	var calledFilters database.ExpenseFilters
+	repo := &mockExpenseRepo{
+		findByHouseholdFn: func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
+			calledUserID = userID
+			calledHouseholdID = householdID
+			calledFilters = filters
+			return []database.Expense{
+				{ID: 1, Description: "Test", Amount: 100, Category: "Rent"},
+			}, nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	filters := database.ExpenseFilters{Category: "Rent"}
+	results, err := svc.FindByHousehold(1, 2, filters)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if calledUserID != 1 {
+		t.Errorf("expected userID=1, got %d", calledUserID)
+	}
+	if calledHouseholdID != 2 {
+		t.Errorf("expected householdID=2, got %d", calledHouseholdID)
+	}
+	if calledFilters.Category != "Rent" {
+		t.Errorf("expected filters.Category='Rent', got '%s'", calledFilters.Category)
+	}
+}
+
+// --- Delete not-found tests ---
+
+func TestDelete_RepoError(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	err := svc.Delete(1, 999)
+	if err == nil {
+		t.Fatal("expected error when repo.FindByID fails")
+	}
+	if err.Error() != "db error" {
+		t.Errorf("expected 'db error', got '%v'", err)
+	}
+}
+
+func TestDelete_NotFound(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return nil, nil // expense not found
+		},
+		deleteFn: func(id uint) error {
+			t.Error("Delete should not be called when expense is not found")
+			return nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	err := svc.Delete(1, 999)
+	if err == nil {
+		t.Fatal("expected error for not-found expense")
+	}
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// --- Update not-found tests ---
+
+func TestUpdate_NotFound(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return nil, nil // expense not found
+		},
+		updateFn: func(e *database.Expense) error {
+			t.Error("Update should not be called when expense is not found")
+			return nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	err := svc.Update(1, 999, ExpenseUpdateFields{Description: strPtr("Should not update")})
+	if err == nil {
+		t.Fatal("expected error for not-found expense")
+	}
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestUpdate_AllFields(t *testing.T) {
+	var updated *database.Expense
+	date := time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC)
+	isFixed := true
+	vis := database.VisibleOnly
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{
+				ID: 1, CreatedByID: 1, Visibility: database.VisibleEditable,
+				Description: "Old", Amount: 100, Category: "Rent",
+			}, nil
+		},
+		updateFn: func(e *database.Expense) error {
+			updated = e
+			return nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	amount := 250.50
+	err := svc.Update(1, 1, ExpenseUpdateFields{
+		Amount:      &amount,
+		Description: strPtr("New desc"),
+		Category:    strPtr("Groceries"),
+		Date:        &date,
+		Visibility:  &vis,
+		IsFixed:     &isFixed,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated == nil {
+		t.Fatal("expected repo.Update to be called")
+	}
+	if updated.Amount != 250.50 {
+		t.Errorf("expected Amount=250.50, got %f", updated.Amount)
+	}
+	if updated.Description != "New desc" {
+		t.Errorf("expected Description='New desc', got '%s'", updated.Description)
+	}
+	if updated.Category != "Groceries" {
+		t.Errorf("expected Category='Groceries', got '%s'", updated.Category)
+	}
+	if !updated.Date.Equal(date) {
+		t.Errorf("expected Date=%v, got %v", date, updated.Date)
+	}
+	if updated.Visibility != vis {
+		t.Errorf("expected Visibility=%s, got %s", vis, updated.Visibility)
+	}
+	if updated.IsFixed != isFixed {
+		t.Errorf("expected IsFixed=true, got %v", updated.IsFixed)
+	}
+}
+
+func TestUpdate_InvalidCategory(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{
+				ID: 1, CreatedByID: 1, Visibility: database.VisibleEditable,
+				Description: "Old", Amount: 100, Category: "Rent",
+			}, nil
+		},
+		updateFn: func(e *database.Expense) error {
+			t.Error("Update should not be called with invalid category")
+			return nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	err := svc.Update(1, 1, ExpenseUpdateFields{Category: strPtr("InvalidCat")})
+	if err == nil {
+		t.Fatal("expected validation error for invalid category")
+	}
+	if !errors.Is(err, ErrValidation) {
+		t.Errorf("expected ErrValidation, got %v", err)
+	}
+}
+
+// --- Dashboard error propagation tests ---
+
+func TestGetDashboardSummary_MonthlyTotalError(t *testing.T) {
+	repo := &mockExpenseRepo{
+		monthlyTotalFn: func(userID, householdID uint, year int, month time.Month) (float64, error) {
+			return 0, errors.New("db error")
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	_, err := svc.GetDashboardSummary(1, 1)
+	if err == nil {
+		t.Fatal("expected error when MonthlyTotal fails")
+	}
+}
+
+func TestGetDashboardSummary_CategoryBreakdownError(t *testing.T) {
+	repo := &mockExpenseRepo{
+		monthlyTotalFn: func(userID, householdID uint, year int, month time.Month) (float64, error) {
+			return 0, nil
+		},
+		categoryBreakdownFn: func(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error) {
+			return nil, errors.New("category db error")
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	_, err := svc.GetDashboardSummary(1, 1)
+	if err == nil {
+		t.Fatal("expected error when CategoryBreakdown fails")
 	}
 }
 

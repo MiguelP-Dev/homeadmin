@@ -128,3 +128,63 @@ func TestUserRepo_FindByID_NotFound(t *testing.T) {
 		t.Errorf("expected nil for not-found, got user with ID %d", found.ID)
 	}
 }
+
+func TestUserRepo_Update(t *testing.T) {
+	repo := setupTestDB(t)
+
+	user := &database.User{
+		Email:        "update@example.com",
+		PasswordHash: "hash1",
+		Role:         "member",
+	}
+	if err := repo.Create(user); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	user.Role = "admin"
+	user.PasswordHash = "hash2"
+	if err := repo.Update(user); err != nil {
+		t.Fatalf("Update returned unexpected error: %v", err)
+	}
+
+	found, err := repo.FindByID(user.ID)
+	if err != nil {
+		t.Fatalf("FindByID after update failed: %v", err)
+	}
+	if found == nil {
+		t.Fatal("expected user to be found after Update")
+	}
+	if found.Role != "admin" {
+		t.Errorf("expected Role=admin, got %s", found.Role)
+	}
+	if found.PasswordHash != "hash2" {
+		t.Errorf("expected PasswordHash=hash2, got %s", found.PasswordHash)
+	}
+}
+
+func TestUserRepo_Delete(t *testing.T) {
+	repo := setupTestDB(t)
+
+	user := &database.User{
+		Email:        "delete@example.com",
+		PasswordHash: "hash",
+		Role:         "member",
+	}
+	if err := repo.Create(user); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	if err := repo.Delete(user.ID); err != nil {
+		t.Fatalf("Delete returned unexpected error: %v", err)
+	}
+
+	// Deleted user should still be found (hard delete) — GORM Delete marks deleted_at
+	// but GORM's First query filters by deleted_at IS NULL by default
+	found, err := repo.FindByID(user.ID)
+	if err != nil {
+		t.Fatalf("FindByID after Delete failed: %v", err)
+	}
+	if found != nil {
+		t.Error("expected nil for deleted user (GORM default scope excludes soft-deleted)")
+	}
+}

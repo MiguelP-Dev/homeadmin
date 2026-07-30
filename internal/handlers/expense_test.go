@@ -127,6 +127,64 @@ func TestCreateHandler_ValidationError(t *testing.T) {
 	}
 }
 
+func TestCreateHandler_PermissionDenied(t *testing.T) {
+	svc := &mockExpenseService{
+		createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error {
+			return services.ErrPermission
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	form := url.Values{}
+	form.Set("amount", "100")
+	form.Set("description", "Some expense")
+	form.Set("category", "rent")
+	form.Set("date", "2026-07-27")
+	form.Set("visibility", "visible_editable")
+
+	req := httptest.NewRequest(http.MethodPost, "/expenses", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("expected status 403 for permission denied, got %d", resp.StatusCode)
+	}
+}
+
+func TestCreateHandler_InvalidAmount(t *testing.T) {
+	svc := &mockExpenseService{}
+	app := setupExpenseApp(svc)
+
+	form := url.Values{}
+	form.Set("amount", "not-a-number")
+	form.Set("description", "Some expense")
+	form.Set("category", "Rent")
+	form.Set("date", "2026-07-27")
+
+	req := httptest.NewRequest(http.MethodPost, "/expenses", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400 for invalid amount, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "invalid amount") {
+		t.Errorf("expected 'invalid amount' in response, got: %s", string(body))
+	}
+}
+
 func TestCreateHandler_Success(t *testing.T) {
 	var savedDesc string
 	svc := &mockExpenseService{
@@ -202,6 +260,57 @@ func TestListHandler_Success(t *testing.T) {
 	}
 }
 
+func TestListHandler_WithFilters(t *testing.T) {
+	svc := &mockExpenseService{
+		findByHouseholdFn: func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
+			if filters.Category != "food" {
+				t.Errorf("expected category filter 'food', got '%s'", filters.Category)
+			}
+			if filters.Limit != 10 {
+				t.Errorf("expected limit 10, got %d", filters.Limit)
+			}
+			if filters.Offset != 5 {
+				t.Errorf("expected offset 5, got %d", filters.Offset)
+			}
+			return []database.Expense{
+				{ID: 1, Description: "Lunch", Amount: 25, Category: "food"},
+			}, nil
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/expenses?category=food&limit=10&offset=5", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestListHandler_ServiceError(t *testing.T) {
+	svc := &mockExpenseService{
+		findByHouseholdFn: func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
+			return nil, fmt.Errorf("database connection failed")
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/expenses", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("expected status 500 for service error, got %d", resp.StatusCode)
+	}
+}
+
 func TestListHandler_Empty(t *testing.T) {
 	svc := &mockExpenseService{
 		findByHouseholdFn: func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
@@ -223,6 +332,31 @@ func TestListHandler_Empty(t *testing.T) {
 }
 
 // --- Update tests ---
+
+func TestUpdateHandler_InvalidID(t *testing.T) {
+	svc := &mockExpenseService{}
+	app := setupExpenseApp(svc)
+
+	form := url.Values{}
+	form.Set("description", "Should not update")
+	req := httptest.NewRequest(http.MethodPut, "/expenses/abc", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400 for invalid ID, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "invalid expense id") {
+		t.Errorf("expected 'invalid expense id' in response, got: %s", string(body))
+	}
+}
 
 func TestUpdateHandler_PermissionDenied(t *testing.T) {
 	svc := &mockExpenseService{
@@ -315,6 +449,47 @@ func TestDeleteHandler_Success(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteHandler_InvalidID(t *testing.T) {
+	svc := &mockExpenseService{}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/expenses/abc", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400 for invalid ID, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "invalid expense id") {
+		t.Errorf("expected 'invalid expense id' in response, got: %s", string(body))
+	}
+}
+
+func TestDeleteHandler_NotFound(t *testing.T) {
+	svc := &mockExpenseService{
+		deleteFn: func(userID, expenseID uint) error {
+			return services.ErrNotFound
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/expenses/999", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400 for not found, got %d", resp.StatusCode)
 	}
 }
 
