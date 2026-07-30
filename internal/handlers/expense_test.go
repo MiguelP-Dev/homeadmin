@@ -77,6 +77,8 @@ func setupExpenseApp(svc expenseServiceInterface) *fiber.App {
 	app.Use(func(c *fiber.Ctx) error {
 		c.Locals("userID", uint(1))
 		c.Locals("householdID", uint(1))
+		c.Locals("email", "test@example.com")
+		c.Locals("csrfToken", "test-csrf-token")
 		return c.Next()
 	})
 

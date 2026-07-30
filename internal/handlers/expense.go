@@ -1,14 +1,16 @@
 package handlers
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
 	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/services"
+	"github.com/homeadmin/internal/templates/layouts"
+	"github.com/homeadmin/internal/templates/pages"
 )
 
 // expenseServiceInterface defines the expense service methods needed by the handler.
@@ -196,7 +198,7 @@ func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 	})
 }
 
-// Dashboard handles GET /dashboard — returns an HTML page with monthly summary.
+// Dashboard handles GET /dashboard — returns an HTML page with monthly summary via templ.
 func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID := c.Locals("householdID").(uint)
@@ -206,65 +208,11 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 		return middleware.Internal("failed to load dashboard")
 	}
 
-	return c.Status(fiber.StatusOK).SendString(dashboardHTML(summary))
-}
+	username, _ := c.Locals("email").(string)
+	csrfToken, _ := c.Locals("csrfToken").(string)
 
-// dashboardHTML renders the dashboard as a complete HTML page.
-func dashboardHTML(summary *services.DashboardSummary) string {
-	now := time.Now()
-	monthName := now.Format("January 2006")
-
-	// Category breakdown rows
-	catRows := ""
-	for _, ct := range summary.CategoryTotals {
-		catRows += fmt.Sprintf("<tr><td>%s</td><td>$%.2f</td></tr>\n", ct.Category, ct.Total)
-	}
-	if catRows == "" {
-		catRows = "<tr><td colspan=\"2\">No expenses this month</td></tr>\n"
-	}
-
-	// Recent expenses list
-	recentItems := ""
-	for _, e := range summary.RecentExpenses {
-		recentItems += fmt.Sprintf(
-			"<li><strong>%s</strong> — $%.2f (%s) <em>%s</em></li>\n",
-			e.Description, e.Amount, e.Category, e.Date.Format("Jan 2"),
-		)
-	}
-	if recentItems == "" {
-		recentItems = "<li>No recent expenses</li>\n"
-	}
-
-	return fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard — HomeAdmin</title>
-    <style>
-        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #333; }
-        h1 { border-bottom: 2px solid #e0e0e0; padding-bottom: 0.5rem; }
-        .total { font-size: 2rem; font-weight: bold; color: #2d6a4f; margin: 1rem 0; }
-        table { width: 100%%; border-collapse: collapse; margin: 1rem 0; }
-        th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #e0e0e0; }
-        th { background: #f5f5f5; }
-        ul { list-style: none; padding: 0; }
-        li { padding: 0.4rem 0; border-bottom: 1px solid #f0f0f0; }
-        a { color: #2d6a4f; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-    </style>
-</head>
-<body>
-    <h1>Dashboard — %s</h1>
-    <div class="total">Monthly Total: $%.2f</div>
-    <h2>Category Breakdown</h2>
-    <table>
-        <thead><tr><th>Category</th><th>Total</th></tr></thead>
-        <tbody>%s</tbody>
-    </table>
-    <h2>Recent Expenses</h2>
-    <ul>%s</ul>
-    <p><a href="/expenses">&larr; Back to Expenses</a></p>
-</body>
-</html>`, monthName, summary.MonthlyTotal, catRows, recentItems)
+	component := pages.Dashboard(summary)
+	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username)
+	ctx := templ.WithChildren(c.Context(), component)
+	return page.Render(ctx, c.Response().BodyWriter())
 }

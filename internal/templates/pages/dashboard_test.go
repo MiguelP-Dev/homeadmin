@@ -1,0 +1,193 @@
+package pages_test
+
+import (
+	"bytes"
+	"context"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/repositories"
+	"github.com/homeadmin/internal/services"
+	"github.com/homeadmin/internal/templates/pages"
+)
+
+func mustRenderDashboard(s *services.DashboardSummary) string {
+	buf := &bytes.Buffer{}
+	err := pages.Dashboard(s).Render(context.Background(), buf)
+	if err != nil {
+		panic(err)
+	}
+	return buf.String()
+}
+
+func TestDashboard_ShowsMonthYearHeading(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal:   0,
+		CategoryTotals: []repositories.CategoryTotal{},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	currentMonth := time.Now().Format("January 2006")
+	if !strings.Contains(output, currentMonth) {
+		t.Errorf("expected month/year '%s' in dashboard heading", currentMonth)
+	}
+}
+
+func TestDashboard_ShowsMonthlyTotal(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal:   1250.75,
+		CategoryTotals: []repositories.CategoryTotal{},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, "1,250.75") && !strings.Contains(output, "1250.75") {
+		t.Error("expected monthly total 1250.75 in dashboard output")
+	}
+}
+
+func TestDashboard_ZeroMonthlyTotal(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal:   0,
+		CategoryTotals: []repositories.CategoryTotal{},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, "0.00") {
+		t.Error("expected 0.00 for zero monthly total")
+	}
+}
+
+func TestDashboard_ShowsCategoryBreakdown(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal: 350.00,
+		CategoryTotals: []repositories.CategoryTotal{
+			{Category: "Groceries", Total: 200.00},
+			{Category: "Rent", Total: 150.00},
+		},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, "Groceries") {
+		t.Error("expected category 'Groceries' in breakdown table")
+	}
+	if !strings.Contains(output, "Rent") {
+		t.Error("expected category 'Rent' in breakdown table")
+	}
+}
+
+func TestDashboard_ShowsEmptyCategoryState(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal:   0,
+		CategoryTotals: []repositories.CategoryTotal{},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, "No expenses this month") {
+		t.Error("expected 'No expenses this month' empty state when no categories")
+	}
+}
+
+func TestDashboard_ShowsRecentExpenses(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal: 50.00,
+		CategoryTotals: []repositories.CategoryTotal{
+			{Category: "food", Total: 50.00},
+		},
+		RecentExpenses: []database.Expense{
+			{ID: 1, Description: "Lunch", Amount: 25.00, Category: "food", Date: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC)},
+			{ID: 2, Description: "Dinner", Amount: 25.00, Category: "food", Date: time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC)},
+		},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, "Lunch") {
+		t.Error("expected 'Lunch' in recent expenses")
+	}
+	if !strings.Contains(output, "Dinner") {
+		t.Error("expected 'Dinner' in recent expenses")
+	}
+}
+
+func TestDashboard_ShowsEmptyRecentExpenses(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal: 0,
+		CategoryTotals: []repositories.CategoryTotal{
+			{Category: "food", Total: 0},
+		},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, "No recent expenses") {
+		t.Error("expected 'No recent expenses' empty state when no recent expenses")
+	}
+}
+
+func TestDashboard_HasLinkToExpenses(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal:   0,
+		CategoryTotals: []repositories.CategoryTotal{},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, "/expenses") {
+		t.Error("expected link back to /expenses in dashboard")
+	}
+}
+
+func TestDashboard_ShowsCategoryTotalAmount(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal: 500.00,
+		CategoryTotals: []repositories.CategoryTotal{
+			{Category: "utilities", Total: 180.00},
+		},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, "180.00") {
+		t.Error("expected 180.00 in category total for utilities")
+	}
+}
+
+// Triangulation: different totals produce different output
+
+func TestDashboard_Triangulation_DifferentMonthlyTotals(t *testing.T) {
+	s1 := &services.DashboardSummary{MonthlyTotal: 100.00, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
+	s2 := &services.DashboardSummary{MonthlyTotal: 9999.99, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
+	out1 := mustRenderDashboard(s1)
+	out2 := mustRenderDashboard(s2)
+	if !strings.Contains(out1, "100.00") {
+		t.Error("expected 100.00 in first dashboard")
+	}
+	if !strings.Contains(out2, "9,999.99") && !strings.Contains(out2, "9999.99") {
+		t.Error("expected 9999.99 in second dashboard")
+	}
+	if strings.Contains(out1, "9999") {
+		t.Error("first dashboard should not contain second dashboard's total")
+	}
+}
+
+func TestDashboard_Triangulation_DifferentCategories(t *testing.T) {
+	s1 := &services.DashboardSummary{
+		MonthlyTotal: 100.00,
+		CategoryTotals: []repositories.CategoryTotal{
+			{Category: "food", Total: 100.00},
+		},
+		RecentExpenses: []database.Expense{},
+	}
+	s2 := &services.DashboardSummary{
+		MonthlyTotal: 200.00,
+		CategoryTotals: []repositories.CategoryTotal{
+			{Category: "rent", Total: 200.00},
+		},
+		RecentExpenses: []database.Expense{},
+	}
+	out1 := mustRenderDashboard(s1)
+	out2 := mustRenderDashboard(s2)
+	if !strings.Contains(out1, "food") {
+		t.Error("first dashboard should show 'food' category")
+	}
+	if !strings.Contains(out2, "rent") {
+		t.Error("second dashboard should show 'rent' category")
+	}
+}

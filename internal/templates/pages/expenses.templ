@@ -1,0 +1,27 @@
+package pages
+
+import (
+	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/templates/components"
+)
+
+// Expenses renders the expense list page content.
+// It receives a slice of expenses to display.
+templ Expenses(expenses []database.Expense) {
+	<div class="max-w-4xl mx-auto p-6">
+		<div class="flex items-center justify-between mb-6">
+			<h1 class="text-3xl font-bold text-gray-900">Expenses</h1>
+			<a href="/expenses/new" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Create Expense</a>
+		</div>
+
+		if len(expenses) == 0 {
+			<p class="text-gray-500 italic">No expenses yet</p>
+		} else {
+			<div class="space-y-3">
+				for _, e := range expenses {
+					@components.ExpenseCard(e)
+				}
+			</div>
+		}
+	</div>
+}
