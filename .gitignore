@@ -38,3 +38,6 @@ sdd/
 
 # Local dev database
 homeadmin.db
+
+# Generated Tailwind CSS
+static/css/output.css

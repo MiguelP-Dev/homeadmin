@@ -57,7 +57,10 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Position 3: CSRF protection (spec §2.1)
+	// Position 3: Static file serving (spec §6.8)
+	app.Static("/static", "./static")
+
+	// Position 4: CSRF protection (spec §2.1)
 	csrfKey := cfg.CSRFKey
 	if csrfKey == "" {
 		csrfKey = "csrf-dev-fallback"

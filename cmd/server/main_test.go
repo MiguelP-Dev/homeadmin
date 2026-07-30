@@ -3,6 +3,8 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -288,6 +290,94 @@ func TestCSRFTokenIsRandom(t *testing.T) {
 }
 
 // getCookieValue extracts a named cookie value from a Set-Cookie response header.
+// --- Static file serving tests (PR #7) ---
+
+// TestStaticFileServing verifies that app.Static("/static", "./static") serves files correctly.
+// Covers spec §6.8: static assets are served with appropriate responses.
+func TestStaticFileServing(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create static directory structure
+	for _, dir := range []string{"static/css", "static/js"} {
+		if err := os.MkdirAll(filepath.Join(tmpDir, dir), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create test files
+	if err := os.WriteFile(filepath.Join(tmpDir, "static/css/app.css"), []byte("body { margin: 0; }"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "static/css/input.css"), []byte("@tailwind base;"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "static/js/htmx.min.js"), []byte("// htmx v1.9.12"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Chdir so "./static" resolves to our temp test directory
+	origDir, _ := os.Getwd()
+	os.Chdir(tmpDir)
+	t.Cleanup(func() { os.Chdir(origDir) })
+
+	// Create app with same middleware pattern as main.go
+	app := fiber.New()
+	app.Static("/static", "./static")
+
+	t.Run("serves existing CSS file with 200", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/static/css/app.css", nil)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != fiber.StatusOK {
+			t.Errorf("status = %d, want %d", resp.StatusCode, fiber.StatusOK)
+		}
+	})
+
+	t.Run("serves existing JS file", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/static/js/htmx.min.js", nil)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != fiber.StatusOK {
+			t.Errorf("status = %d, want %d", resp.StatusCode, fiber.StatusOK)
+		}
+	})
+
+	t.Run("returns 404 for non-existent file", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/static/js/missing.js", nil)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != fiber.StatusNotFound {
+			t.Errorf("status = %d, want %d (404 for missing file)", resp.StatusCode, fiber.StatusNotFound)
+		}
+	})
+
+	t.Run("does not serve directory listing", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/static/", nil)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		// Should NOT return 200 (no directory listing allowed)
+		if resp.StatusCode == fiber.StatusOK {
+			t.Error("static server returned directory listing for /static/")
+		}
+	})
+}
+
 func getCookieValue(resp *http.Response, name string) string {
 	for _, raw := range resp.Header.Values("Set-Cookie") {
 		parts := strings.SplitN(raw, ";", 2)
