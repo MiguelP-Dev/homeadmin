@@ -542,6 +542,9 @@ func TestDashboardHandler_Success(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("Content-Type = %q, want text/html", ct)
+	}
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)

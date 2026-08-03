@@ -49,7 +49,7 @@ func main() {
 	})
 
 	// 6. Middleware chain — order matters (spec §9)
-	app.Use(logger.New()) // Position 1: request logging
+	app.Use(logger.New())         // Position 1: request logging
 	app.Use(cors.New(cors.Config{ // Position 2: CORS headers
 		AllowOrigins:     strings.Join(cfg.CORSOrigins, ","),
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
@@ -81,15 +81,17 @@ func main() {
 		return c.Redirect("/login", fiber.StatusFound)
 	})
 
-	// 8. Protected routes — RequireAuth middleware group
-	protected := app.Group("", middleware.RequireAuth(cfg.JWTSecret))
-	protected.Get("/dashboard", expenseHandler.Dashboard)
+	// 8. Protected routes — RequireAuth middleware applied per-route.
+	// NOTE: do NOT use app.Group("", RequireAuth): Fiber mounts middleware of an
+	// empty-prefix group as a fallback for UNMATCHED paths too, which would turn
+	// every 404 into a redirect to /login before the 404 is generated.
+	app.Get("/dashboard", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.Dashboard)
 
 	// Expense routes (Phase 4 — PR #2)
-	protected.Get("/expenses", expenseHandler.List)
-	protected.Post("/expenses", expenseHandler.Create)
-	protected.Put("/expenses/:id", expenseHandler.Update)
-	protected.Delete("/expenses/:id", expenseHandler.Delete)
+	app.Get("/expenses", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.List)
+	app.Post("/expenses", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.Create)
+	app.Put("/expenses/:id", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.Update)
+	app.Delete("/expenses/:id", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.Delete)
 
 	// 9. Start server
 	log.Printf("server starting on :%s (env: %s)", cfg.Port, cfg.Env)

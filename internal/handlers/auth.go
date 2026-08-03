@@ -52,6 +52,7 @@ func NewAuthHandler(repo repositories.UserRepository, jwtSecret string) *AuthHan
 
 // renderPage renders a templ component wrapped in the base layout.
 func (h *AuthHandler) renderPage(c *fiber.Ctx, title, csrfToken, username string, content templ.Component) error {
+	c.Type("html")
 	base := layouts.Base(title, csrfToken, username)
 	ctx := templ.WithChildren(c.Context(), content)
 	return base.Render(ctx, c.Response().BodyWriter())

@@ -54,6 +54,11 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 	if e, ok := err.(*AppError); ok {
 		status = e.Status
 		message = e.Message
+	} else if fe, ok := err.(*fiber.Error); ok {
+		// Preserve Fiber's own error codes (e.g. fiber.ErrNotFound → 404)
+		// instead of collapsing every non-AppError into a generic 500.
+		status = fe.Code
+		message = fe.Message
 	}
 
 	// Log 5xx server errors; 4xx are client errors (no log needed)
@@ -69,6 +74,7 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 	// Content negotiation via Accept header
 	accept := c.Get("Accept")
 	if containsHTML(accept) {
+		c.Type("html")
 		return c.Status(status).SendString(errorPageHTML(status, message))
 	}
 

@@ -100,6 +100,10 @@ func TestErrorHandlerHTML(t *testing.T) {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
 	}
 
+	if ct := resp.Header.Get("Content-Type"); len(ct) < 9 || ct[:9] != "text/html" {
+		t.Errorf("Content-Type = %q, want text/html", ct)
+	}
+
 	body := make([]byte, 4096)
 	n, _ := resp.Body.Read(body)
 	bodyStr := string(body[:n])
@@ -181,6 +185,29 @@ func TestErrorHandlerNonHtmxNoTriggerHeader(t *testing.T) {
 	trigger := resp.Header.Get("HX-Trigger")
 	if trigger != "" {
 		t.Errorf("HX-Trigger header should NOT be set for non-HTMX requests, got: %s", trigger)
+	}
+}
+
+// TestErrorHandlerFiberNotFound verifies Fiber's own ErrNotFound maps to a 404
+// (not the generic 500 fallback) and is served as HTML with the right Content-Type.
+func TestErrorHandlerFiberNotFound(t *testing.T) {
+	app := newTestApp()
+	app.Get("/known", func(c *fiber.Ctx) error { return c.SendString("ok") })
+
+	req := httptest.NewRequest("GET", "/unknown", nil)
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("status = %d, want 404 for unknown route", resp.StatusCode)
+	}
+
+	if ct := resp.Header.Get("Content-Type"); len(ct) < 9 || ct[:9] != "text/html" {
+		t.Errorf("Content-Type = %q, want text/html", ct)
 	}
 }
 

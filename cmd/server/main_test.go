@@ -68,9 +68,9 @@ func newIntegrationApp(csrfKey, jwtSecret string) *fiber.App {
 		return c.Redirect("/login", fiber.StatusFound)
 	})
 
-	// Protected route group — RequireAuth
-	protected := app.Group("", middleware.RequireAuth(jwtSecret))
-	protected.Get("/dashboard", func(c *fiber.Ctx) error {
+	// Protected routes — RequireAuth applied per-route (mirrors main.go; avoids
+	// empty-prefix group mounting auth middleware as a fallback on unmatched paths)
+	app.Get("/dashboard", middleware.RequireAuth(jwtSecret), func(c *fiber.Ctx) error {
 		return c.SendString("Dashboard (coming soon)")
 	})
 
@@ -242,6 +242,29 @@ func TestRootRedirectAuthenticated(t *testing.T) {
 	location := resp.Header.Get("Location")
 	if location != "/login" {
 		t.Errorf("Location = %q, want %q", location, "/login")
+	}
+}
+
+// TestUnknownRoute_Returns404 verifies that unmatched paths return a real 404,
+// NOT a redirect to /login. Regression for empty-prefix group fallback where
+// RequireAuth ran on every unmatched path (unknown URLs became 302 /login).
+func TestUnknownRoute_Returns404(t *testing.T) {
+	app := newIntegrationApp("", "test-secret")
+
+	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("status code = %d, want %d (unknown route should 404, not redirect)", resp.StatusCode, fiber.StatusNotFound)
+	}
+
+	if loc := resp.Header.Get("Location"); loc != "" {
+		t.Errorf("Location = %q, want empty (no redirect for unknown route)", loc)
 	}
 }
 
@@ -463,15 +486,15 @@ func TestCSRFNotAppliedWhenDisabled(t *testing.T) {
 // Covers spec §1.22–1.25: preflight, allowed origin, disallowed origin.
 func TestCORSMiddlewareIntegration(t *testing.T) {
 	tests := []struct {
-		name               string
-		allowedOrigins     string
-		method             string
-		origin             string
-		wantStatusCode     int
-		wantAllowOrigin    string // empty means header should NOT be present
-		wantAllowMethods   string
-		wantAllowCreds     bool
-		isPreflight        bool
+		name             string
+		allowedOrigins   string
+		method           string
+		origin           string
+		wantStatusCode   int
+		wantAllowOrigin  string // empty means header should NOT be present
+		wantAllowMethods string
+		wantAllowCreds   bool
+		isPreflight      bool
 	}{
 		{
 			name:             "preflight OPTIONS returns CORS headers for allowed origin",

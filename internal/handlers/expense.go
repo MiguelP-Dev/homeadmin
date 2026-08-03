@@ -207,6 +207,7 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 
 	component := pages.Dashboard(summary)
 	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username)
+	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
 }
