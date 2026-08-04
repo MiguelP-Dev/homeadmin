@@ -202,3 +202,79 @@ func TestRequireAuth_WrongSecret(t *testing.T) {
 		t.Errorf("expected redirect to /login, got %s", location)
 	}
 }
+
+// setupHouseholdApp builds a Fiber app whose routes are guarded by
+// RequireHousehold, with a probe handler echoing the householdID value when
+// the middleware lets the request through. locals simulates what RequireAuth
+// stores in c.Locals (claims.HouseholdID is *uint — services/auth.go).
+func setupHouseholdApp(locals map[string]any) *fiber.App {
+	app := fiber.New()
+
+	app.Use(func(c *fiber.Ctx) error {
+		for k, v := range locals {
+			c.Locals(k, v)
+		}
+		return c.Next()
+	})
+
+	app.Get("/protected", RequireHousehold(), func(c *fiber.Ctx) error {
+		hhID, _ := c.Locals("householdID").(*uint)
+		return c.SendString(fmt.Sprintf("household=%d", *hhID))
+	})
+
+	return app
+}
+
+func TestRequireHousehold(t *testing.T) {
+	hhID := uint(42)
+	zero := uint(0)
+	large := uint(999)
+
+	tests := []struct {
+		name         string
+		locals       map[string]any
+		wantStatus   int
+		wantLocation string
+		wantBody     string
+	}{
+		{"no householdID local", map[string]any{}, fiber.StatusFound, "/household", ""},
+		{"nil interface value", map[string]any{"householdID": nil}, fiber.StatusFound, "/household", ""},
+		{"typed nil *uint pointer", map[string]any{"householdID": (*uint)(nil)}, fiber.StatusFound, "/household", ""},
+		{"wrong type uint value", map[string]any{"householdID": uint(42)}, fiber.StatusFound, "/household", ""},
+		{"wrong type string value", map[string]any{"householdID": "42"}, fiber.StatusFound, "/household", ""},
+		{"other auth locals but no householdID", map[string]any{"userID": uint(1), "role": "member"}, fiber.StatusFound, "/household", ""},
+		{"non-nil household pointer", map[string]any{"householdID": &hhID}, fiber.StatusOK, "", "household=42"},
+		{"non-nil pointer to zero", map[string]any{"householdID": &zero}, fiber.StatusOK, "", "household=0"},
+		{"non-nil pointer to large value", map[string]any{"householdID": &large}, fiber.StatusOK, "", "household=999"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := setupHouseholdApp(tt.locals)
+
+			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("app.Test failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, resp.StatusCode)
+			}
+
+			if tt.wantLocation != "" {
+				if loc := resp.Header.Get("Location"); loc != tt.wantLocation {
+					t.Errorf("expected redirect to %s, got %s", tt.wantLocation, loc)
+				}
+			}
+
+			if tt.wantBody != "" {
+				body, _ := io.ReadAll(resp.Body)
+				if string(body) != tt.wantBody {
+					t.Errorf("expected body %q, got %q", tt.wantBody, string(body))
+				}
+			}
+		})
+	}
+}

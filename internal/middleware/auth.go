@@ -27,3 +27,18 @@ func RequireAuth(jwtSecret string) fiber.Handler {
 		return c.Next()
 	}
 }
+
+// RequireHousehold returns a Fiber middleware that requires a non-nil
+// householdID in Locals. RequireAuth stores claims.HouseholdID, which is
+// *uint; a nil or absent pointer means the user has no household, so the
+// request is redirected to /household (create/join). A typed-nil *uint
+// (null household_id claim) must NOT pass. Intended to run AFTER RequireAuth.
+func RequireHousehold() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		householdID, ok := c.Locals("householdID").(*uint)
+		if !ok || householdID == nil {
+			return c.Redirect("/household", fiber.StatusFound)
+		}
+		return c.Next()
+	}
+}

@@ -35,7 +35,11 @@ func NewExpenseHandler(svc expenseServiceInterface) *ExpenseHandler {
 // Create handles POST /expenses — parses form data and delegates to service.
 func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
-	householdID := c.Locals("householdID").(uint)
+	householdID, ok := c.Locals("householdID").(*uint)
+	if !ok || householdID == nil {
+		return middleware.BadRequest("household required")
+	}
+	hhID := *householdID
 
 	amountStr := c.FormValue("amount")
 	amount, err := strconv.ParseFloat(amountStr, 64)
@@ -78,7 +82,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 
 	isFixed := isFixedStr == "true" || isFixedStr == "1"
 
-	if err := h.Service.Create(userID, householdID, amount, description, category, date, visibility, isFixed); err != nil {
+	if err := h.Service.Create(userID, hhID, amount, description, category, date, visibility, isFixed); err != nil {
 		if err == services.ErrPermission {
 			return middleware.Forbidden(err.Error())
 		}
@@ -93,7 +97,11 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 // List handles GET /expenses — returns all visible expenses for the household.
 func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
-	householdID := c.Locals("householdID").(uint)
+	householdID, ok := c.Locals("householdID").(*uint)
+	if !ok || householdID == nil {
+		return middleware.BadRequest("household required")
+	}
+	hhID := *householdID
 
 	filters := database.ExpenseFilters{
 		Category: c.Query("category"),
@@ -109,7 +117,7 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 		}
 	}
 
-	expenses, err := h.Service.FindByHousehold(userID, householdID, filters)
+	expenses, err := h.Service.FindByHousehold(userID, hhID, filters)
 	if err != nil {
 		return middleware.Internal("failed to fetch expenses")
 	}
@@ -195,9 +203,13 @@ func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 // Dashboard handles GET /dashboard — returns an HTML page with monthly summary via templ.
 func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
-	householdID := c.Locals("householdID").(uint)
+	householdID, ok := c.Locals("householdID").(*uint)
+	if !ok || householdID == nil {
+		return middleware.BadRequest("household required")
+	}
+	hhID := *householdID
 
-	summary, err := h.Service.GetDashboardSummary(userID, householdID)
+	summary, err := h.Service.GetDashboardSummary(userID, hhID)
 	if err != nil {
 		return middleware.Internal("failed to load dashboard")
 	}
