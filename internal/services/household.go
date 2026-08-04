@@ -1,6 +1,7 @@
 package services
 
 import (
+	"crypto/rand"
 	"errors"
 	"time"
 
@@ -89,6 +90,101 @@ func (s *HouseholdService) Create(userID uint, name string) (*database.Household
 	user.Role = "admin"
 	if err := s.userRepo.Update(user); err != nil {
 		return nil, err
+	}
+
+	return household, nil
+}
+
+// Invite generates a single-use 8-char invite code for the user's household.
+// Only admins can generate codes. Codes expire after 7 days.
+func (s *HouseholdService) Invite(userID uint) (string, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return "", err
+	}
+	if user == nil {
+		return "", errors.New("user not found")
+	}
+	if user.HouseholdID == nil {
+		return "", ErrNoHousehold
+	}
+	if user.Role != "admin" {
+		return "", ErrNotAdmin
+	}
+
+	code, err := generateInviteCode()
+	if err != nil {
+		return "", err
+	}
+
+	invite := &database.InviteCode{
+		Code:        code,
+		HouseholdID: *user.HouseholdID,
+		ExpiresAt:   time.Now().Add(inviteCodeTTL),
+	}
+	if err := s.houseRepo.CreateInviteCode(invite); err != nil {
+		return "", err
+	}
+
+	return code, nil
+}
+
+// generateInviteCode creates a cryptographically random 8-char code from [0-9A-Z].
+func generateInviteCode() (string, error) {
+	b := make([]byte, inviteCodeLength)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	for i := range b {
+		b[i] = inviteCodeCharset[b[i]%byte(len(inviteCodeCharset))]
+	}
+	return string(b), nil
+}
+
+// Join links a user to a household via a valid invite code.
+// Validates: user has no household, code exists, not expired, not used.
+func (s *HouseholdService) Join(userID uint, code string) (*database.Household, error) {
+	user, err := s.userRepo.FindByID(userID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+	if user.HouseholdID != nil {
+		return nil, ErrAlreadyHasHousehold
+	}
+
+	invite, err := s.houseRepo.FindByInviteCode(code)
+	if err != nil {
+		return nil, err
+	}
+	if invite == nil {
+		return nil, ErrInvalidCode
+	}
+	if time.Now().After(invite.ExpiresAt) {
+		return nil, ErrExpiredCode
+	}
+	if invite.UsedBy != nil {
+		return nil, ErrUsedCode
+	}
+
+	user.HouseholdID = &invite.HouseholdID
+	user.Role = "member"
+	if err := s.userRepo.Update(user); err != nil {
+		return nil, err
+	}
+
+	if err := s.inviteRepo.MarkUsed(invite.ID, userID); err != nil {
+		return nil, err
+	}
+
+	household, err := s.houseRepo.FindByID(invite.HouseholdID)
+	if err != nil {
+		return nil, err
+	}
+	if household == nil {
+		return nil, errors.New("household not found")
 	}
 
 	return household, nil
