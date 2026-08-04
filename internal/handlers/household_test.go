@@ -309,3 +309,298 @@ func TestHouseholdHandler_Create_EmptyName(t *testing.T) {
 		t.Errorf("expected error message 'Household name is required' in response body, got: %s", html)
 	}
 }
+
+// --- Invite tests ---
+
+func setupInviteApp(svc householdServiceInterface) *fiber.App {
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
+
+	handler := NewHouseholdHandler(svc, hhTestJWTSecret, 24)
+
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("userID", uint(1))
+		c.Locals("householdID", ptr[uint](1))
+		c.Locals("email", "test@example.com")
+		c.Locals("csrfToken", "test-csrf-token")
+		return c.Next()
+	})
+
+	app.Post("/household/invite", handler.Invite)
+	app.Post("/household/join", handler.Join)
+
+	return app
+}
+
+// setupInviteAppNoHousehold creates a test app where the user has no household.
+func setupInviteAppNoHousehold(svc householdServiceInterface) *fiber.App {
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
+
+	handler := NewHouseholdHandler(svc, hhTestJWTSecret, 24)
+
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("userID", uint(1))
+		// No householdID set — simulates user without household
+		c.Locals("email", "test@example.com")
+		c.Locals("csrfToken", "test-csrf-token")
+		return c.Next()
+	})
+
+	app.Post("/household/invite", handler.Invite)
+	app.Post("/household/join", handler.Join)
+
+	return app
+}
+
+func TestHouseholdHandler_Invite_NoHousehold(t *testing.T) {
+	svc := &mockHouseholdService{
+		inviteFn: func(userID uint) (string, error) {
+			return "", services.ErrNoHousehold
+		},
+	}
+	app := setupInviteAppNoHousehold(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/household/invite", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	if !strings.Contains(html, "You must belong to a household") {
+		t.Errorf("expected error 'You must belong to a household', got: %s", html)
+	}
+}
+
+func TestHouseholdHandler_Invite_NonAdmin(t *testing.T) {
+	svc := &mockHouseholdService{
+		inviteFn: func(userID uint) (string, error) {
+			return "", services.ErrNotAdmin
+		},
+	}
+	app := setupInviteApp(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/household/invite", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("expected status 403, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	if !strings.Contains(html, "Only admins can invite") {
+		t.Errorf("expected error 'Only admins can invite', got: %s", html)
+	}
+}
+
+func TestHouseholdHandler_Invite_Success(t *testing.T) {
+	svc := &mockHouseholdService{
+		inviteFn: func(userID uint) (string, error) {
+			return "ABC12345", nil
+		},
+		showFn: func(userID uint) (*database.Household, []database.User, bool, error) {
+			return &database.Household{ID: 1, Name: "My Family"}, []database.User{{ID: 1, Email: "test@example.com", Role: "admin"}}, true, nil
+		},
+	}
+	app := setupInviteApp(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/household/invite", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	if !strings.Contains(html, "ABC12345") {
+		t.Errorf("expected invite code 'ABC12345' in response body, got: %s", html)
+	}
+}
+
+// --- Join tests ---
+
+func TestHouseholdHandler_Join_InvalidCode(t *testing.T) {
+	svc := &mockHouseholdService{
+		joinFn: func(userID uint, code string) (*database.Household, error) {
+			return nil, services.ErrInvalidCode
+		},
+	}
+	app := setupInviteAppNoHousehold(svc)
+
+	form := url.Values{}
+	form.Set("code", "XXXXXXX")
+
+	req := httptest.NewRequest(http.MethodPost, "/household/join", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	if !strings.Contains(html, "Invalid invite code") {
+		t.Errorf("expected error 'Invalid invite code', got: %s", html)
+	}
+}
+
+func TestHouseholdHandler_Join_ExpiredCode(t *testing.T) {
+	svc := &mockHouseholdService{
+		joinFn: func(userID uint, code string) (*database.Household, error) {
+			return nil, services.ErrExpiredCode
+		},
+	}
+	app := setupInviteAppNoHousehold(svc)
+
+	form := url.Values{}
+	form.Set("code", "EXP12345")
+
+	req := httptest.NewRequest(http.MethodPost, "/household/join", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	if !strings.Contains(html, "Invite code has expired") {
+		t.Errorf("expected error 'Invite code has expired', got: %s", html)
+	}
+}
+
+func TestHouseholdHandler_Join_UsedCode(t *testing.T) {
+	svc := &mockHouseholdService{
+		joinFn: func(userID uint, code string) (*database.Household, error) {
+			return nil, services.ErrUsedCode
+		},
+	}
+	app := setupInviteAppNoHousehold(svc)
+
+	form := url.Values{}
+	form.Set("code", "USED1234")
+
+	req := httptest.NewRequest(http.MethodPost, "/household/join", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	if !strings.Contains(html, "Invite code has already been used") {
+		t.Errorf("expected error 'Invite code has already been used', got: %s", html)
+	}
+}
+
+func TestHouseholdHandler_Join_AlreadyInHousehold(t *testing.T) {
+	svc := &mockHouseholdService{
+		joinFn: func(userID uint, code string) (*database.Household, error) {
+			return nil, services.ErrAlreadyHasHousehold
+		},
+	}
+	app := setupInviteApp(svc) // user has householdID set
+
+	form := url.Values{}
+	form.Set("code", "ABC12345")
+
+	req := httptest.NewRequest(http.MethodPost, "/household/join", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	if !strings.Contains(html, "You already belong to a household") {
+		t.Errorf("expected error 'You already belong to a household', got: %s", html)
+	}
+}
+
+func TestHouseholdHandler_Join_Success(t *testing.T) {
+	hhID := uint(99)
+	svc := &mockHouseholdService{
+		joinFn: func(userID uint, code string) (*database.Household, error) {
+			return &database.Household{ID: hhID, Name: "Joined Family"}, nil
+		},
+	}
+	app := setupInviteAppNoHousehold(svc)
+
+	form := url.Values{}
+	form.Set("code", "ABC12345")
+
+	req := httptest.NewRequest(http.MethodPost, "/household/join", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected status 302, got %d", resp.StatusCode)
+	}
+
+	location := resp.Header.Get("Location")
+	if location != "/dashboard" {
+		t.Errorf("expected redirect to /dashboard, got %q", location)
+	}
+
+	// Decode the JWT cookie and verify claims carry household_id and role=member.
+	claims := decodeJWTCookie(t, resp, hhTestJWTSecret)
+	if claims.HouseholdID == nil {
+		t.Fatal("expected household_id in JWT claims, got nil")
+	}
+	if *claims.HouseholdID != hhID {
+		t.Errorf("expected household_id=%d in claims, got %d", hhID, *claims.HouseholdID)
+	}
+	if claims.Role != "member" {
+		t.Errorf("expected role=%q in claims, got %q", "member", claims.Role)
+	}
+}

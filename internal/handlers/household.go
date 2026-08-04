@@ -90,3 +90,66 @@ func (h *HouseholdHandler) Create(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusFound).Redirect("/dashboard")
 }
+
+// Invite handles POST /household/invite — generates an invite code for the household.
+func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(uint)
+	csrfToken, _ := c.Locals("csrfToken").(string)
+	username, _ := c.Locals("email").(string)
+
+	code, err := h.service.Invite(userID)
+	if err != nil {
+		if errors.Is(err, services.ErrNoHousehold) {
+			return middleware.BadRequest("You must belong to a household")
+		}
+		if errors.Is(err, services.ErrNotAdmin) {
+			return middleware.Forbidden("Only admins can invite")
+		}
+		return middleware.Internal("failed to generate invite code")
+	}
+
+	// Re-fetch household to render HouseholdShow with the invite code.
+	hh, members, isAdmin, err := h.service.Show(userID)
+	if err != nil || hh == nil {
+		return middleware.Internal("failed to load household")
+	}
+
+	component := pages.HouseholdShow(hh, members, isAdmin, csrfToken, code)
+	page := layouts.Base("Household — HomeAdmin", csrfToken, username)
+	ctx := templ.WithChildren(c.Context(), component)
+	c.Type("html")
+	return page.Render(ctx, c.Response().BodyWriter())
+}
+
+// Join handles POST /household/join — joins an existing household via invite code.
+func (h *HouseholdHandler) Join(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(uint)
+	code := c.FormValue("code")
+
+	hh, err := h.service.Join(userID, code)
+	if err != nil {
+		if errors.Is(err, services.ErrAlreadyHasHousehold) {
+			return middleware.BadRequest("You already belong to a household")
+		}
+		if errors.Is(err, services.ErrInvalidCode) {
+			return middleware.BadRequest("Invalid invite code")
+		}
+		if errors.Is(err, services.ErrExpiredCode) {
+			return middleware.BadRequest("Invite code has expired")
+		}
+		if errors.Is(err, services.ErrUsedCode) {
+			return middleware.BadRequest("Invite code has already been used")
+		}
+		return middleware.Internal("failed to join household")
+	}
+
+	// Re-issue JWT with household_id and role=member.
+	token, err := services.CreateToken(userID, &hh.ID, "member", h.jwtSecret, h.jwtExpirationHours)
+	if err != nil {
+		return middleware.Internal("failed to issue token")
+	}
+
+	SetJWTCookie(c, token)
+
+	return c.Status(fiber.StatusFound).Redirect("/dashboard")
+}
