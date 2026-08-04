@@ -6,6 +6,16 @@ import (
 	"gorm.io/gorm"
 )
 
+// InviteCode represents a single-use invite token for household join flows.
+type InviteCode struct {
+	ID          uint      `gorm:"primaryKey"`
+	Code        string    `gorm:"size:8;uniqueIndex;not null"`
+	HouseholdID uint      `gorm:"not null"`
+	ExpiresAt   time.Time `gorm:"not null"`
+	UsedBy      *uint     `gorm:"default:null"`
+	CreatedAt   time.Time
+}
+
 // Household represents a shared group (family, roommates)
 type Household struct {
 	ID        uint           `gorm:"primaryKey"`

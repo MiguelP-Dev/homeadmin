@@ -50,6 +50,50 @@ func (r *HouseholdRepositoryImpl) FindByUserID(userID uint) (*database.Household
 	return r.FindByID(*user.HouseholdID)
 }
 
+// FindByName looks up a household by exact name match. Returns (nil, nil) on not-found.
+func (r *HouseholdRepositoryImpl) FindByName(name string) (*database.Household, error) {
+	var hh database.Household
+	result := r.db.Where("name = ?", name).First(&hh)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return &hh, nil
+}
+
+// FindByInviteCode looks up an invite code by its code string. Returns (nil, nil) on not-found.
+func (r *HouseholdRepositoryImpl) FindByInviteCode(code string) (*database.InviteCode, error) {
+	var invite database.InviteCode
+	result := r.db.Where("code = ?", code).First(&invite)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return &invite, nil
+}
+
+// CreateInviteCode inserts a new invite code.
+func (r *HouseholdRepositoryImpl) CreateInviteCode(invite *database.InviteCode) error {
+	return r.db.Create(invite).Error
+}
+
+// MarkUsed sets the UsedBy field on an invite code to record who used it.
+func (r *HouseholdRepositoryImpl) MarkUsed(inviteID, userID uint) error {
+	return r.db.Model(&database.InviteCode{}).Where("id = ?", inviteID).
+		Update("used_by", userID).Error
+}
+
+// GetMembers returns all users belonging to the specified household.
+func (r *HouseholdRepositoryImpl) GetMembers(householdID uint) ([]database.User, error) {
+	var users []database.User
+	err := r.db.Where("household_id = ?", householdID).Find(&users).Error
+	return users, err
+}
+
 // Update persists changes to an existing household.
 func (r *HouseholdRepositoryImpl) Update(household *database.Household) error {
 	return r.db.Save(household).Error

@@ -57,6 +57,28 @@ func TestMigrateIdempotent(t *testing.T) {
 	}
 }
 
+func TestMigrateInviteCodesTable(t *testing.T) {
+	db, err := Connect("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	if !db.Migrator().HasTable("invite_codes") {
+		t.Fatal("expected invite_codes table to exist after migration")
+	}
+
+	columns := []string{"id", "code", "household_id", "expires_at", "used_by", "created_at"}
+	for _, col := range columns {
+		if !db.Migrator().HasColumn("invite_codes", col) {
+			t.Errorf("expected invite_codes column %q to exist", col)
+		}
+	}
+}
+
 func TestConnectWithDriverSQLite(t *testing.T) {
 	// Test that SQLite driver works when specified
 	os.Setenv("DB_DRIVER", "sqlite")

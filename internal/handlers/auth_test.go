@@ -46,6 +46,9 @@ func (m *mockUserRepo) FindByID(id uint) (*database.User, error) {
 
 func (m *mockUserRepo) Update(user *database.User) error { return nil }
 func (m *mockUserRepo) Delete(id uint) error             { return nil }
+func (m *mockUserRepo) FindByIDWithHousehold(id uint) (*database.User, error) {
+	return nil, nil
+}
 
 // Verify interface compliance at compile time
 var _ repositories.UserRepository = (*mockUserRepo)(nil)

@@ -188,3 +188,53 @@ func TestUserRepo_Delete(t *testing.T) {
 		t.Error("expected nil for deleted user (GORM default scope excludes soft-deleted)")
 	}
 }
+
+func TestUserRepo_FindByIDWithHousehold_EagerLoadsHousehold(t *testing.T) {
+	db := setupTestDBRaw(t)
+	houseRepo := NewHouseholdRepository(db)
+	userRepo := NewUserRepository(db)
+
+	hh := &database.Household{Name: "Eager Load Household"}
+	if err := houseRepo.Create(hh); err != nil {
+		t.Fatalf("Create household failed: %v", err)
+	}
+
+	user := &database.User{
+		Email:        "eager@example.com",
+		PasswordHash: "hash",
+		Role:         "member",
+		HouseholdID:  &hh.ID,
+	}
+	if err := userRepo.Create(user); err != nil {
+		t.Fatalf("Create user failed: %v", err)
+	}
+
+	found, err := userRepo.FindByIDWithHousehold(user.ID)
+	if err != nil {
+		t.Fatalf("FindByIDWithHousehold returned unexpected error: %v", err)
+	}
+	if found == nil {
+		t.Fatal("expected user to be found, got nil")
+	}
+	if found.Household == nil {
+		t.Fatal("expected Household to be eager-loaded, got nil")
+	}
+	if found.Household.ID != hh.ID {
+		t.Errorf("expected Household.ID %d, got %d", hh.ID, found.Household.ID)
+	}
+	if found.Household.Name != "Eager Load Household" {
+		t.Errorf("expected Household.Name='Eager Load Household', got %s", found.Household.Name)
+	}
+}
+
+func TestUserRepo_FindByIDWithHousehold_NotFound(t *testing.T) {
+	repo := setupTestDB(t)
+
+	found, err := repo.FindByIDWithHousehold(999)
+	if err != nil {
+		t.Fatalf("FindByIDWithHousehold returned unexpected error: %v", err)
+	}
+	if found != nil {
+		t.Errorf("expected nil for not-found, got user with ID %d", found.ID)
+	}
+}

@@ -46,6 +46,20 @@ func (r *UserRepositoryImpl) FindByEmail(email string) (*database.User, error) {
 	return &user, nil
 }
 
+// FindByIDWithHousehold looks up a user by ID and eager-loads the Household relation.
+// Returns (nil, nil) on not-found.
+func (r *UserRepositoryImpl) FindByIDWithHousehold(id uint) (*database.User, error) {
+	var user database.User
+	result := r.db.Preload("Household").First(&user, id)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
 // Update persists changes to an existing user.
 func (r *UserRepositoryImpl) Update(user *database.User) error {
 	return r.db.Save(user).Error

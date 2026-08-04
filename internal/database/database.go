@@ -50,5 +50,5 @@ func ConnectWithDriver(dsn string, driver string) (*gorm.DB, error) {
 
 // Migrate runs AutoMigrate for all application models.
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&Household{}, &User{}, &Expense{})
+	return db.AutoMigrate(&Household{}, &User{}, &Expense{}, &InviteCode{})
 }

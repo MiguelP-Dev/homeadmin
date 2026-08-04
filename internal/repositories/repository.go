@@ -18,6 +18,7 @@ type UserRepository interface {
 	Create(user *database.User) error
 	FindByID(id uint) (*database.User, error)
 	FindByEmail(email string) (*database.User, error)
+	FindByIDWithHousehold(id uint) (*database.User, error)
 	Update(user *database.User) error
 	Delete(id uint) error
 }
@@ -27,6 +28,11 @@ type HouseholdRepository interface {
 	Create(household *database.Household) error
 	FindByID(id uint) (*database.Household, error)
 	FindByUserID(userID uint) (*database.Household, error)
+	FindByName(name string) (*database.Household, error)
+	FindByInviteCode(code string) (*database.InviteCode, error)
+	CreateInviteCode(invite *database.InviteCode) error
+	MarkUsed(inviteID, userID uint) error
+	GetMembers(householdID uint) ([]database.User, error)
 	Update(household *database.Household) error
 	Delete(id uint) error
 	AddMember(householdID, userID uint, role string) error
