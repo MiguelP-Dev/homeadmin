@@ -1,0 +1,77 @@
+package pages
+
+import "github.com/homeadmin/internal/database"
+
+// HouseholdShow renders the household page for users who belong to a household:
+// the household name, the member list with roles, and (only for admins) the
+// invite form. inviteCode is optional: when non-empty it displays the generated
+// invite code after an invite action.
+templ HouseholdShow(household *database.Household, members []database.User, isAdmin bool, csrfToken string, inviteCode string) {
+	<div class="max-w-4xl mx-auto p-6">
+		<h1 class="text-3xl font-bold text-gray-900 mb-2">{ household.Name }</h1>
+
+		if isAdmin {
+			<form method="POST" action="/household/invite" class="mb-6">
+				<input type="hidden" name="csrf" value={ csrfToken }/>
+				<button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Invite member</button>
+			</form>
+		}
+
+		if inviteCode != "" {
+			<div class="mb-6 p-4 bg-green-50 border border-green-200 rounded">
+				<p class="text-sm text-gray-700">Share this invite code to let someone join your household:</p>
+				<p class="mt-2 text-2xl font-mono font-bold text-green-800">{ inviteCode }</p>
+			</div>
+		}
+
+		<h2 class="text-xl font-semibold text-gray-800 mb-3">Members</h2>
+		<ul class="divide-y">
+			for _, m := range members {
+				<li class="flex justify-between py-3">
+					<span class="text-gray-900">{ m.Email }</span>
+					<span class="text-sm text-gray-500">{ m.Role }</span>
+				</li>
+			}
+		</ul>
+	</div>
+}
+
+// HouseholdSetup renders the household landing page for users who do not belong
+// to a household yet: a create-household form and a join-by-code form.
+// csrfToken is the CSRF token for the hidden input fields.
+// errorMsg is an optional error message displayed above the create form.
+templ HouseholdSetup(csrfToken string, errorMsg string) {
+	<div class="max-w-4xl mx-auto p-6">
+		<h1 class="text-3xl font-bold text-gray-900 mb-2">Household</h1>
+		<p class="text-gray-600 mb-6">You are not part of a household yet. Create one or join an existing one.</p>
+
+		<div class="grid md:grid-cols-2 gap-6">
+			<div class="p-6 bg-white rounded shadow">
+				<h2 class="text-xl font-semibold mb-4">Create a household</h2>
+				if errorMsg != "" {
+					<p class="text-red-500 mb-4">{ errorMsg }</p>
+				}
+				<form method="POST" action="/household">
+					<input type="hidden" name="csrf" value={ csrfToken }/>
+					<div class="mb-4">
+						<label for="name" class="block text-sm font-medium text-gray-700">Household name:</label>
+						<input type="text" id="name" name="name" required class="w-full border rounded p-2"/>
+					</div>
+					<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Create household</button>
+				</form>
+			</div>
+
+			<div class="p-6 bg-white rounded shadow">
+				<h2 class="text-xl font-semibold mb-4">Join with an invite code</h2>
+				<form method="POST" action="/household/join">
+					<input type="hidden" name="csrf" value={ csrfToken }/>
+					<div class="mb-4">
+						<label for="code" class="block text-sm font-medium text-gray-700">Invite code:</label>
+						<input type="text" id="code" name="code" required maxlength="8" class="w-full border rounded p-2"/>
+					</div>
+					<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Join household</button>
+				</form>
+			</div>
+		</div>
+	</div>
+}
