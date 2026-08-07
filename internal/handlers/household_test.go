@@ -214,7 +214,7 @@ func TestHouseholdHandler_Create_Success(t *testing.T) {
 	}
 	userRepo := &mockUserRepo{
 		findByIDFn: func(id uint) (*database.User, error) {
-			return &database.User{ID: 1, Email: "test@example.com", Role: "admin"}, nil
+			return &database.User{ID: 1, Email: "test@example.com", Role: database.RoleOwner}, nil
 		},
 	}
 	app := fiber.New(fiber.Config{
@@ -251,7 +251,7 @@ func TestHouseholdHandler_Create_Success(t *testing.T) {
 		t.Errorf("expected redirect to /dashboard, got %q", location)
 	}
 
-	// Decode the JWT cookie and verify claims carry household_id and role=admin.
+	// Decode the JWT cookie and verify claims carry household_id and role=owner.
 	claims := decodeJWTCookie(t, resp, hhTestJWTSecret)
 	if claims.HouseholdID == nil {
 		t.Fatal("expected household_id in JWT claims, got nil")
@@ -259,8 +259,8 @@ func TestHouseholdHandler_Create_Success(t *testing.T) {
 	if *claims.HouseholdID != hhID {
 		t.Errorf("expected household_id=%d in claims, got %d", hhID, *claims.HouseholdID)
 	}
-	if claims.Role != "admin" {
-		t.Errorf("expected role=%q in claims, got %q", "admin", claims.Role)
+	if claims.Role != database.RoleOwner {
+		t.Errorf("expected role=%q in claims, got %q", database.RoleOwner, claims.Role)
 	}
 	// Re-issued token reflects the fresh DB user (design D2): email from the
 	// user record, is_admin=false (no site-admin mechanism exists yet).

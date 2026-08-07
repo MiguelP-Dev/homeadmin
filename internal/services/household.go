@@ -63,7 +63,7 @@ func NewHouseholdService(houseRepo householdRepo, userRepo userRepo, inviteRepo 
 	}
 }
 
-// Create creates a new household and makes the user its admin.
+// Create creates a new household and makes the user its owner.
 // Validates: name 1-100 chars, user must not already belong to a household.
 func (s *HouseholdService) Create(userID uint, name string) (*database.Household, error) {
 	if name == "" || len(name) > maxHouseholdNameLength {
@@ -87,7 +87,7 @@ func (s *HouseholdService) Create(userID uint, name string) (*database.Household
 	}
 
 	user.HouseholdID = &household.ID
-	user.Role = "admin"
+	user.Role = database.RoleOwner
 	if err := s.userRepo.Update(user); err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (s *HouseholdService) Create(userID uint, name string) (*database.Household
 }
 
 // Invite generates a single-use 8-char invite code for the user's household.
-// Only admins can generate codes. Codes expire after 7 days.
+// Only owners and admins can generate codes. Codes expire after 7 days.
 func (s *HouseholdService) Invite(userID uint) (string, error) {
 	user, err := s.userRepo.FindByID(userID)
 	if err != nil {
@@ -108,7 +108,7 @@ func (s *HouseholdService) Invite(userID uint) (string, error) {
 	if user.HouseholdID == nil {
 		return "", ErrNoHousehold
 	}
-	if user.Role != "admin" {
+	if user.Role != database.RoleOwner && user.Role != database.RoleAdmin {
 		return "", ErrNotAdmin
 	}
 
@@ -170,7 +170,7 @@ func (s *HouseholdService) Join(userID uint, code string) (*database.Household, 
 	}
 
 	user.HouseholdID = &invite.HouseholdID
-	user.Role = "member"
+	user.Role = database.RoleMember
 	if err := s.userRepo.Update(user); err != nil {
 		return nil, err
 	}

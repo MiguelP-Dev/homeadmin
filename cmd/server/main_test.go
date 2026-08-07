@@ -795,8 +795,8 @@ func TestHouseholdE2EFlow(t *testing.T) {
 	if adminUser.HouseholdID == nil || *adminUser.HouseholdID != household.ID {
 		t.Errorf("user A HouseholdID = %v, want %d", adminUser.HouseholdID, household.ID)
 	}
-	if adminUser.Role != "admin" {
-		t.Errorf("user A role = %q, want admin", adminUser.Role)
+	if adminUser.Role != database.RoleOwner {
+		t.Errorf("user A role = %q, want owner", adminUser.Role)
 	}
 
 	// A invites → 200 rendering an 8-char code.

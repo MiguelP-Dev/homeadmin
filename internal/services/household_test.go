@@ -128,7 +128,7 @@ func TestCreate(t *testing.T) {
 			wantErr: ErrAlreadyHasHousehold,
 		},
 		{
-			name:   "happy path creates household and promotes user to admin",
+			name:   "happy path creates household and promotes user to owner",
 			hhName: "My Family",
 			user:   &database.User{ID: 1},
 		},
@@ -194,8 +194,8 @@ func TestCreate(t *testing.T) {
 			if updated.HouseholdID == nil || *updated.HouseholdID != created.ID {
 				t.Errorf("Create() set user HouseholdID = %v, want %d", updated.HouseholdID, created.ID)
 			}
-			if updated.Role != "admin" {
-				t.Errorf("Create() set user role %q, want %q", updated.Role, "admin")
+			if updated.Role != database.RoleOwner {
+				t.Errorf("Create() set user role %q, want %q", updated.Role, database.RoleOwner)
 			}
 		})
 	}
@@ -311,8 +311,13 @@ func TestInvite(t *testing.T) {
 			wantErr: ErrNotAdmin,
 		},
 		{
+			name:          "owner generates invite code",
+			user:          &database.User{ID: 3, HouseholdID: ptr(uint(7)), Role: database.RoleOwner},
+			wantCodeSaved: true,
+		},
+		{
 			name:          "admin generates invite code",
-			user:          &database.User{ID: 3, HouseholdID: ptr(uint(7)), Role: "admin"},
+			user:          &database.User{ID: 4, HouseholdID: ptr(uint(7)), Role: database.RoleAdmin},
 			wantCodeSaved: true,
 		},
 	}
@@ -531,8 +536,8 @@ func TestJoin(t *testing.T) {
 			if updated.HouseholdID == nil || *updated.HouseholdID != tt.invite.HouseholdID {
 				t.Errorf("Join() set user HouseholdID = %v, want %d", updated.HouseholdID, tt.invite.HouseholdID)
 			}
-			if updated.Role != "member" {
-				t.Errorf("Join() set user role %q, want %q", updated.Role, "member")
+			if updated.Role != database.RoleMember {
+				t.Errorf("Join() set user role %q, want %q", updated.Role, database.RoleMember)
 			}
 			if !markCalled {
 				t.Fatal("Join() did not mark the invite code as used")
