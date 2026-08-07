@@ -1,19 +1,26 @@
 package pages
 
-import "github.com/homeadmin/internal/database"
+import (
+	"fmt"
+
+	"github.com/homeadmin/internal/database"
+)
 
 // HouseholdShow renders the household page for users who belong to a household:
-// the household name, the member list with roles, and (only for admins) the
-// invite form. inviteCode is optional: when non-empty it displays the generated
+// the household name, the viewer's role, the member list with roles, and the
+// invite form (owner and admin). Only the owner sees per-member role-change
+// forms. inviteCode is optional: when non-empty it displays the generated
 // invite code after an invite action.
-templ HouseholdShow(household *database.Household, members []database.User, isAdmin bool, csrfToken string, inviteCode string) {
+templ HouseholdShow(household *database.Household, members []database.User, viewerRole string, csrfToken string, inviteCode string) {
 	<div class="max-w-4xl mx-auto p-6">
 		<div class="flex items-center justify-between mb-2">
 			<h1 class="text-3xl font-bold text-gray-900">{ household.Name }</h1>
 			<a href="/expenses/new" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Expense</a>
 		</div>
 
-		if isAdmin {
+		<p class="text-sm text-gray-500 mb-4">Your role: { viewerRole }</p>
+
+		if viewerRole == database.RoleOwner || viewerRole == database.RoleAdmin {
 			<form method="POST" action="/household/invite" class="mb-6">
 				<input type="hidden" name="csrf" value={ csrfToken }/>
 				<button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Invite member</button>
@@ -33,6 +40,16 @@ templ HouseholdShow(household *database.Household, members []database.User, isAd
 				<li class="flex justify-between py-3">
 					<span class="text-gray-900">{ m.Email }</span>
 					<span class="text-sm text-gray-500">{ m.Role }</span>
+					if viewerRole == database.RoleOwner && m.Role != database.RoleOwner {
+						<form method="POST" action={ fmt.Sprintf("/household/members/%d/role", m.ID) } class="inline-flex gap-2 items-center">
+							<input type="hidden" name="csrf" value={ csrfToken }/>
+							<select name="role" class="border rounded px-2 py-1 text-sm">
+								<option value="admin" selected={ m.Role == database.RoleAdmin }>Admin</option>
+								<option value="member" selected={ m.Role == database.RoleMember }>Member</option>
+							</select>
+							<button type="submit" class="text-sm bg-blue-600 text-white px-2 py-1 rounded">Change role</button>
+						</form>
+					}
 				</li>
 			}
 		</ul>

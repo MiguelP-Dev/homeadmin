@@ -62,10 +62,7 @@ func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 		return page.Render(ctx, c.Response().BodyWriter())
 	}
 
-	// The page renders the viewer-role UI once the template switches from the
-	// isAdmin flag to the raw role (T3.7); until then convert owner|admin.
-	isAdmin := view.ViewerRole == database.RoleOwner || view.ViewerRole == database.RoleAdmin
-	component := pages.HouseholdShow(view.Household, view.Members, isAdmin, csrfToken, "")
+	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, "")
 	page := layouts.Base("Household — HomeAdmin", csrfToken, username)
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -128,8 +125,7 @@ func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
 		return middleware.Internal("failed to load household")
 	}
 
-	isAdmin := view.ViewerRole == database.RoleOwner || view.ViewerRole == database.RoleAdmin
-	component := pages.HouseholdShow(view.Household, view.Members, isAdmin, csrfToken, code)
+	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, code)
 	page := layouts.Base("Household — HomeAdmin", csrfToken, username)
 	ctx := templ.WithChildren(c.Context(), component)
 	c.Type("html")
