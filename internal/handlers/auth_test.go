@@ -486,6 +486,89 @@ func TestRegister_WeakPassword(t *testing.T) {
 	}
 }
 
+// --- Token claims tests (RF-12) ---
+
+func TestRegister_IssuesTokenWithEmailAndIsAdmin(t *testing.T) {
+	repo := &mockUserRepo{
+		createFn: func(user *database.User) error {
+			user.ID = 10 // simulate auto-generated ID
+			return nil
+		},
+		findByEmailFn: func(email string) (*database.User, error) {
+			return nil, nil // no existing user
+		},
+	}
+	app := setupHandlerApp(repo)
+
+	form := url.Values{}
+	form.Set("email", "new@example.com")
+	form.Set("password", "securepass123")
+	form.Set("name", "Test User")
+
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Fatalf("expected redirect 302, got %d", resp.StatusCode)
+	}
+
+	claims := decodeJWTCookie(t, resp, testJWTSecret)
+	if claims.Email != "new@example.com" {
+		t.Errorf("expected token Email=new@example.com, got %q", claims.Email)
+	}
+	if claims.IsAdmin {
+		t.Error("expected token IsAdmin=false for a fresh registration")
+	}
+}
+
+func TestLogin_IssuesTokenWithEmailAndIsAdmin(t *testing.T) {
+	hash, _ := services.HashPassword("pass1234")
+	var householdID uint = 5
+	repo := &mockUserRepo{
+		findByEmailFn: func(email string) (*database.User, error) {
+			return &database.User{
+				ID:           2,
+				Email:        email,
+				PasswordHash: hash,
+				Role:         "member",
+				HouseholdID:  &householdID,
+			}, nil
+		},
+	}
+	app := setupHandlerApp(repo)
+
+	form := url.Values{}
+	form.Set("email", "user@example.com")
+	form.Set("password", "pass1234")
+
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Fatalf("expected redirect 302, got %d", resp.StatusCode)
+	}
+
+	claims := decodeJWTCookie(t, resp, testJWTSecret)
+	if claims.Email != "user@example.com" {
+		t.Errorf("expected token Email=user@example.com, got %q", claims.Email)
+	}
+	if claims.IsAdmin {
+		t.Error("expected token IsAdmin=false for a plain member login")
+	}
+}
+
 // --- Logout tests (spec §1.46) ---
 
 func TestLogout(t *testing.T) {

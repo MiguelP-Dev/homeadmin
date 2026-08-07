@@ -47,7 +47,7 @@ func main() {
 	// The service's inviteRepo surface (MarkUsed) lives on the same repository,
 	// so householdRepo satisfies both arguments.
 	householdService := services.NewHouseholdService(householdRepo, userRepo, householdRepo)
-	householdHandler := handlers.NewHouseholdHandler(householdService, cfg.JWTSecret, cfg.JWTExpirationHours)
+	householdHandler := handlers.NewHouseholdHandler(householdService, userRepo, cfg.JWTSecret, cfg.JWTExpirationHours)
 
 	// 5. Create Fiber app with centralized error handler
 	app := fiber.New(fiber.Config{

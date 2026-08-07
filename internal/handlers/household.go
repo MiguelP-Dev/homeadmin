@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
 	"github.com/homeadmin/internal/middleware"
+	"github.com/homeadmin/internal/repositories"
 	"github.com/homeadmin/internal/services"
 	"github.com/homeadmin/internal/templates/layouts"
 	"github.com/homeadmin/internal/templates/pages"
@@ -24,14 +25,16 @@ type householdServiceInterface interface {
 // HouseholdHandler handles household management HTTP routes.
 type HouseholdHandler struct {
 	service            householdServiceInterface
+	userRepo           repositories.UserRepository
 	jwtSecret          string
 	jwtExpirationHours int
 }
 
 // NewHouseholdHandler creates a new HouseholdHandler with injected dependencies.
-func NewHouseholdHandler(service householdServiceInterface, jwtSecret string, jwtExpirationHours int) *HouseholdHandler {
+func NewHouseholdHandler(service householdServiceInterface, userRepo repositories.UserRepository, jwtSecret string, jwtExpirationHours int) *HouseholdHandler {
 	return &HouseholdHandler{
 		service:            service,
+		userRepo:           userRepo,
 		jwtSecret:          jwtSecret,
 		jwtExpirationHours: jwtExpirationHours,
 	}
@@ -80,8 +83,15 @@ func (h *HouseholdHandler) Create(c *fiber.Ctx) error {
 		return middleware.Internal(fmt.Sprintf("failed to create household: %v", err))
 	}
 
-	// Re-issue JWT with household_id and role=admin.
-	token, err := services.CreateToken(userID, &hh.ID, "admin", h.jwtSecret, h.jwtExpirationHours)
+	// Re-issue JWT with household_id and role=admin from the fresh DB user
+	// (design D2) so the token carries the current household, role, and email.
+	user, err := h.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		return middleware.Internal("failed to load user for token")
+	}
+	// isAdmin is false at issue time: no site-admin mechanism exists yet
+	// (slice 5 adds User.IsAdmin and switches this call site to it).
+	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, false, h.jwtSecret, h.jwtExpirationHours)
 	if err != nil {
 		return middleware.Internal("failed to issue token")
 	}
@@ -143,8 +153,15 @@ func (h *HouseholdHandler) Join(c *fiber.Ctx) error {
 		return middleware.Internal("failed to join household")
 	}
 
-	// Re-issue JWT with household_id and role=member.
-	token, err := services.CreateToken(userID, &hh.ID, "member", h.jwtSecret, h.jwtExpirationHours)
+	// Re-issue JWT with household_id and role=member from the fresh DB user
+	// (design D2) so the token carries the current household, role, and email.
+	user, err := h.userRepo.FindByID(userID)
+	if err != nil || user == nil {
+		return middleware.Internal("failed to load user for token")
+	}
+	// isAdmin is false at issue time: no site-admin mechanism exists yet
+	// (slice 5 adds User.IsAdmin and switches this call site to it).
+	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, false, h.jwtSecret, h.jwtExpirationHours)
 	if err != nil {
 		return middleware.Internal("failed to issue token")
 	}

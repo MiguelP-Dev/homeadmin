@@ -63,7 +63,7 @@ func setupHouseholdApp(svc householdServiceInterface) *fiber.App {
 		ErrorHandler: middleware.ErrorHandler,
 	})
 
-	handler := NewHouseholdHandler(svc, hhTestJWTSecret, 24)
+	handler := NewHouseholdHandler(svc, &mockUserRepo{}, hhTestJWTSecret, 24)
 
 	// Middleware to simulate RequireAuth locals.
 	app.Use(func(c *fiber.Ctx) error {
@@ -212,7 +212,23 @@ func TestHouseholdHandler_Create_Success(t *testing.T) {
 			return &database.Household{ID: hhID, Name: name}, nil
 		},
 	}
-	app := setupHouseholdApp(svc)
+	userRepo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{ID: 1, Email: "test@example.com", Role: "admin"}, nil
+		},
+	}
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
+	handler := NewHouseholdHandler(svc, userRepo, hhTestJWTSecret, 24)
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("userID", uint(1))
+		c.Locals("householdID", ptr[uint](1))
+		c.Locals("email", "test@example.com")
+		c.Locals("csrfToken", "test-csrf-token")
+		return c.Next()
+	})
+	app.Post("/household", handler.Create)
 
 	form := url.Values{}
 	form.Set("name", "My Family")
@@ -245,6 +261,14 @@ func TestHouseholdHandler_Create_Success(t *testing.T) {
 	}
 	if claims.Role != "admin" {
 		t.Errorf("expected role=%q in claims, got %q", "admin", claims.Role)
+	}
+	// Re-issued token reflects the fresh DB user (design D2): email from the
+	// user record, is_admin=false (no site-admin mechanism exists yet).
+	if claims.Email != "test@example.com" {
+		t.Errorf("expected Email=test@example.com in claims, got %q", claims.Email)
+	}
+	if claims.IsAdmin {
+		t.Error("expected IsAdmin=false in claims")
 	}
 }
 
@@ -317,7 +341,7 @@ func setupInviteApp(svc householdServiceInterface) *fiber.App {
 		ErrorHandler: middleware.ErrorHandler,
 	})
 
-	handler := NewHouseholdHandler(svc, hhTestJWTSecret, 24)
+	handler := NewHouseholdHandler(svc, &mockUserRepo{}, hhTestJWTSecret, 24)
 
 	app.Use(func(c *fiber.Ctx) error {
 		c.Locals("userID", uint(1))
@@ -339,7 +363,7 @@ func setupInviteAppNoHousehold(svc householdServiceInterface) *fiber.App {
 		ErrorHandler: middleware.ErrorHandler,
 	})
 
-	handler := NewHouseholdHandler(svc, hhTestJWTSecret, 24)
+	handler := NewHouseholdHandler(svc, &mockUserRepo{}, hhTestJWTSecret, 24)
 
 	app.Use(func(c *fiber.Ctx) error {
 		c.Locals("userID", uint(1))
@@ -569,7 +593,22 @@ func TestHouseholdHandler_Join_Success(t *testing.T) {
 			return &database.Household{ID: hhID, Name: "Joined Family"}, nil
 		},
 	}
-	app := setupInviteAppNoHousehold(svc)
+	userRepo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{ID: 1, Email: "joiner@example.com", Role: "member"}, nil
+		},
+	}
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
+	handler := NewHouseholdHandler(svc, userRepo, hhTestJWTSecret, 24)
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("userID", uint(1))
+		c.Locals("email", "joiner@example.com")
+		c.Locals("csrfToken", "test-csrf-token")
+		return c.Next()
+	})
+	app.Post("/household/join", handler.Join)
 
 	form := url.Values{}
 	form.Set("code", "ABC12345")
@@ -602,5 +641,12 @@ func TestHouseholdHandler_Join_Success(t *testing.T) {
 	}
 	if claims.Role != "member" {
 		t.Errorf("expected role=%q in claims, got %q", "member", claims.Role)
+	}
+	// Re-issued token reflects the fresh DB user (design D2).
+	if claims.Email != "joiner@example.com" {
+		t.Errorf("expected Email=joiner@example.com in claims, got %q", claims.Email)
+	}
+	if claims.IsAdmin {
+		t.Error("expected IsAdmin=false in claims")
 	}
 }

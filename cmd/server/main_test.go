@@ -72,7 +72,7 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	expenseHandler := handlers.NewExpenseHandler(expenseService)
 	householdRepo := repositories.NewHouseholdRepository(db)
 	householdService := services.NewHouseholdService(householdRepo, userRepo, householdRepo)
-	householdHandler := handlers.NewHouseholdHandler(householdService, jwtSecret, 24)
+	householdHandler := handlers.NewHouseholdHandler(householdService, userRepo, jwtSecret, 24)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: middleware.ErrorHandler,

@@ -23,7 +23,7 @@ type AuthHandler struct {
 type authServiceProvider interface {
 	HashPassword(password string) (string, error)
 	CheckPassword(password, hash string) bool
-	CreateToken(userID uint, householdID *uint, role, secret string, expHours int) (string, error)
+	CreateToken(userID uint, householdID *uint, role, email string, isAdmin bool, secret string, expHours int) (string, error)
 }
 
 // authServiceAdapter wraps the package-level services functions to satisfy authServiceProvider.
@@ -37,8 +37,8 @@ func (a *authServiceAdapter) CheckPassword(password, hash string) bool {
 	return services.CheckPassword(password, hash)
 }
 
-func (a *authServiceAdapter) CreateToken(userID uint, householdID *uint, role, secret string, expHours int) (string, error) {
-	return services.CreateToken(userID, householdID, role, secret, expHours)
+func (a *authServiceAdapter) CreateToken(userID uint, householdID *uint, role, email string, isAdmin bool, secret string, expHours int) (string, error) {
+	return services.CreateToken(userID, householdID, role, email, isAdmin, secret, expHours)
 }
 
 // NewAuthHandler creates a new AuthHandler with real service dependencies.
@@ -85,7 +85,9 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return h.renderPage(c, "Login", csrfToken, "", pages.Login(csrfToken, "Invalid credentials"))
 	}
 
-	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, h.JWTSecret, 24)
+	// isAdmin is false at issue time: no site-admin mechanism exists yet
+	// (slice 5 adds User.IsAdmin and switches these call sites to it).
+	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, false, h.JWTSecret, 24)
 	if err != nil {
 		return middleware.Internal("internal server error")
 	}
@@ -142,7 +144,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return middleware.Internal("internal server error")
 	}
 
-	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, h.JWTSecret, 24)
+	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, false, h.JWTSecret, 24)
 	if err != nil {
 		return middleware.Internal("internal server error")
 	}
