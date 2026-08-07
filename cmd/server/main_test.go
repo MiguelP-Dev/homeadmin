@@ -1,17 +1,23 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"gorm.io/gorm"
 
+	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/handlers"
 	"github.com/homeadmin/internal/middleware"
+	"github.com/homeadmin/internal/repositories"
 	"github.com/homeadmin/internal/services"
 )
 
@@ -36,51 +42,80 @@ func newTestApp(allowedOrigins string) *fiber.App {
 	return app
 }
 
-// newIntegrationApp creates a full Fiber app with CSRF → public routes → RequireAuth → protected routes.
-// Mirrors the production middleware chain from main.go for integration testing.
-func newIntegrationApp(csrfKey, jwtSecret string) *fiber.App {
-	app := fiber.New()
+// newIntegrationApp creates a full Fiber app backed by an in-memory SQLite
+// database and the REAL handlers, repos and services, mirroring the production
+// middleware chain and route/middleware order from main.go (design §6: the old
+// "Dashboard (coming soon)" stub was the exact reason the *uint Locals panic
+// shipped — it must never come back).
+func newIntegrationApp(t *testing.T, csrfKey, jwtSecret string) *fiber.App {
+	t.Helper()
+	app, _ := newIntegrationAppWithDB(t, csrfKey, jwtSecret)
+	return app
+}
 
-	// Position 3: CSRF (skipped if csrfKey is empty)
+// newIntegrationAppWithDB builds the same app as newIntegrationApp but also
+// returns the GORM handle so tests can assert persisted state (T5.4).
+func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.App, *gorm.DB) {
+	t.Helper()
+	db, err := database.Connect(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("failed to connect to test db: %v", err)
+	}
+	if err := database.Migrate(db); err != nil {
+		t.Fatalf("failed to migrate test db: %v", err)
+	}
+
+	userRepo := repositories.NewUserRepository(db)
+	expenseRepo := repositories.NewExpenseRepository(db)
+	authHandler := handlers.NewAuthHandler(userRepo, jwtSecret)
+	expenseService := services.NewExpenseService(expenseRepo)
+	expenseHandler := handlers.NewExpenseHandler(expenseService)
+	householdRepo := repositories.NewHouseholdRepository(db)
+	householdService := services.NewHouseholdService(householdRepo, userRepo, householdRepo)
+	householdHandler := handlers.NewHouseholdHandler(householdService, jwtSecret, 24)
+
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
+
+	// CSRF (skipped if csrfKey is empty) — same position as main.go
 	if csrfKey != "" {
 		app.Use(csrfMiddleware(csrfKey))
 	}
 
-	// Public routes (no auth required)
-	app.Get("/login", func(c *fiber.Ctx) error {
-		return c.SendString("login form")
-	})
-	app.Post("/login", func(c *fiber.Ctx) error {
-		return c.SendString("login handler")
-	})
-	app.Get("/register", func(c *fiber.Ctx) error {
-		return c.SendString("register form")
-	})
-	app.Post("/register", func(c *fiber.Ctx) error {
-		return c.SendString("register handler")
-	})
-	app.Post("/logout", func(c *fiber.Ctx) error {
-		return c.SendString("logout handler")
-	})
+	// Public auth routes (no auth required)
+	app.Get("/login", authHandler.ShowLogin)
+	app.Post("/login", authHandler.Login)
+	app.Get("/register", authHandler.ShowRegister)
+	app.Post("/register", authHandler.Register)
+	app.Post("/logout", authHandler.Logout)
 
-	// Root redirect — unauthenticated goes to /login
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.Redirect("/login", fiber.StatusFound)
-	})
+	// Root redirect — token-aware: authenticated users go to /dashboard,
+	// everyone else to /login (same handler main.go mounts).
+	app.Get("/", rootRedirect(jwtSecret))
 
-	// Protected routes — RequireAuth applied per-route (mirrors main.go; avoids
-	// empty-prefix group mounting auth middleware as a fallback on unmatched paths)
-	app.Get("/dashboard", middleware.RequireAuth(jwtSecret), func(c *fiber.Ctx) error {
-		return c.SendString("Dashboard (coming soon)")
-	})
+	// Protected routes — RequireAuth applied per-route, RequireHousehold after
+	// it on household-mandatory routes (mirrors main.go order, design §2).
+	app.Get("/dashboard", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Dashboard)
+	app.Get("/expenses", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.List)
+	app.Post("/expenses", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Create)
+	app.Put("/expenses/:id", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Update)
+	app.Delete("/expenses/:id", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Delete)
 
-	return app
+	// Household routes — /household/invite is RequireAuth-only by design (the
+	// handler 400s no-household users; batch-7 deviation from design §3).
+	app.Get("/household", middleware.RequireAuth(jwtSecret), householdHandler.Show)
+	app.Post("/household", middleware.RequireAuth(jwtSecret), householdHandler.Create)
+	app.Post("/household/invite", middleware.RequireAuth(jwtSecret), householdHandler.Invite)
+	app.Post("/household/join", middleware.RequireAuth(jwtSecret), householdHandler.Join)
+
+	return app, db
 }
 
 // TestRootRedirect_Unauthenticated verifies GET / redirects to /login when no JWT cookie.
 // Covers spec: root redirect — unauthenticated → 302 /login.
 func TestRootRedirect_Unauthenticated(t *testing.T) {
-	app := newIntegrationApp("", "test-secret")
+	app := newIntegrationApp(t, "", "test-secret")
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	resp, err := app.Test(req, 5000)
@@ -108,6 +143,10 @@ func TestRootRedirect_TokenAware(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
+	expiredToken, err := services.CreateToken(1, nil, "member", jwtSecret, -1)
+	if err != nil {
+		t.Fatalf("CreateToken(expired) error: %v", err)
+	}
 
 	tests := []struct {
 		name       string
@@ -124,6 +163,12 @@ func TestRootRedirect_TokenAware(t *testing.T) {
 		{
 			name:       "invalid JWT redirects to login",
 			cookie:     "jwt=not-a-valid-token",
+			wantStatus: fiber.StatusFound,
+			wantLoc:    "/login",
+		},
+		{
+			name:       "expired JWT redirects to login",
+			cookie:     "jwt=" + expiredToken,
 			wantStatus: fiber.StatusFound,
 			wantLoc:    "/login",
 		},
@@ -163,7 +208,7 @@ func TestRootRedirect_TokenAware(t *testing.T) {
 // TestLoginRoute_Accessible verifies GET /login returns 200 for public access.
 // Covers spec: public auth routes are accessible without authentication.
 func TestLoginRoute_Accessible(t *testing.T) {
-	app := newIntegrationApp("", "test-secret")
+	app := newIntegrationApp(t, "", "test-secret")
 
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)
 	resp, err := app.Test(req, 5000)
@@ -175,18 +220,19 @@ func TestLoginRoute_Accessible(t *testing.T) {
 		t.Errorf("status code = %d, want %d", resp.StatusCode, fiber.StatusOK)
 	}
 
-	buf := make([]byte, 1024)
-	n, _ := resp.Body.Read(buf)
-	body := strings.TrimSpace(string(buf[:n]))
-	if !strings.Contains(body, "login form") {
-		t.Errorf("response body = %q, want to contain %q", body, "login form")
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	if !strings.Contains(string(body), `action="/login"`) {
+		t.Errorf("response body does not contain the login form")
 	}
 }
 
 // TestRegisterRoute_Accessible verifies GET /register returns 200 for public access.
 // Covers spec: public auth routes are accessible without authentication.
 func TestRegisterRoute_Accessible(t *testing.T) {
-	app := newIntegrationApp("", "test-secret")
+	app := newIntegrationApp(t, "", "test-secret")
 
 	req := httptest.NewRequest(http.MethodGet, "/register", nil)
 	resp, err := app.Test(req, 5000)
@@ -198,18 +244,19 @@ func TestRegisterRoute_Accessible(t *testing.T) {
 		t.Errorf("status code = %d, want %d", resp.StatusCode, fiber.StatusOK)
 	}
 
-	buf := make([]byte, 1024)
-	n, _ := resp.Body.Read(buf)
-	body := strings.TrimSpace(string(buf[:n]))
-	if !strings.Contains(body, "register form") {
-		t.Errorf("response body = %q, want to contain %q", body, "register form")
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	if !strings.Contains(string(body), `action="/register"`) {
+		t.Errorf("response body does not contain the register form")
 	}
 }
 
 // TestProtectedRoute_RedirectWithoutCookie verifies GET /dashboard redirects to /login without JWT cookie.
 // Covers spec: protected routes redirect to /login without valid JWT.
 func TestProtectedRoute_RedirectWithoutCookie(t *testing.T) {
-	app := newIntegrationApp("", "test-secret")
+	app := newIntegrationApp(t, "", "test-secret")
 
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	resp, err := app.Test(req, 5000)
@@ -227,32 +274,72 @@ func TestProtectedRoute_RedirectWithoutCookie(t *testing.T) {
 	}
 }
 
-// TestDashboardRoute_ReturnsContent verifies GET /dashboard returns "Dashboard (coming soon)" with valid JWT.
-// Covers spec: protected route returns content when authenticated.
-func TestDashboardRoute_ReturnsContent(t *testing.T) {
-	app := newIntegrationApp("", "test-secret")
+// TestDashboardRoute_InvalidTokenRedirects verifies GET /dashboard with an
+// invalid JWT redirects to /login (RequireAuth rejects before the handler).
+// Covers spec: protected routes redirect to /login without a valid JWT.
+func TestDashboardRoute_InvalidTokenRedirects(t *testing.T) {
+	app := newIntegrationApp(t, "", "test-secret")
 
-	// First login to get a JWT cookie — use the dashboard route directly with a valid cookie
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	req.Header.Set("Cookie", "jwt=test-invalid-token")
 	resp, err := app.Test(req, 5000)
 	if err != nil {
 		t.Fatalf("app.Test() error: %v", err)
 	}
+	defer resp.Body.Close()
 
 	// Invalid token should redirect to /login
 	if resp.StatusCode != fiber.StatusFound {
 		t.Errorf("status code = %d, want %d (redirect for invalid token)", resp.StatusCode, fiber.StatusFound)
 	}
+	if loc := resp.Header.Get("Location"); loc != "/login" {
+		t.Errorf("Location = %q, want %q", loc, "/login")
+	}
 }
 
-// TestDashboardWithValidJWT verifies protected route returns content when authenticated.
-// Triangulation: valid JWT cookie → handler executes and returns dashboard content.
-func TestDashboardWithValidJWT(t *testing.T) {
+// TestDashboard_WithHouseholdJWT_NoPanic is the regression the old "Dashboard
+// (coming soon)" stub hid: a JWT carrying household_id must reach the real
+// dashboard handler and render without the *uint Locals panic (PR1, design §6).
+func TestDashboard_WithHouseholdJWT_NoPanic(t *testing.T) {
 	jwtSecret := "test-secret"
-	app := newIntegrationApp("", jwtSecret)
+	app := newIntegrationApp(t, "", jwtSecret)
 
-	// Generate a valid JWT token
+	householdID := uint(1)
+	token, err := services.CreateToken(1, &householdID, "member", jwtSecret, 24)
+	if err != nil {
+		t.Fatalf("CreateToken error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	req.Header.Set("Cookie", "jwt="+token)
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 500 {
+		t.Fatalf("status = %d, want < 500 (handler must not panic)", resp.StatusCode)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, fiber.StatusOK)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	if !strings.Contains(string(body), "Monthly Total:") {
+		t.Errorf("response body does not contain the dashboard summary")
+	}
+}
+
+// TestDashboard_NoHousehold_RedirectsToHousehold verifies RequireHousehold
+// blocks users without a household from /dashboard (spec: RequireHousehold).
+func TestDashboard_NoHousehold_RedirectsToHousehold(t *testing.T) {
+	jwtSecret := "test-secret"
+	app := newIntegrationApp(t, "", jwtSecret)
+
 	token, err := services.CreateToken(1, nil, "member", jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
@@ -264,54 +351,274 @@ func TestDashboardWithValidJWT(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error: %v", err)
 	}
+	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("status code = %d, want %d", resp.StatusCode, fiber.StatusOK)
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("status = %d, want %d", resp.StatusCode, fiber.StatusFound)
 	}
-
-	buf := make([]byte, 1024)
-	n, _ := resp.Body.Read(buf)
-	body := strings.TrimSpace(string(buf[:n]))
-	if body != "Dashboard (coming soon)" {
-		t.Errorf("response body = %q, want %q", body, "Dashboard (coming soon)")
+	if loc := resp.Header.Get("Location"); loc != "/household" {
+		t.Errorf("Location = %q, want %q", loc, "/household")
 	}
 }
 
-// TestRootRedirectAuthenticated verifies GET / redirects to /dashboard with valid JWT.
-// Triangulation: authenticated user gets dashboard, not login.
-func TestRootRedirectAuthenticated(t *testing.T) {
+// TestRootRedirect_Integration re-verifies the token-aware root redirect through
+// the full app. It SUPERSEDES the stale TestRootRedirectAuthenticated, which
+// asserted the pre-change always-/login contract against the stub and would
+// have passed even if rootRedirect regressed. Covers spec: Root Redirect Fix.
+func TestRootRedirect_Integration(t *testing.T) {
 	jwtSecret := "test-secret"
-	app := newIntegrationApp("", jwtSecret)
+	app := newIntegrationApp(t, "", jwtSecret)
 
-	token, err := services.CreateToken(1, nil, "admin", jwtSecret, 24)
+	validToken, err := services.CreateToken(1, nil, "member", jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
+	expiredToken, err := services.CreateToken(1, nil, "member", jwtSecret, -1)
+	if err != nil {
+		t.Fatalf("CreateToken(expired) error: %v", err)
+	}
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Cookie", "jwt="+token)
+	tests := []struct {
+		name       string
+		cookie     string
+		wantStatus int
+		wantLoc    string
+	}{
+		{
+			name:       "valid JWT redirects to dashboard",
+			cookie:     "jwt=" + validToken,
+			wantStatus: fiber.StatusFound,
+			wantLoc:    "/dashboard",
+		},
+		{
+			name:       "no JWT redirects to login",
+			cookie:     "",
+			wantStatus: fiber.StatusFound,
+			wantLoc:    "/login",
+		},
+		{
+			name:       "invalid JWT redirects to login",
+			cookie:     "jwt=not-a-valid-token",
+			wantStatus: fiber.StatusFound,
+			wantLoc:    "/login",
+		},
+		{
+			name:       "expired JWT redirects to login",
+			cookie:     "jwt=" + expiredToken,
+			wantStatus: fiber.StatusFound,
+			wantLoc:    "/login",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.cookie != "" {
+				req.Header.Set("Cookie", tt.cookie)
+			}
+			resp, err := app.Test(req, 5000)
+			if err != nil {
+				t.Fatalf("app.Test() error: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("status = %d, want %d", resp.StatusCode, tt.wantStatus)
+			}
+			if loc := resp.Header.Get("Location"); loc != tt.wantLoc {
+				t.Errorf("Location = %q, want %q", loc, tt.wantLoc)
+			}
+		})
+	}
+}
+
+// TestRegisterRedirectsToHousehold verifies POST /register sends a brand-new
+// user (who never belongs to a household) to /household to create or join one.
+// Covers spec: Register redirect fix (T4.5).
+func TestRegisterRedirectsToHousehold(t *testing.T) {
+	app := newIntegrationApp(t, "", "test-secret")
+
+	req := httptest.NewRequest(http.MethodPost, "/register",
+		strings.NewReader("name=Alice&email=alice@example.com&password=password123"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	resp, err := app.Test(req, 5000)
 	if err != nil {
 		t.Fatalf("app.Test() error: %v", err)
 	}
+	defer resp.Body.Close()
 
-	// Root always redirects to /login (the redirect itself doesn't check auth;
-	// that's a Phase 3 concern per the spec)
 	if resp.StatusCode != fiber.StatusFound {
-		t.Errorf("status code = %d, want %d", resp.StatusCode, fiber.StatusFound)
+		t.Errorf("status = %d, want %d", resp.StatusCode, fiber.StatusFound)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/household" {
+		t.Errorf("Location = %q, want %q", loc, "/household")
+	}
+}
+
+// inviteCodeRe matches the 8-char [0-9A-Z] invite code rendered on the
+// household page after an invite (internal/services/household.go charset).
+var inviteCodeRe = regexp.MustCompile(`[0-9A-Z]{8}`)
+
+// TestHouseholdE2EFlow drives the full household onboarding journey through the
+// real app: register → create household → invite → join, then asserts the
+// persisted DB state. It is the end-to-end wiring proof for T4.7 (routes,
+// middleware order, DI). Triangulation: single-use code rejection and the
+// non-admin invite 403.
+func TestHouseholdE2EFlow(t *testing.T) {
+	const jwtSecret = "test-secret"
+	app, db := newIntegrationAppWithDB(t, "", jwtSecret)
+
+	// register creates a user via the real auth flow and returns the JWT cookie
+	// plus the persisted user ID.
+	register := func(name, email, password string) (cookie string, userID uint) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/register",
+			strings.NewReader("name="+name+"&email="+email+"&password="+password))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("register %s: %v", email, err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/household" {
+			t.Fatalf("register %s: status %d Location %q, want 302 /household",
+				email, resp.StatusCode, resp.Header.Get("Location"))
+		}
+		cookie = getCookieValue(resp, "jwt")
+		if cookie == "" {
+			t.Fatalf("register %s: no jwt cookie in response", email)
+		}
+		var user database.User
+		if err := db.Where("email = ?", email).First(&user).Error; err != nil {
+			t.Fatalf("find user %s in db: %v", email, err)
+		}
+		return cookie, user.ID
 	}
 
-	location := resp.Header.Get("Location")
-	if location != "/login" {
-		t.Errorf("Location = %q, want %q", location, "/login")
+	// post sends a form POST with the given jwt cookie and returns the response.
+	post := func(path, form, cookie string) *http.Response {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Cookie", "jwt="+cookie)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("POST %s: %v", path, err)
+		}
+		return resp
 	}
+
+	expectRedirect := func(resp *http.Response, path, wantLoc string) {
+		t.Helper()
+		defer resp.Body.Close()
+		if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != wantLoc {
+			t.Fatalf("POST %s: status %d Location %q, want 302 %s",
+				path, resp.StatusCode, resp.Header.Get("Location"), wantLoc)
+		}
+	}
+
+	// A registers and creates "Test Family" → admin.
+	cookieA, userA := register("User A", "a@example.com", "password123")
+	resp := post("/household", "name=Test+Family", cookieA)
+	expectRedirect(resp, "/household", "/dashboard")
+	cookieA = getCookieValue(resp, "jwt") // re-issued with household_id + role admin
+	if cookieA == "" {
+		t.Fatal("no re-issued jwt cookie after household create")
+	}
+
+	var household database.Household
+	if err := db.Where("name = ?", "Test Family").First(&household).Error; err != nil {
+		t.Fatalf("household not persisted: %v", err)
+	}
+	var adminUser database.User
+	if err := db.First(&adminUser, userA).Error; err != nil {
+		t.Fatalf("load user A: %v", err)
+	}
+	if adminUser.HouseholdID == nil || *adminUser.HouseholdID != household.ID {
+		t.Errorf("user A HouseholdID = %v, want %d", adminUser.HouseholdID, household.ID)
+	}
+	if adminUser.Role != "admin" {
+		t.Errorf("user A role = %q, want admin", adminUser.Role)
+	}
+
+	// A invites → 200 rendering an 8-char code.
+	resp = post("/household/invite", "", cookieA)
+	inviteBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read invite response: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("invite: status %d, want 200", resp.StatusCode)
+	}
+	code := inviteCodeRe.FindString(string(inviteBody))
+	if len(code) != 8 {
+		t.Fatalf("invite response does not contain an 8-char code; body: %s", inviteBody)
+	}
+
+	// B registers and joins with the code → member.
+	cookieB, userB := register("User B", "b@example.com", "password123")
+	resp = post("/household/join", "code="+code, cookieB)
+	expectRedirect(resp, "/household/join", "/dashboard")
+
+	// DB state: B linked to the household as member; invite marked used by B.
+	var member database.User
+	if err := db.First(&member, userB).Error; err != nil {
+		t.Fatalf("load user B: %v", err)
+	}
+	if member.HouseholdID == nil || *member.HouseholdID != household.ID {
+		t.Errorf("user B HouseholdID = %v, want %d", member.HouseholdID, household.ID)
+	}
+	if member.Role != "member" {
+		t.Errorf("user B role = %q, want member", member.Role)
+	}
+	var invite database.InviteCode
+	if err := db.Where("code = ?", code).First(&invite).Error; err != nil {
+		t.Fatalf("load invite: %v", err)
+	}
+	if invite.UsedBy == nil || *invite.UsedBy != userB {
+		t.Errorf("invite UsedBy = %v, want %d", invite.UsedBy, userB)
+	}
+
+	// TRIANGULATE — error path: a fresh user joining with the used code → 400.
+	cookieC, _ := register("User C", "c@example.com", "password123")
+	resp = post("/household/join", "code="+code, cookieC)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("join with used code: status %d, want 400", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// TRIANGULATE — non-admin cannot invite: C joins via a fresh invite, then
+	// tries to invite → 403 (spec: Only admins can invite).
+	resp = post("/household/invite", "", cookieA)
+	freshBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read second invite response: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("second invite: status %d, want 200", resp.StatusCode)
+	}
+	code2 := inviteCodeRe.FindString(string(freshBody))
+	if len(code2) != 8 {
+		t.Fatalf("second invite response does not contain an 8-char code")
+	}
+	resp = post("/household/join", "code="+code2, cookieC)
+	expectRedirect(resp, "/household/join", "/dashboard")
+	cookieC = getCookieValue(resp, "jwt")
+
+	resp = post("/household/invite", "", cookieC)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("member invite: status %d, want 403", resp.StatusCode)
+	}
+	resp.Body.Close()
 }
 
 // TestUnknownRoute_Returns404 verifies that unmatched paths return a real 404,
 // NOT a redirect to /login. Regression for empty-prefix group fallback where
 // RequireAuth ran on every unmatched path (unknown URLs became 302 /login).
 func TestUnknownRoute_Returns404(t *testing.T) {
-	app := newIntegrationApp("", "test-secret")
+	app := newIntegrationApp(t, "", "test-secret")
 
 	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 	req.Header.Set("Accept", "text/html")
@@ -479,7 +786,7 @@ func getCookieValue(resp *http.Response, name string) string {
 // TestCSRFBlocksPostWithoutToken verifies POST /login is blocked by CSRF without csrf field.
 // Covers spec §2.1: CSRF middleware returns 403 for state-mutating requests without CSRF token.
 func TestCSRFBlocksPostWithoutToken(t *testing.T) {
-	app := newIntegrationApp("test-csrf-key", "test-secret")
+	app := newIntegrationApp(t, "test-csrf-key", "test-secret")
 
 	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader("email=test@example.com&password=secret"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -496,7 +803,7 @@ func TestCSRFBlocksPostWithoutToken(t *testing.T) {
 // TestCSRFBlocksLogoutPost verifies POST /logout is also blocked by CSRF.
 // Triangulation: CSRF applies to ALL POST routes, not just /login.
 func TestCSRFBlocksLogoutPost(t *testing.T) {
-	app := newIntegrationApp("test-csrf-key", "test-secret")
+	app := newIntegrationApp(t, "test-csrf-key", "test-secret")
 
 	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
 	resp, err := app.Test(req, 5000)
@@ -512,7 +819,7 @@ func TestCSRFBlocksLogoutPost(t *testing.T) {
 // TestCSRFGetPassesThrough verifies GET requests are not blocked by CSRF.
 // Covers spec §2.1: CSRF only applies to state-mutating methods (POST, PUT, DELETE).
 func TestCSRFGetPassesThrough(t *testing.T) {
-	app := newIntegrationApp("test-csrf-key", "test-secret")
+	app := newIntegrationApp(t, "test-csrf-key", "test-secret")
 
 	req := httptest.NewRequest(http.MethodGet, "/login", nil)
 	resp, err := app.Test(req, 5000)
@@ -529,7 +836,7 @@ func TestCSRFGetPassesThrough(t *testing.T) {
 // TestCSRFNotAppliedWhenDisabled verifies POST passes through when CSRF key is empty.
 // Triangulation: when csrfKey is empty, CSRF middleware is skipped entirely.
 func TestCSRFNotAppliedWhenDisabled(t *testing.T) {
-	app := newIntegrationApp("", "test-secret")
+	app := newIntegrationApp(t, "", "test-secret")
 
 	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader("email=test@example.com&password=secret"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
