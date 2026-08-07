@@ -8,7 +8,10 @@ import "github.com/homeadmin/internal/database"
 // invite code after an invite action.
 templ HouseholdShow(household *database.Household, members []database.User, isAdmin bool, csrfToken string, inviteCode string) {
 	<div class="max-w-4xl mx-auto p-6">
-		<h1 class="text-3xl font-bold text-gray-900 mb-2">{ household.Name }</h1>
+		<div class="flex items-center justify-between mb-2">
+			<h1 class="text-3xl font-bold text-gray-900">{ household.Name }</h1>
+			<a href="/expenses/new" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Expense</a>
+		</div>
 
 		if isAdmin {
 			<form method="POST" action="/household/invite" class="mb-6">

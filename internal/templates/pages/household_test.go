@@ -38,6 +38,16 @@ func TestHouseholdShow_RendersHouseholdName(t *testing.T) {
 	}
 }
 
+// --- HouseholdShow: Add Expense CTA (all members) ---
+
+func TestHouseholdShow_HasAddExpenseCTA(t *testing.T) {
+	hh := &database.Household{Name: "My Family"}
+	output := mustRenderHouseholdShow(hh, []database.User{{Email: "a@example.com", Role: "admin"}}, true, "csrf-token", "")
+	if !strings.Contains(output, `href="/expenses/new"`) {
+		t.Error("expected Add Expense CTA linking to /expenses/new in household page")
+	}
+}
+
 // --- HouseholdShow: member rows with roles ---
 
 func TestHouseholdShow_RendersMemberRowsWithRoles(t *testing.T) {

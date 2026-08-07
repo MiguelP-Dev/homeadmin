@@ -135,6 +135,18 @@ func TestDashboard_HasLinkToExpenses(t *testing.T) {
 	}
 }
 
+func TestDashboard_HasAddExpenseCTA(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal:   0,
+		CategoryTotals: []repositories.CategoryTotal{},
+		RecentExpenses: []database.Expense{},
+	}
+	output := mustRenderDashboard(s)
+	if !strings.Contains(output, `href="/expenses/new"`) {
+		t.Error("expected Add Expense CTA linking to /expenses/new in dashboard")
+	}
+}
+
 func TestDashboard_ShowsCategoryTotalAmount(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal: 500.00,
