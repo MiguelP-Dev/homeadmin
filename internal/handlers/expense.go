@@ -35,6 +35,8 @@ func NewExpenseHandler(svc expenseServiceInterface) *ExpenseHandler {
 }
 
 // Create handles POST /expenses — parses form data and delegates to service.
+// Valid submissions redirect (303) to /expenses; invalid payloads re-render the
+// form with errors at 422 without persisting (RF-3).
 func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
@@ -46,7 +48,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	amountStr := c.FormValue("amount")
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
-		return middleware.BadRequest("invalid amount")
+		return middleware.Unprocessable("invalid amount")
 	}
 
 	description := c.FormValue("description")
@@ -60,7 +62,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 		middleware.ValidateRequired(category, "category"),
 		middleware.ValidateIn(category, "category", database.ExpenseCategories),
 	); err != nil {
-		return err
+		return middleware.Unprocessable(err.Error())
 	}
 
 	dateStr := c.FormValue("date")
@@ -71,7 +73,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	if dateStr != "" {
 		date, err = time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			return middleware.BadRequest("invalid date format, use YYYY-MM-DD")
+			return middleware.Unprocessable("invalid date format, use YYYY-MM-DD")
 		}
 	} else {
 		date = time.Now()
@@ -88,12 +90,13 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 		if err == services.ErrPermission {
 			return middleware.Forbidden(err.Error())
 		}
-		return middleware.BadRequest(err.Error())
+		if err == services.ErrValidation {
+			return middleware.Unprocessable(err.Error())
+		}
+		return middleware.Internal("failed to create expense")
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": "expense created",
-	})
+	return c.Redirect("/expenses", fiber.StatusSeeOther)
 }
 
 // List handles GET /expenses — returns all visible expenses for the household.

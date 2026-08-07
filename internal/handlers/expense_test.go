@@ -121,9 +121,10 @@ func TestCreateHandler_ValidationError(t *testing.T) {
 	}
 	app := setupExpenseApp(svc)
 
+	// Valid form: the service-level validation error is what must surface as 422.
 	form := url.Values{}
 	form.Set("amount", "100")
-	form.Set("description", "")
+	form.Set("description", "Rent")
 	form.Set("category", "Rent")
 	form.Set("date", "2026-07-27")
 	form.Set("visibility", "visible_editable")
@@ -137,12 +138,12 @@ func TestCreateHandler_ValidationError(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusUnprocessableEntity {
+		t.Errorf("expected status 422, got %d", resp.StatusCode)
 	}
 
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "error") {
+	if !strings.Contains(string(body), "validation failed") {
 		t.Error("expected error message in response body")
 	}
 }
@@ -195,8 +196,8 @@ func TestCreateHandler_InvalidAmount(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("expected status 400 for invalid amount, got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusUnprocessableEntity {
+		t.Errorf("expected status 422 for invalid amount, got %d", resp.StatusCode)
 	}
 
 	body, _ := io.ReadAll(resp.Body)
@@ -232,14 +233,11 @@ func TestCreateHandler_Success(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusCreated {
-		t.Errorf("expected status 201, got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusSeeOther {
+		t.Errorf("expected status 303, got %d", resp.StatusCode)
 	}
-
-	body, _ := io.ReadAll(resp.Body)
-	bodyStr := string(body)
-	if !strings.Contains(bodyStr, "expense created") {
-		t.Errorf("expected 'expense created' in response, got: %s", bodyStr)
+	if loc := resp.Header.Get("Location"); loc != "/expenses" {
+		t.Errorf("Location = %q, want /expenses", loc)
 	}
 	if savedDesc != "Groceries" {
 		t.Errorf("expected service called with 'Groceries', got '%s'", savedDesc)
@@ -874,8 +872,8 @@ func TestExpenseHandlers_NonNilHouseholdLocals_Succeed(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode != fiber.StatusCreated {
-			t.Errorf("expected status 201, got %d", resp.StatusCode)
+		if resp.StatusCode != fiber.StatusSeeOther {
+			t.Errorf("expected status 303, got %d", resp.StatusCode)
 		}
 		if gotHouseholdID != 1 {
 			t.Errorf("expected service householdID 1, got %d", gotHouseholdID)

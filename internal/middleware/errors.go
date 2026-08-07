@@ -33,6 +33,11 @@ func BadRequest(msg string) *AppError {
 	return &AppError{Status: fiber.StatusBadRequest, Message: msg}
 }
 
+// Unprocessable creates a 422 AppError (valid request, invalid form payload).
+func Unprocessable(msg string) *AppError {
+	return &AppError{Status: fiber.StatusUnprocessableEntity, Message: msg}
+}
+
 // Forbidden creates a 403 AppError.
 func Forbidden(msg string) *AppError {
 	return &AppError{Status: fiber.StatusForbidden, Message: msg}
