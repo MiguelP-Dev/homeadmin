@@ -48,7 +48,18 @@ func ConnectWithDriver(dsn string, driver string) (*gorm.DB, error) {
 	return db, nil
 }
 
-// Migrate runs AutoMigrate for all application models.
+// Migrate runs AutoMigrate for all application models, then applies data
+// migrations (migrateLegacyRoles).
 func Migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&Household{}, &User{}, &Expense{}, &InviteCode{})
+	if err := db.AutoMigrate(&Household{}, &User{}, &Expense{}, &InviteCode{}); err != nil {
+		return err
+	}
+	return migrateLegacyRoles(db)
+}
+
+// migrateLegacyRoles maps the legacy household role "admin" (previously held
+// only by household creators) to the three-tier role "owner" (RF-7). It is
+// idempotent: once every admin row has been mapped, a re-run updates zero rows.
+func migrateLegacyRoles(db *gorm.DB) error {
+	return db.Model(&User{}).Where("role = ?", RoleAdmin).Update("role", RoleOwner).Error
 }

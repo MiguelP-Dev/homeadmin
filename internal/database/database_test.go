@@ -79,6 +79,59 @@ func TestMigrateInviteCodesTable(t *testing.T) {
 	}
 }
 
+func TestMigrateLegacyRoles(t *testing.T) {
+	db, err := Connect("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	// Seed a pre-change household: creator with legacy role=admin, one member.
+	hh := Household{Name: "Legacy Family"}
+	if err := db.Create(&hh).Error; err != nil {
+		t.Fatalf("create household: %v", err)
+	}
+	creator := User{Email: "creator@example.com", PasswordHash: "hash", Role: RoleAdmin, HouseholdID: &hh.ID}
+	member := User{Email: "member@example.com", PasswordHash: "hash", Role: RoleMember, HouseholdID: &hh.ID}
+	if err := db.Create(&creator).Error; err != nil {
+		t.Fatalf("create creator: %v", err)
+	}
+	if err := db.Create(&member).Error; err != nil {
+		t.Fatalf("create member: %v", err)
+	}
+
+	// First Migrate run maps admin → owner.
+	if err := Migrate(db); err != nil {
+		t.Fatalf("first legacy Migrate failed: %v", err)
+	}
+	var gotCreator, gotMember User
+	if err := db.First(&gotCreator, creator.ID).Error; err != nil {
+		t.Fatalf("reload creator: %v", err)
+	}
+	if gotCreator.Role != RoleOwner {
+		t.Errorf("creator role after migrate = %q, want %q", gotCreator.Role, RoleOwner)
+	}
+	if err := db.First(&gotMember, member.ID).Error; err != nil {
+		t.Fatalf("reload member: %v", err)
+	}
+	if gotMember.Role != RoleMember {
+		t.Errorf("member role after migrate = %q, want %q (untouched)", gotMember.Role, RoleMember)
+	}
+
+	// Second run is a no-op (idempotent).
+	if err := Migrate(db); err != nil {
+		t.Fatalf("second legacy Migrate failed: %v", err)
+	}
+	if err := db.First(&gotCreator, creator.ID).Error; err != nil {
+		t.Fatalf("reload creator (2nd): %v", err)
+	}
+	if gotCreator.Role != RoleOwner {
+		t.Errorf("creator role after second migrate = %q, want %q (idempotent)", gotCreator.Role, RoleOwner)
+	}
+}
+
 func TestConnectWithDriverSQLite(t *testing.T) {
 	// Test that SQLite driver works when specified
 	os.Setenv("DB_DRIVER", "sqlite")
