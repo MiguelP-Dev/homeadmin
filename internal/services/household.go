@@ -13,6 +13,10 @@ var (
 	ErrAlreadyHasHousehold = errors.New("user already has a household")
 	ErrNoHousehold         = errors.New("user has no household")
 	ErrNotAdmin            = errors.New("only admins can invite")
+	ErrNotOwner            = errors.New("only the owner can change member roles")
+	ErrSelfRoleChange      = errors.New("the owner cannot change their own role")
+	ErrOwnerImmutable      = errors.New("the owner role cannot be changed")
+	ErrNotMember           = errors.New("user is not a member of this household")
 	ErrInvalidCode         = errors.New("invalid invite code")
 	ErrExpiredCode         = errors.New("invite code has expired")
 	ErrUsedCode            = errors.New("invite code has already been used")
@@ -26,6 +30,7 @@ type householdRepo interface {
 	FindByInviteCode(code string) (*database.InviteCode, error)
 	CreateInviteCode(invite *database.InviteCode) error
 	GetMembers(householdID uint) ([]database.User, error)
+	AddMember(householdID, userID uint, role string) error
 }
 
 // userRepo is the user data-access surface the service depends on.
@@ -219,4 +224,36 @@ func (s *HouseholdService) Show(userID uint) (*HouseholdView, error) {
 		Members:    members,
 		ViewerRole: user.Role,
 	}, nil
+}
+
+// SetMemberRole changes a member's role (admin|member). Only the household
+// owner may do it, never on themselves and never on another owner (RF-8).
+func (s *HouseholdService) SetMemberRole(ownerID, targetID uint, role string) error {
+	owner, err := s.userRepo.FindByID(ownerID)
+	if err != nil {
+		return err
+	}
+	if owner == nil || owner.Role != database.RoleOwner {
+		return ErrNotOwner
+	}
+
+	if role != database.RoleAdmin && role != database.RoleMember {
+		return ErrValidation
+	}
+
+	target, err := s.userRepo.FindByID(targetID)
+	if err != nil {
+		return err
+	}
+	if target == nil || target.HouseholdID == nil || owner.HouseholdID == nil || *target.HouseholdID != *owner.HouseholdID {
+		return ErrNotMember
+	}
+	if targetID == ownerID {
+		return ErrSelfRoleChange
+	}
+	if target.Role == database.RoleOwner {
+		return ErrOwnerImmutable
+	}
+
+	return s.houseRepo.AddMember(*target.HouseholdID, targetID, role)
 }

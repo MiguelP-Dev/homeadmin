@@ -17,6 +17,7 @@ type mockHouseholdRepo struct {
 	findByInviteCodeFn func(code string) (*database.InviteCode, error)
 	createInviteCodeFn func(invite *database.InviteCode) error
 	getMembersFn       func(householdID uint) ([]database.User, error)
+	addMemberFn        func(householdID, userID uint, role string) error
 }
 
 func (m *mockHouseholdRepo) Create(household *database.Household) error {
@@ -52,6 +53,13 @@ func (m *mockHouseholdRepo) GetMembers(householdID uint) ([]database.User, error
 		return m.getMembersFn(householdID)
 	}
 	return nil, nil
+}
+
+func (m *mockHouseholdRepo) AddMember(householdID, userID uint, role string) error {
+	if m.addMemberFn != nil {
+		return m.addMemberFn(householdID, userID, role)
+	}
+	return nil
 }
 
 var _ householdRepo = (*mockHouseholdRepo)(nil)
@@ -546,6 +554,117 @@ func TestJoin(t *testing.T) {
 			}
 			if hh == nil || hh.ID != tt.invite.HouseholdID {
 				t.Fatalf("Join() returned household %v, want ID %d", hh, tt.invite.HouseholdID)
+			}
+		})
+	}
+}
+
+// --- SetMemberRole (spec: change member role) ---
+
+func TestSetMemberRole(t *testing.T) {
+	hhID := uint(7)
+	owner := &database.User{ID: 1, HouseholdID: ptr(hhID), Role: database.RoleOwner}
+	member := &database.User{ID: 2, HouseholdID: ptr(hhID), Role: database.RoleMember}
+	admin := &database.User{ID: 2, HouseholdID: ptr(hhID), Role: database.RoleAdmin}
+	otherOwner := &database.User{ID: 4, HouseholdID: ptr(hhID), Role: database.RoleOwner}
+	otherHousehold := &database.User{ID: 3, HouseholdID: ptr(uint(99)), Role: database.RoleMember}
+
+	tests := []struct {
+		name       string
+		owner      *database.User
+		target     *database.User
+		role       string
+		wantErr    error
+		wantUpdate bool
+	}{
+		{
+			name:       "owner promotes member to admin",
+			owner:      owner,
+			target:     member,
+			role:       database.RoleAdmin,
+			wantUpdate: true,
+		},
+		{
+			name:       "owner demotes admin to member",
+			owner:      owner,
+			target:     admin,
+			role:       database.RoleMember,
+			wantUpdate: true,
+		},
+		{
+			name:    "member cannot change roles",
+			owner:   &database.User{ID: 5, HouseholdID: ptr(hhID), Role: database.RoleMember},
+			target:  member,
+			role:    database.RoleAdmin,
+			wantErr: ErrNotOwner,
+		},
+		{
+			name:    "self demotion rejected",
+			owner:   owner,
+			target:  owner,
+			role:    database.RoleMember,
+			wantErr: ErrSelfRoleChange,
+		},
+		{
+			name:    "other owner immutable",
+			owner:   owner,
+			target:  otherOwner,
+			role:    database.RoleMember,
+			wantErr: ErrOwnerImmutable,
+		},
+		{
+			name:    "cross-household target rejected",
+			owner:   owner,
+			target:  otherHousehold,
+			role:    database.RoleAdmin,
+			wantErr: ErrNotMember,
+		},
+		{
+			name:    "invalid role rejected",
+			owner:   owner,
+			target:  member,
+			role:    "superadmin",
+			wantErr: ErrValidation,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updated := false
+			hhRepo := &mockHouseholdRepo{
+				addMemberFn: func(householdID, userID uint, role string) error {
+					updated = true
+					if householdID != hhID {
+						t.Errorf("AddMember called with householdID %d, want %d", householdID, hhID)
+					}
+					if userID != tt.target.ID {
+						t.Errorf("AddMember called with userID %d, want %d", userID, tt.target.ID)
+					}
+					if role != tt.role {
+						t.Errorf("AddMember called with role %q, want %q", role, tt.role)
+					}
+					return nil
+				},
+			}
+			usrRepo := &mockUserRepo{
+				findByIDFn: func(id uint) (*database.User, error) {
+					if id == tt.owner.ID {
+						return tt.owner, nil
+					}
+					return tt.target, nil
+				},
+			}
+			svc := NewHouseholdService(hhRepo, usrRepo, &mockInviteRepo{})
+
+			err := svc.SetMemberRole(tt.owner.ID, tt.target.ID, tt.role)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("SetMemberRole() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantUpdate && !updated {
+				t.Error("SetMemberRole() did not persist the role change")
+			}
+			if tt.wantErr != nil && updated {
+				t.Error("SetMemberRole() persisted a role change on a rejected request")
 			}
 		})
 	}
