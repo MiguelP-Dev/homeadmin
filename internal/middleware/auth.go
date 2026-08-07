@@ -45,3 +45,25 @@ func RequireHousehold() fiber.Handler {
 		return c.Next()
 	}
 }
+
+// RequireSiteAdmin returns a Fiber middleware that allows only site
+// administrators through to the protected route (RF-9). It reads the
+// "isAdmin" Locals value that RequireAuth stores from the JWT claim:
+//   - absent or malformed → treated as unauthenticated → 302 to /login
+//   - present but false   → authenticated non-admin → 403 Forbidden
+//   - true                → pass through
+//
+// Self-contained: it does not depend on RequireAuth having run, so it also
+// fails closed when the claim is missing entirely.
+func RequireSiteAdmin() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		isAdmin, ok := c.Locals("isAdmin").(bool)
+		if !ok {
+			return c.Redirect("/login", fiber.StatusFound)
+		}
+		if !isAdmin {
+			return Forbidden("site administrator access required")
+		}
+		return c.Next()
+	}
+}

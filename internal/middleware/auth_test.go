@@ -252,6 +252,84 @@ func setupHouseholdApp(locals map[string]any) *fiber.App {
 	return app
 }
 
+// setupSiteAdminApp builds a Fiber app whose routes are guarded by
+// RequireSiteAdmin, with a probe handler echoing the isAdmin value when the
+// middleware lets the request through. The centralized ErrorHandler is wired
+// so the 403 Forbidden path renders through the same pipeline as production.
+func setupSiteAdminApp(locals map[string]any) *fiber.App {
+	app := fiber.New(fiber.Config{
+		ErrorHandler: ErrorHandler,
+	})
+
+	app.Use(func(c *fiber.Ctx) error {
+		for k, v := range locals {
+			c.Locals(k, v)
+		}
+		return c.Next()
+	})
+
+	app.Get("/protected", RequireSiteAdmin(), func(c *fiber.Ctx) error {
+		isAdmin, _ := c.Locals("isAdmin").(bool)
+		return c.SendString(fmt.Sprintf("isAdmin=%v", isAdmin))
+	})
+
+	return app
+}
+
+func TestRequireSiteAdmin(t *testing.T) {
+	tests := []struct {
+		name         string
+		locals       map[string]any
+		wantStatus   int
+		wantLocation string
+		wantBody     string
+	}{
+		// Unauthenticated: the isAdmin claim is absent or malformed, so the
+		// middleware treats the request as not logged in and redirects.
+		{"no isAdmin local", map[string]any{}, fiber.StatusFound, "/login", ""},
+		{"nil interface value", map[string]any{"isAdmin": nil}, fiber.StatusFound, "/login", ""},
+		{"wrong type string value", map[string]any{"isAdmin": "true"}, fiber.StatusFound, "/login", ""},
+		{"wrong type int value", map[string]any{"isAdmin": 1}, fiber.StatusFound, "/login", ""},
+		{"other auth locals but no isAdmin", map[string]any{"userID": uint(1), "email": "member@example.com", "role": "member"}, fiber.StatusFound, "/login", ""},
+		// Authenticated but not a site admin: forbidden.
+		{"authenticated but not admin", map[string]any{"isAdmin": false}, fiber.StatusForbidden, "", ""},
+		{"authenticated member with other locals", map[string]any{"userID": uint(1), "householdID": (*uint)(nil), "role": "member", "email": "member@example.com", "isAdmin": false}, fiber.StatusForbidden, "", ""},
+		// Site admin: allowed through.
+		{"site admin", map[string]any{"isAdmin": true}, fiber.StatusOK, "", "isAdmin=true"},
+		{"site admin with other locals", map[string]any{"userID": uint(1), "role": "member", "email": "siteadmin@example.com", "isAdmin": true}, fiber.StatusOK, "", "isAdmin=true"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := setupSiteAdminApp(tt.locals)
+
+			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("app.Test failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, resp.StatusCode)
+			}
+
+			if tt.wantLocation != "" {
+				if loc := resp.Header.Get("Location"); loc != tt.wantLocation {
+					t.Errorf("expected redirect to %s, got %s", tt.wantLocation, loc)
+				}
+			}
+
+			if tt.wantBody != "" {
+				body, _ := io.ReadAll(resp.Body)
+				if string(body) != tt.wantBody {
+					t.Errorf("expected body %q, got %q", tt.wantBody, string(body))
+				}
+			}
+		})
+	}
+}
+
 func TestRequireHousehold(t *testing.T) {
 	hhID := uint(42)
 	zero := uint(0)
