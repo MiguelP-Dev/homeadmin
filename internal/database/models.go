@@ -25,6 +25,13 @@ type Household struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
+// Household roles for User.Role (three-tier: owner / admin / member).
+const (
+	RoleOwner  = "owner"
+	RoleAdmin  = "admin"
+	RoleMember = "member"
+)
+
 // User represents an authenticated user
 type User struct {
 	ID           uint           `gorm:"primaryKey"`

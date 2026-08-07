@@ -129,6 +129,26 @@ func TestExpenseModelFields(t *testing.T) {
 	}
 }
 
+func TestRoleConstants(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     string
+		expected string
+	}{
+		{"RoleOwner", RoleOwner, "owner"},
+		{"RoleAdmin", RoleAdmin, "admin"},
+		{"RoleMember", RoleMember, "member"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.role != tt.expected {
+				t.Errorf("expected %s, got %s", tt.expected, tt.role)
+			}
+		})
+	}
+}
+
 func TestVisibilityConstants(t *testing.T) {
 	tests := []struct {
 		name     string
