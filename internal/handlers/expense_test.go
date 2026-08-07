@@ -104,7 +104,7 @@ func setupExpenseAppWithHousehold(svc expenseServiceInterface, householdID *uint
 	app.Get("/expenses", handler.List)
 	app.Get("/expenses/new", handler.ShowNew)
 	app.Get("/expenses/:id/edit", handler.ShowEdit)
-	app.Put("/expenses/:id", handler.Update)
+	app.Post("/expenses/:id/update", handler.Update)
 	app.Delete("/expenses/:id", handler.Delete)
 	app.Get("/dashboard", handler.Dashboard)
 
@@ -507,7 +507,7 @@ func TestUpdateHandler_InvalidID(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("description", "Should not update")
-	req := httptest.NewRequest(http.MethodPut, "/expenses/abc", strings.NewReader(form.Encode()))
+	req := httptest.NewRequest(http.MethodPost, "/expenses/abc/update", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := app.Test(req)
@@ -536,7 +536,7 @@ func TestUpdateHandler_PermissionDenied(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("description", "Hacked")
-	req := httptest.NewRequest(http.MethodPut, "/expenses/1", strings.NewReader(form.Encode()))
+	req := httptest.NewRequest(http.MethodPost, "/expenses/1/update", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := app.Test(req)
@@ -560,7 +560,7 @@ func TestUpdateHandler_ValidationError(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("category", "InvalidCat")
-	req := httptest.NewRequest(http.MethodPut, "/expenses/1", strings.NewReader(form.Encode()))
+	req := httptest.NewRequest(http.MethodPost, "/expenses/1/update", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := app.Test(req)
@@ -569,14 +569,18 @@ func TestUpdateHandler_ValidationError(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusUnprocessableEntity {
+		t.Errorf("expected status 422, got %d", resp.StatusCode)
 	}
 }
 
 func TestUpdateHandler_Success(t *testing.T) {
+	var gotExpenseID uint
+	var gotFields services.ExpenseUpdateFields
 	svc := &mockExpenseService{
 		updateFn: func(userID, expenseID uint, fields services.ExpenseUpdateFields) error {
+			gotExpenseID = expenseID
+			gotFields = fields
 			return nil
 		},
 	}
@@ -584,7 +588,8 @@ func TestUpdateHandler_Success(t *testing.T) {
 
 	form := url.Values{}
 	form.Set("description", "Updated desc")
-	req := httptest.NewRequest(http.MethodPut, "/expenses/1", strings.NewReader(form.Encode()))
+	form.Set("category", "Rent")
+	req := httptest.NewRequest(http.MethodPost, "/expenses/1/update", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := app.Test(req)
@@ -593,8 +598,20 @@ func TestUpdateHandler_Success(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusSeeOther {
+		t.Errorf("expected status 303, got %d", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/expenses" {
+		t.Errorf("Location = %q, want /expenses", loc)
+	}
+	if gotExpenseID != 1 {
+		t.Errorf("expected service called with expenseID 1, got %d", gotExpenseID)
+	}
+	if gotFields.Description == nil || *gotFields.Description != "Updated desc" {
+		t.Errorf("expected description 'Updated desc' in update fields, got %+v", gotFields.Description)
+	}
+	if gotFields.Category == nil || *gotFields.Category != "Rent" {
+		t.Errorf("expected category 'Rent' in update fields, got %+v", gotFields.Category)
 	}
 }
 

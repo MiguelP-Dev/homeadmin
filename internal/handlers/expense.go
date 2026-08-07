@@ -185,7 +185,9 @@ func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
 	return page.Render(ctx, c.Response().BodyWriter())
 }
 
-// Update handles PUT /expenses/:id — applies field changes to an expense.
+// Update handles POST /expenses/:id/update — applies field changes to an
+// expense. Success redirects (303) to /expenses; invalid payloads re-render
+// with errors at 422 (RF-4a).
 func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 
@@ -199,7 +201,7 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	if v := c.FormValue("amount"); v != "" {
 		amount, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return middleware.BadRequest("invalid amount")
+			return middleware.Unprocessable("invalid amount")
 		}
 		fields.Amount = &amount
 	}
@@ -212,7 +214,7 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	if v := c.FormValue("date"); v != "" {
 		date, err := time.Parse("2006-01-02", v)
 		if err != nil {
-			return middleware.BadRequest("invalid date format, use YYYY-MM-DD")
+			return middleware.Unprocessable("invalid date format, use YYYY-MM-DD")
 		}
 		fields.Date = &date
 	}
@@ -229,12 +231,16 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 		if err == services.ErrPermission {
 			return middleware.Forbidden(err.Error())
 		}
-		return middleware.BadRequest(err.Error())
+		if err == services.ErrValidation {
+			return middleware.Unprocessable(err.Error())
+		}
+		if err == services.ErrNotFound {
+			return middleware.NotFound("expense not found")
+		}
+		return middleware.Internal("failed to update expense")
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "expense updated",
-	})
+	return c.Redirect("/expenses", fiber.StatusSeeOther)
 }
 
 // Delete handles DELETE /expenses/:id — removes an expense if the user is the creator.
