@@ -259,6 +259,9 @@ func TestListHandler_Success(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("Content-Type = %q, want text/html (list must be HTML, not JSON)", ct)
+	}
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
@@ -267,6 +270,9 @@ func TestListHandler_Success(t *testing.T) {
 	}
 	if !strings.Contains(bodyStr, "Groceries") {
 		t.Error("expected 'Groceries' in response")
+	}
+	if strings.Contains(bodyStr, `"expenses"`) {
+		t.Error("response must not contain a JSON body")
 	}
 }
 
@@ -298,6 +304,9 @@ func TestListHandler_WithFilters(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("Content-Type = %q, want text/html (list must be HTML, not JSON)", ct)
 	}
 }
 
@@ -338,6 +347,11 @@ func TestListHandler_Empty(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusOK {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "No expenses yet") {
+		t.Error("expected 'No expenses yet' empty state in HTML list")
 	}
 }
 

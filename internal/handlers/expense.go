@@ -122,9 +122,14 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 		return middleware.Internal("failed to fetch expenses")
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"expenses": expenses,
-	})
+	csrfToken, _ := c.Locals("csrfToken").(string)
+	username, _ := c.Locals("email").(string)
+
+	component := pages.Expenses(expenses)
+	page := layouts.Base("Expenses — HomeAdmin", csrfToken, username)
+	c.Type("html")
+	ctx := templ.WithChildren(c.Context(), component)
+	return page.Render(ctx, c.Response().BodyWriter())
 }
 
 // Update handles PUT /expenses/:id — applies field changes to an expense.
