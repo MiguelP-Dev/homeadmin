@@ -243,7 +243,8 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	return c.Redirect("/expenses", fiber.StatusSeeOther)
 }
 
-// Delete handles DELETE /expenses/:id — removes an expense if the user is the creator.
+// Delete handles POST /expenses/:id/delete — removes an expense if the user is
+// the creator. Success redirects (303) to /expenses (RF-4b).
 func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 
@@ -256,12 +257,13 @@ func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 		if err == services.ErrPermission {
 			return middleware.Forbidden(err.Error())
 		}
-		return middleware.BadRequest(err.Error())
+		if err == services.ErrNotFound {
+			return middleware.NotFound("expense not found")
+		}
+		return middleware.Internal("failed to delete expense")
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "expense deleted",
-	})
+	return c.Redirect("/expenses", fiber.StatusSeeOther)
 }
 
 // Dashboard handles GET /dashboard — returns an HTML page with monthly summary via templ.

@@ -105,7 +105,7 @@ func setupExpenseAppWithHousehold(svc expenseServiceInterface, householdID *uint
 	app.Get("/expenses/new", handler.ShowNew)
 	app.Get("/expenses/:id/edit", handler.ShowEdit)
 	app.Post("/expenses/:id/update", handler.Update)
-	app.Delete("/expenses/:id", handler.Delete)
+	app.Post("/expenses/:id/delete", handler.Delete)
 	app.Get("/dashboard", handler.Dashboard)
 
 	return app
@@ -618,22 +618,30 @@ func TestUpdateHandler_Success(t *testing.T) {
 // --- Delete tests ---
 
 func TestDeleteHandler_Success(t *testing.T) {
+	var gotExpenseID uint
 	svc := &mockExpenseService{
 		deleteFn: func(userID, expenseID uint) error {
+			gotExpenseID = expenseID
 			return nil
 		},
 	}
 	app := setupExpenseApp(svc)
 
-	req := httptest.NewRequest(http.MethodDelete, "/expenses/1", nil)
+	req := httptest.NewRequest(http.MethodPost, "/expenses/1/delete", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test failed: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusSeeOther {
+		t.Errorf("expected status 303, got %d", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/expenses" {
+		t.Errorf("Location = %q, want /expenses", loc)
+	}
+	if gotExpenseID != 1 {
+		t.Errorf("expected service called with expenseID 1, got %d", gotExpenseID)
 	}
 }
 
@@ -641,7 +649,7 @@ func TestDeleteHandler_InvalidID(t *testing.T) {
 	svc := &mockExpenseService{}
 	app := setupExpenseApp(svc)
 
-	req := httptest.NewRequest(http.MethodDelete, "/expenses/abc", nil)
+	req := httptest.NewRequest(http.MethodPost, "/expenses/abc/delete", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test failed: %v", err)
@@ -666,15 +674,15 @@ func TestDeleteHandler_NotFound(t *testing.T) {
 	}
 	app := setupExpenseApp(svc)
 
-	req := httptest.NewRequest(http.MethodDelete, "/expenses/999", nil)
+	req := httptest.NewRequest(http.MethodPost, "/expenses/999/delete", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test failed: %v", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("expected status 400 for not found, got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("expected status 404 for not found, got %d", resp.StatusCode)
 	}
 }
 
@@ -686,7 +694,7 @@ func TestDeleteHandler_PermissionDenied(t *testing.T) {
 	}
 	app := setupExpenseApp(svc)
 
-	req := httptest.NewRequest(http.MethodDelete, "/expenses/1", nil)
+	req := httptest.NewRequest(http.MethodPost, "/expenses/1/delete", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test failed: %v", err)
