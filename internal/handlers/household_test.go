@@ -17,10 +17,11 @@ import (
 // --- Mock HouseholdService ---
 
 type mockHouseholdService struct {
-	createFn func(userID uint, name string) (*database.Household, error)
-	inviteFn func(userID uint) (string, error)
-	joinFn   func(userID uint, code string) (*database.Household, error)
-	showFn   func(userID uint) (*services.HouseholdView, error)
+	createFn         func(userID uint, name string) (*database.Household, error)
+	inviteFn         func(userID uint) (string, error)
+	joinFn           func(userID uint, code string) (*database.Household, error)
+	showFn           func(userID uint) (*services.HouseholdView, error)
+	setMemberRoleFn  func(ownerID, targetID uint, role string) error
 }
 
 func (m *mockHouseholdService) Create(userID uint, name string) (*database.Household, error) {
@@ -51,6 +52,13 @@ func (m *mockHouseholdService) Show(userID uint) (*services.HouseholdView, error
 	return nil, nil
 }
 
+func (m *mockHouseholdService) SetMemberRole(ownerID, targetID uint, role string) error {
+	if m.setMemberRoleFn != nil {
+		return m.setMemberRoleFn(ownerID, targetID, role)
+	}
+	return nil
+}
+
 // Verify interface compliance at compile time.
 var _ householdServiceInterface = (*mockHouseholdService)(nil)
 
@@ -76,6 +84,7 @@ func setupHouseholdApp(svc householdServiceInterface) *fiber.App {
 
 	app.Get("/household", handler.Show)
 	app.Post("/household", handler.Create)
+	app.Post("/household/members/:id/role", handler.SetMemberRole)
 
 	return app
 }
@@ -660,5 +669,110 @@ func TestHouseholdHandler_Join_Success(t *testing.T) {
 	}
 	if claims.IsAdmin {
 		t.Error("expected IsAdmin=false in claims")
+	}
+}
+
+// --- SetMemberRole (spec: change member role) ---
+
+func TestHouseholdHandler_SetMemberRole(t *testing.T) {
+	tests := []struct {
+		name       string
+		targetPath string
+		wantTarget uint
+		formRole   string
+		setErr     error
+		wantStatus int
+	}{
+		{
+			name:       "owner promotes member to admin",
+			targetPath: "/household/members/2/role",
+			wantTarget: 2,
+			formRole:   database.RoleAdmin,
+			wantStatus: fiber.StatusFound,
+		},
+		{
+			name:       "member cannot change roles",
+			targetPath: "/household/members/2/role",
+			wantTarget: 2,
+			formRole:   database.RoleAdmin,
+			setErr:     services.ErrNotOwner,
+			wantStatus: fiber.StatusForbidden,
+		},
+		{
+			name:       "self change rejected",
+			targetPath: "/household/members/1/role",
+			wantTarget: 1,
+			formRole:   database.RoleMember,
+			setErr:     services.ErrSelfRoleChange,
+			wantStatus: fiber.StatusBadRequest,
+		},
+		{
+			name:       "other owner immutable",
+			targetPath: "/household/members/4/role",
+			wantTarget: 4,
+			formRole:   database.RoleMember,
+			setErr:     services.ErrOwnerImmutable,
+			wantStatus: fiber.StatusForbidden,
+		},
+		{
+			name:       "cross-household target rejected",
+			targetPath: "/household/members/3/role",
+			wantTarget: 3,
+			formRole:   database.RoleAdmin,
+			setErr:     services.ErrNotMember,
+			wantStatus: fiber.StatusNotFound,
+		},
+		{
+			name:       "invalid role rejected",
+			targetPath: "/household/members/2/role",
+			wantTarget: 2,
+			formRole:   "superadmin",
+			setErr:     services.ErrValidation,
+			wantStatus: fiber.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotOwner, gotTarget uint
+			var gotRole string
+			svc := &mockHouseholdService{
+				setMemberRoleFn: func(ownerID, targetID uint, role string) error {
+					gotOwner, gotTarget, gotRole = ownerID, targetID, role
+					return tt.setErr
+				},
+			}
+			app := setupHouseholdApp(svc)
+
+			form := url.Values{}
+			form.Set("role", tt.formRole)
+
+			req := httptest.NewRequest(http.MethodPost, tt.targetPath, strings.NewReader(form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("app.Test failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, resp.StatusCode)
+			}
+			if gotOwner != 1 {
+				t.Errorf("SetMemberRole called with ownerID %d, want 1", gotOwner)
+			}
+			if gotTarget != tt.wantTarget {
+				t.Errorf("SetMemberRole called with targetID %d, want %d", gotTarget, tt.wantTarget)
+			}
+			if gotRole != tt.formRole {
+				t.Errorf("SetMemberRole called with role %q, want %q", gotRole, tt.formRole)
+			}
+			if tt.wantStatus == fiber.StatusFound {
+				if location := resp.Header.Get("Location"); location != "/household" {
+					t.Errorf("expected redirect to /household, got %q", location)
+				}
+			}
+		})
 	}
 }

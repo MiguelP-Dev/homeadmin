@@ -20,6 +20,7 @@ type householdServiceInterface interface {
 	Invite(userID uint) (string, error)
 	Join(userID uint, code string) (*database.Household, error)
 	Show(userID uint) (*services.HouseholdView, error)
+	SetMemberRole(ownerID, targetID uint, role string) error
 }
 
 // HouseholdHandler handles household management HTTP routes.
@@ -133,6 +134,34 @@ func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
 	ctx := templ.WithChildren(c.Context(), component)
 	c.Type("html")
 	return page.Render(ctx, c.Response().BodyWriter())
+}
+
+// SetMemberRole handles POST /household/members/:id/role — owner-only role
+// changes. The owner can promote/demote admins and members, but never change
+// their own role nor another owner's (RF-8).
+func (h *HouseholdHandler) SetMemberRole(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(uint)
+
+	targetID, err := c.ParamsInt("id")
+	if err != nil || targetID <= 0 {
+		return middleware.BadRequest("invalid member id")
+	}
+
+	role := c.FormValue("role")
+	if err := h.service.SetMemberRole(userID, uint(targetID), role); err != nil {
+		switch {
+		case errors.Is(err, services.ErrNotOwner), errors.Is(err, services.ErrOwnerImmutable):
+			return middleware.Forbidden("You cannot change this member's role")
+		case errors.Is(err, services.ErrSelfRoleChange):
+			return middleware.BadRequest("You cannot change your own role")
+		case errors.Is(err, services.ErrNotMember):
+			return middleware.NotFound("User is not a member of this household")
+		default:
+			return middleware.BadRequest("Invalid role")
+		}
+	}
+
+	return c.Status(fiber.StatusFound).Redirect("/household")
 }
 
 // Join handles POST /household/join — joins an existing household via invite code.

@@ -111,6 +111,7 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	app.Post("/household", middleware.RequireAuth(jwtSecret), householdHandler.Create)
 	app.Post("/household/invite", middleware.RequireAuth(jwtSecret), householdHandler.Invite)
 	app.Post("/household/join", middleware.RequireAuth(jwtSecret), householdHandler.Join)
+	app.Post("/household/members/:id/role", middleware.RequireAuth(jwtSecret), householdHandler.SetMemberRole)
 
 	return app, db
 }
@@ -162,6 +163,36 @@ func TestExpenses_CSRFLessPostForbidden(t *testing.T) {
 	}
 	if count != 0 {
 		t.Errorf("expense rows = %d, want 0 (no mutation without CSRF)", count)
+	}
+}
+
+// TestHouseholdRole_CSRFLessPostForbidden verifies a POST
+// /household/members/:id/role without a CSRF token is rejected with 403 and no
+// role change is persisted (threat matrix, RF-8).
+func TestHouseholdRole_CSRFLessPostForbidden(t *testing.T) {
+	app, db := newIntegrationAppWithDB(t, "test-csrf-key", "test-secret")
+
+	form := "role=admin"
+	req := httptest.NewRequest(http.MethodPost, "/household/members/2/role", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("status = %d, want %d (CSRF must block token-less POST)", resp.StatusCode, fiber.StatusForbidden)
+	}
+
+	// No user exists, so no row could have been touched — but assert there is
+	// no admin-role user either (no partial mutation).
+	var count int64
+	if err := db.Model(&database.User{}).Where("role = ?", database.RoleAdmin).Count(&count).Error; err != nil {
+		t.Fatalf("count users: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("admin-role users = %d, want 0 (no mutation without CSRF)", count)
 	}
 }
 

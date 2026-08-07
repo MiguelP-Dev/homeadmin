@@ -108,6 +108,7 @@ func main() {
 	app.Post("/household", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Create)
 	app.Post("/household/invite", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Invite)
 	app.Post("/household/join", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Join)
+	app.Post("/household/members/:id/role", middleware.RequireAuth(cfg.JWTSecret), householdHandler.SetMemberRole)
 
 	// 9. Start server
 	log.Printf("server starting on :%s (env: %s)", cfg.Port, cfg.Env)
