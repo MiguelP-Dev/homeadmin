@@ -40,7 +40,7 @@ func main() {
 	userRepo := repositories.NewUserRepository(dbConn)
 	expenseRepo := repositories.NewExpenseRepository(dbConn)
 	authHandler := handlers.NewAuthHandler(userRepo, cfg.JWTSecret)
-	expenseService := services.NewExpenseService(expenseRepo)
+	expenseService := services.NewExpenseService(expenseRepo, userRepo)
 	expenseHandler := handlers.NewExpenseHandler(expenseService)
 
 	householdRepo := repositories.NewHouseholdRepository(dbConn)

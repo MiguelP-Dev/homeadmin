@@ -69,7 +69,7 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	userRepo := repositories.NewUserRepository(db)
 	expenseRepo := repositories.NewExpenseRepository(db)
 	authHandler := handlers.NewAuthHandler(userRepo, jwtSecret)
-	expenseService := services.NewExpenseService(expenseRepo)
+	expenseService := services.NewExpenseService(expenseRepo, userRepo)
 	expenseHandler := handlers.NewExpenseHandler(expenseService)
 	householdRepo := repositories.NewHouseholdRepository(db)
 	householdService := services.NewHouseholdService(householdRepo, userRepo, householdRepo)
@@ -1021,6 +1021,138 @@ func TestHouseholdRole_E2E(t *testing.T) {
 	}
 	if owner.Role != database.RoleOwner {
 		t.Errorf("user A role = %q, want owner (owner must never change)", owner.Role)
+	}
+}
+
+// TestExpenseVisibility_E2E verifies the visibility matrix end-to-end (RF-5/RF-6):
+// a hidden_private expense is rendered only for the household owner — in both the
+// expense list and the dashboard — and never for an admin, not even its creator.
+func TestExpenseVisibility_E2E(t *testing.T) {
+	const jwtSecret = "test-secret"
+	app, db := newIntegrationAppWithDB(t, "", jwtSecret)
+
+	// register creates a user via the real auth flow and returns the JWT cookie
+	// plus the persisted user ID.
+	register := func(name, email, password string) (cookie string, userID uint) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/register",
+			strings.NewReader("name="+name+"&email="+email+"&password="+password))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("register %s: %v", email, err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/household" {
+			t.Fatalf("register %s: status %d Location %q, want 302 /household",
+				email, resp.StatusCode, resp.Header.Get("Location"))
+		}
+		cookie = getCookieValue(resp, "jwt")
+		if cookie == "" {
+			t.Fatalf("register %s: no jwt cookie", email)
+		}
+		var user database.User
+		if err := db.Where("email = ?", email).First(&user).Error; err != nil {
+			t.Fatalf("find user %s: %v", email, err)
+		}
+		return cookie, user.ID
+	}
+
+	// post sends a form POST with the given jwt cookie.
+	post := func(path, form, cookie string) *http.Response {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Cookie", "jwt="+cookie)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("POST %s: %v", path, err)
+		}
+		return resp
+	}
+
+	// get fetches a page with the given jwt cookie and returns its body.
+	get := func(path, cookie string) string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Cookie", "jwt="+cookie)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read GET %s body: %v", path, err)
+		}
+		return string(body)
+	}
+
+	// A registers and creates "Vis Family" → owner.
+	cookieA, _ := register("Owner A", "visowner@example.com", "password123")
+	resp := post("/household", "name=Vis+Family", cookieA)
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Fatalf("create household: status %d Location %q, want 302 /dashboard",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	cookieA = getCookieValue(resp, "jwt") // re-issued with the household claim
+	resp.Body.Close()
+
+	// B registers, joins via invite, and is promoted to admin by the owner.
+	cookieB, userB := register("Admin B", "visadmin@example.com", "password123")
+	resp = post("/household/invite", "", cookieA)
+	inviteBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read invite response: %v", err)
+	}
+	resp.Body.Close()
+	code := inviteCodeRe.FindString(string(inviteBody))
+	if len(code) != 8 {
+		t.Fatalf("invite response does not contain an 8-char code; body: %s", inviteBody)
+	}
+	resp = post("/household/join", "code="+code, cookieB)
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Fatalf("join: status %d Location %q, want 302 /dashboard",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	cookieB = getCookieValue(resp, "jwt") // re-issued with the household claim
+	resp.Body.Close()
+	resp = post(fmt.Sprintf("/household/members/%d/role", userB), "role=admin", cookieA)
+	if resp.StatusCode != fiber.StatusFound {
+		t.Fatalf("promote B: status %d, want 302", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// B (admin) creates a hidden_private expense and a visible_editable expense.
+	resp = post("/expenses",
+		"amount=99.99&description=Admin+Secret&category=Other&date=2026-07-28&visibility=hidden_private", cookieB)
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusSeeOther {
+		t.Fatalf("create hidden expense: status %d, want 303", resp.StatusCode)
+	}
+	resp = post("/expenses",
+		"amount=10.00&description=Shared+Expense&category=Other&date=2026-07-28&visibility=visible_editable", cookieB)
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusSeeOther {
+		t.Fatalf("create visible expense: status %d, want 303", resp.StatusCode)
+	}
+
+	// The admin must NOT see their own hidden_private expense, in list or dashboard.
+	if body := get("/expenses", cookieB); strings.Contains(body, "Admin Secret") {
+		t.Error("admin's expense list leaks hidden_private rows")
+	} else if !strings.Contains(body, "Shared Expense") {
+		t.Error("admin's expense list is missing the visible_editable row")
+	}
+	if body := get("/dashboard", cookieB); strings.Contains(body, "Admin Secret") {
+		t.Error("admin's dashboard leaks hidden_private rows")
+	}
+
+	// The owner MUST see the admin's hidden_private expense, in list and dashboard.
+	if body := get("/expenses", cookieA); !strings.Contains(body, "Admin Secret") {
+		t.Error("owner's expense list is missing hidden_private rows")
+	}
+	if body := get("/dashboard", cookieA); !strings.Contains(body, "Admin Secret") {
+		t.Error("owner's dashboard is missing hidden_private rows")
 	}
 }
 
