@@ -40,15 +40,18 @@ type HouseholdRepository interface {
 }
 
 // ExpenseRepository defines data-access operations for Expense entities.
+// The viewer's household role is passed in for visibility filtering so the
+// repository stays a dumb data layer: hidden_private is only visible to the
+// household owner, visible_* states are visible to every member.
 type ExpenseRepository interface {
 	Create(expense *database.Expense) error
 	FindByID(id uint) (*database.Expense, error)
-	FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
+	FindByHousehold(userID, householdID uint, viewerRole string, filters database.ExpenseFilters) ([]database.Expense, error)
 	Update(expense *database.Expense) error
 	Delete(id uint) error
 
 	// Dashboard aggregation methods.
-	MonthlyTotal(userID, householdID uint, year int, month time.Month) (float64, error)
-	CategoryBreakdown(userID, householdID uint, year int, month time.Month) ([]CategoryTotal, error)
-	RecentExpenses(userID, householdID uint, limit int) ([]database.Expense, error)
+	MonthlyTotal(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error)
+	CategoryBreakdown(userID, householdID uint, viewerRole string, year int, month time.Month) ([]CategoryTotal, error)
+	RecentExpenses(userID, householdID uint, viewerRole string, limit int) ([]database.Expense, error)
 }

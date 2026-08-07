@@ -35,16 +35,24 @@ func (r *ExpenseRepositoryImpl) FindByID(id uint) (*database.Expense, error) {
 	return &e, nil
 }
 
+// visibilityPredicate returns the SQL visibility condition for a household viewer.
+// The viewer's household role is resolved by the service layer (the single
+// authorization authority) and passed in: hidden_private is only visible to the
+// household owner, visible_editable and visible_only are visible to every member.
+func visibilityPredicate() string {
+	return "((visibility = ? AND ? = ?) OR visibility IN (?, ?))"
+}
+
 // FindByHousehold returns expenses visible to the given user within a household.
-// Visibility rules: hidden_private expenses are only returned if created_by = userID.
-// visible_editable and visible_only expenses are returned for all household members.
-func (r *ExpenseRepositoryImpl) FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
+// Visibility rules: hidden_private expenses are only returned when the viewer is
+// the household owner; visible_editable and visible_only are returned for all members.
+func (r *ExpenseRepositoryImpl) FindByHousehold(userID, householdID uint, viewerRole string, filters database.ExpenseFilters) ([]database.Expense, error) {
 	var expenses []database.Expense
 
 	query := r.db.Where(
-		"household_id = ? AND deleted_at IS NULL AND ((visibility = ? AND created_by_id = ?) OR visibility IN (?, ?))",
+		"household_id = ? AND deleted_at IS NULL AND "+visibilityPredicate(),
 		householdID,
-		database.HiddenPrivate, userID,
+		database.HiddenPrivate, viewerRole, database.RoleOwner,
 		database.VisibleEditable, database.VisibleOnly,
 	)
 
@@ -74,7 +82,7 @@ func (r *ExpenseRepositoryImpl) Delete(id uint) error {
 
 // MonthlyTotal returns the sum of amounts for expenses visible to the user
 // within the household for the given year/month.
-func (r *ExpenseRepositoryImpl) MonthlyTotal(userID, householdID uint, year int, month time.Month) (float64, error) {
+func (r *ExpenseRepositoryImpl) MonthlyTotal(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error) {
 	var total float64
 
 	start := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
@@ -82,9 +90,9 @@ func (r *ExpenseRepositoryImpl) MonthlyTotal(userID, householdID uint, year int,
 
 	err := r.db.Model(&database.Expense{}).
 		Where(
-			"household_id = ? AND deleted_at IS NULL AND ((visibility = ? AND created_by_id = ?) OR visibility IN (?, ?)) AND date >= ? AND date < ?",
+			"household_id = ? AND deleted_at IS NULL AND "+visibilityPredicate()+" AND date >= ? AND date < ?",
 			householdID,
-			database.HiddenPrivate, userID,
+			database.HiddenPrivate, viewerRole, database.RoleOwner,
 			database.VisibleEditable, database.VisibleOnly,
 			start, end,
 		).
@@ -96,7 +104,7 @@ func (r *ExpenseRepositoryImpl) MonthlyTotal(userID, householdID uint, year int,
 
 // CategoryBreakdown returns per-category aggregated amounts for the user-visible
 // expenses within the household for the given year/month.
-func (r *ExpenseRepositoryImpl) CategoryBreakdown(userID, householdID uint, year int, month time.Month) ([]CategoryTotal, error) {
+func (r *ExpenseRepositoryImpl) CategoryBreakdown(userID, householdID uint, viewerRole string, year int, month time.Month) ([]CategoryTotal, error) {
 	var results []CategoryTotal
 
 	start := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
@@ -105,9 +113,9 @@ func (r *ExpenseRepositoryImpl) CategoryBreakdown(userID, householdID uint, year
 	err := r.db.Model(&database.Expense{}).
 		Select("category, SUM(amount) as total").
 		Where(
-			"household_id = ? AND deleted_at IS NULL AND ((visibility = ? AND created_by_id = ?) OR visibility IN (?, ?)) AND date >= ? AND date < ?",
+			"household_id = ? AND deleted_at IS NULL AND "+visibilityPredicate()+" AND date >= ? AND date < ?",
 			householdID,
-			database.HiddenPrivate, userID,
+			database.HiddenPrivate, viewerRole, database.RoleOwner,
 			database.VisibleEditable, database.VisibleOnly,
 			start, end,
 		).
@@ -120,7 +128,7 @@ func (r *ExpenseRepositoryImpl) CategoryBreakdown(userID, householdID uint, year
 
 // RecentExpenses returns the most recent expenses visible to the user within the household,
 // ordered by created_at descending, limited to the given count.
-func (r *ExpenseRepositoryImpl) RecentExpenses(userID, householdID uint, limit int) ([]database.Expense, error) {
+func (r *ExpenseRepositoryImpl) RecentExpenses(userID, householdID uint, viewerRole string, limit int) ([]database.Expense, error) {
 	var expenses []database.Expense
 
 	if limit <= 0 {
@@ -128,9 +136,9 @@ func (r *ExpenseRepositoryImpl) RecentExpenses(userID, householdID uint, limit i
 	}
 
 	err := r.db.Where(
-		"household_id = ? AND deleted_at IS NULL AND ((visibility = ? AND created_by_id = ?) OR visibility IN (?, ?))",
+		"household_id = ? AND deleted_at IS NULL AND "+visibilityPredicate(),
 		householdID,
-		database.HiddenPrivate, userID,
+		database.HiddenPrivate, viewerRole, database.RoleOwner,
 		database.VisibleEditable, database.VisibleOnly,
 	).
 		Order("created_at DESC").
