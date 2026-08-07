@@ -19,7 +19,7 @@ type householdServiceInterface interface {
 	Create(userID uint, name string) (*database.Household, error)
 	Invite(userID uint) (string, error)
 	Join(userID uint, code string) (*database.Household, error)
-	Show(userID uint) (*database.Household, []database.User, bool, error)
+	Show(userID uint) (*services.HouseholdView, error)
 }
 
 // HouseholdHandler handles household management HTTP routes.
@@ -47,21 +47,24 @@ func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
 	username, _ := c.Locals("email").(string)
 
-	hh, members, isAdmin, err := h.service.Show(userID)
+	view, err := h.service.Show(userID)
 	if err != nil {
 		return middleware.Internal("failed to load household")
 	}
 
 	c.Type("html")
 
-	if hh == nil {
+	if view == nil {
 		component := pages.HouseholdSetup(csrfToken, "")
 		page := layouts.Base("Household — HomeAdmin", csrfToken, username)
 		ctx := templ.WithChildren(c.Context(), component)
 		return page.Render(ctx, c.Response().BodyWriter())
 	}
 
-	component := pages.HouseholdShow(hh, members, isAdmin, csrfToken, "")
+	// The page renders the viewer-role UI once the template switches from the
+	// isAdmin flag to the raw role (T3.7); until then convert owner|admin.
+	isAdmin := view.ViewerRole == database.RoleOwner || view.ViewerRole == database.RoleAdmin
+	component := pages.HouseholdShow(view.Household, view.Members, isAdmin, csrfToken, "")
 	page := layouts.Base("Household — HomeAdmin", csrfToken, username)
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -119,12 +122,13 @@ func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
 	}
 
 	// Re-fetch household to render HouseholdShow with the invite code.
-	hh, members, isAdmin, err := h.service.Show(userID)
-	if err != nil || hh == nil {
+	view, err := h.service.Show(userID)
+	if err != nil || view == nil {
 		return middleware.Internal("failed to load household")
 	}
 
-	component := pages.HouseholdShow(hh, members, isAdmin, csrfToken, code)
+	isAdmin := view.ViewerRole == database.RoleOwner || view.ViewerRole == database.RoleAdmin
+	component := pages.HouseholdShow(view.Household, view.Members, isAdmin, csrfToken, code)
 	page := layouts.Base("Household — HomeAdmin", csrfToken, username)
 	ctx := templ.WithChildren(c.Context(), component)
 	c.Type("html")

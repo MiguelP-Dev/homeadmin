@@ -190,21 +190,33 @@ func (s *HouseholdService) Join(userID uint, code string) (*database.Household, 
 	return household, nil
 }
 
-// Show returns the user's household, its members, and whether the user is admin.
-// A user without a household gets (nil, nil, false, nil).
-func (s *HouseholdService) Show(userID uint) (*database.Household, []database.User, bool, error) {
+// HouseholdView is the data the household page renders: the household, its
+// members, and the requesting user's role within it (D6).
+type HouseholdView struct {
+	Household  *database.Household
+	Members    []database.User
+	ViewerRole string
+}
+
+// Show returns the user's household, its members, and the user's role.
+// A user without a household gets (nil, nil).
+func (s *HouseholdService) Show(userID uint) (*HouseholdView, error) {
 	user, err := s.userRepo.FindByIDWithHousehold(userID)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, err
 	}
 	if user == nil || user.HouseholdID == nil || user.Household == nil {
-		return nil, nil, false, nil
+		return nil, nil
 	}
 
 	members, err := s.houseRepo.GetMembers(*user.HouseholdID)
 	if err != nil {
-		return nil, nil, false, err
+		return nil, err
 	}
 
-	return user.Household, members, user.Role == "admin", nil
+	return &HouseholdView{
+		Household:  user.Household,
+		Members:    members,
+		ViewerRole: user.Role,
+	}, nil
 }

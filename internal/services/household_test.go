@@ -207,32 +207,29 @@ func TestShow(t *testing.T) {
 	household := &database.Household{ID: 7, Name: "My Family"}
 
 	tests := []struct {
-		name          string
-		user          *database.User
-		members       []database.User
-		wantHousehold bool
-		wantIsAdmin   bool
-		wantMembers   bool
+		name     string
+		user     *database.User
+		members  []database.User
+		wantView bool
+		wantRole string
 	}{
 		{
 			name: "user without household gets no data",
 			user: &database.User{ID: 1},
 		},
 		{
-			name:          "member sees household without admin flag",
-			user:          &database.User{ID: 2, HouseholdID: ptr(uint(7)), Household: household, Role: "member"},
-			members:       []database.User{{ID: 2, Role: "member"}},
-			wantHousehold: true,
-			wantIsAdmin:   false,
-			wantMembers:   true,
+			name:     "member sees household with member role",
+			user:     &database.User{ID: 2, HouseholdID: ptr(uint(7)), Household: household, Role: database.RoleMember},
+			members:  []database.User{{ID: 2, Role: database.RoleMember}},
+			wantView: true,
+			wantRole: database.RoleMember,
 		},
 		{
-			name:          "admin sees household with admin flag",
-			user:          &database.User{ID: 3, HouseholdID: ptr(uint(7)), Household: household, Role: "admin"},
-			members:       []database.User{{ID: 2, Role: "member"}, {ID: 3, Role: "admin"}},
-			wantHousehold: true,
-			wantIsAdmin:   true,
-			wantMembers:   true,
+			name:     "owner sees household with owner role",
+			user:     &database.User{ID: 3, HouseholdID: ptr(uint(7)), Household: household, Role: database.RoleOwner},
+			members:  []database.User{{ID: 2, Role: database.RoleMember}, {ID: 3, Role: database.RoleOwner}},
+			wantView: true,
+			wantRole: database.RoleOwner,
 		},
 	}
 
@@ -255,36 +252,35 @@ func TestShow(t *testing.T) {
 			}
 			svc := NewHouseholdService(hhRepo, usrRepo, &mockInviteRepo{})
 
-			hh, members, isAdmin, err := svc.Show(1)
+			view, err := svc.Show(1)
 			if err != nil {
 				t.Fatalf("Show() unexpected error: %v", err)
 			}
-			if tt.wantHousehold {
-				if hh == nil || hh.ID != household.ID || hh.Name != household.Name {
-					t.Errorf("Show() household = %v, want %+v", hh, household)
+			if tt.wantView {
+				if view == nil {
+					t.Fatal("Show() returned nil view, want household data")
 				}
-			} else if hh != nil {
-				t.Errorf("Show() household = %v, want nil", hh)
-			}
-			if tt.wantMembers {
-				if len(members) != len(tt.members) {
-					t.Fatalf("Show() members = %v, want %d members", members, len(tt.members))
+				if view.Household == nil || view.Household.ID != household.ID || view.Household.Name != household.Name {
+					t.Errorf("Show() view.Household = %v, want %+v", view.Household, household)
+				}
+				if view.ViewerRole != tt.wantRole {
+					t.Errorf("Show() viewerRole = %q, want %q", view.ViewerRole, tt.wantRole)
+				}
+				if len(view.Members) != len(tt.members) {
+					t.Fatalf("Show() members = %v, want %d members", view.Members, len(tt.members))
 				}
 				for i := range tt.members {
-					if members[i].ID != tt.members[i].ID || members[i].Role != tt.members[i].Role {
-						t.Errorf("Show() members[%d] = %+v, want %+v", i, members[i], tt.members[i])
+					if view.Members[i].ID != tt.members[i].ID || view.Members[i].Role != tt.members[i].Role {
+						t.Errorf("Show() members[%d] = %+v, want %+v", i, view.Members[i], tt.members[i])
 					}
 				}
-			} else if members != nil {
-				t.Errorf("Show() members = %v, want nil", members)
+			} else if view != nil {
+				t.Errorf("Show() view = %v, want nil for user without household", view)
 			}
-			if isAdmin != tt.wantIsAdmin {
-				t.Errorf("Show() isAdmin = %v, want %v", isAdmin, tt.wantIsAdmin)
-			}
-			if tt.wantMembers && !membersCalled {
+			if tt.wantView && !membersCalled {
 				t.Error("Show() did not fetch the member list")
 			}
-			if !tt.wantMembers && membersCalled {
+			if !tt.wantView && membersCalled {
 				t.Error("Show() fetched members for a user without household")
 			}
 		})

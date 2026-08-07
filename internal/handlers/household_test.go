@@ -20,7 +20,7 @@ type mockHouseholdService struct {
 	createFn func(userID uint, name string) (*database.Household, error)
 	inviteFn func(userID uint) (string, error)
 	joinFn   func(userID uint, code string) (*database.Household, error)
-	showFn   func(userID uint) (*database.Household, []database.User, bool, error)
+	showFn   func(userID uint) (*services.HouseholdView, error)
 }
 
 func (m *mockHouseholdService) Create(userID uint, name string) (*database.Household, error) {
@@ -44,11 +44,11 @@ func (m *mockHouseholdService) Join(userID uint, code string) (*database.Househo
 	return nil, nil
 }
 
-func (m *mockHouseholdService) Show(userID uint) (*database.Household, []database.User, bool, error) {
+func (m *mockHouseholdService) Show(userID uint) (*services.HouseholdView, error) {
 	if m.showFn != nil {
 		return m.showFn(userID)
 	}
-	return nil, nil, false, nil
+	return nil, nil
 }
 
 // Verify interface compliance at compile time.
@@ -101,8 +101,8 @@ func decodeJWTCookie(t *testing.T, resp *http.Response, secret string) *services
 
 func TestHouseholdHandler_Show_NoHousehold(t *testing.T) {
 	svc := &mockHouseholdService{
-		showFn: func(userID uint) (*database.Household, []database.User, bool, error) {
-			return nil, nil, false, nil
+		showFn: func(userID uint) (*services.HouseholdView, error) {
+			return nil, nil
 		},
 	}
 	app := setupHouseholdApp(svc)
@@ -134,8 +134,12 @@ func TestHouseholdHandler_Show_WithHousehold_Admin(t *testing.T) {
 		{Email: "member@example.com", Role: "member"},
 	}
 	svc := &mockHouseholdService{
-		showFn: func(userID uint) (*database.Household, []database.User, bool, error) {
-			return &database.Household{Name: "My Family"}, members, true, nil
+		showFn: func(userID uint) (*services.HouseholdView, error) {
+			return &services.HouseholdView{
+				Household:  &database.Household{Name: "My Family"},
+				Members:    members,
+				ViewerRole: database.RoleOwner,
+			}, nil
 		},
 	}
 	app := setupHouseholdApp(svc)
@@ -173,8 +177,12 @@ func TestHouseholdHandler_Show_WithHousehold_Member(t *testing.T) {
 		{Email: "test@example.com", Role: "member"},
 	}
 	svc := &mockHouseholdService{
-		showFn: func(userID uint) (*database.Household, []database.User, bool, error) {
-			return &database.Household{Name: "My Family"}, members, false, nil
+		showFn: func(userID uint) (*services.HouseholdView, error) {
+			return &services.HouseholdView{
+				Household:  &database.Household{Name: "My Family"},
+				Members:    members,
+				ViewerRole: database.RoleMember,
+			}, nil
 		},
 	}
 	app := setupHouseholdApp(svc)
@@ -436,8 +444,12 @@ func TestHouseholdHandler_Invite_Success(t *testing.T) {
 		inviteFn: func(userID uint) (string, error) {
 			return "ABC12345", nil
 		},
-		showFn: func(userID uint) (*database.Household, []database.User, bool, error) {
-			return &database.Household{ID: 1, Name: "My Family"}, []database.User{{ID: 1, Email: "test@example.com", Role: "admin"}}, true, nil
+		showFn: func(userID uint) (*services.HouseholdView, error) {
+			return &services.HouseholdView{
+				Household:  &database.Household{ID: 1, Name: "My Family"},
+				Members:    []database.User{{ID: 1, Email: "test@example.com", Role: database.RoleOwner}},
+				ViewerRole: database.RoleOwner,
+			}, nil
 		},
 	}
 	app := setupInviteApp(svc)
