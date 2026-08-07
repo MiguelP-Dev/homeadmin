@@ -238,3 +238,73 @@ func TestUserRepo_FindByIDWithHousehold_NotFound(t *testing.T) {
 		t.Errorf("expected nil for not-found, got user with ID %d", found.ID)
 	}
 }
+
+// TestUserRepo_ListAllUsers_ReturnsAllWithHousehold verifies ListAllUsers
+// (RF-11 / design D9): every user is returned, with the Household relation
+// eager-loaded so the site-admin page can render each user's household name.
+func TestUserRepo_ListAllUsers_ReturnsAllWithHousehold(t *testing.T) {
+	db := setupTestDBRaw(t)
+	houseRepo := NewHouseholdRepository(db)
+	userRepo := NewUserRepository(db)
+
+	hh := &database.Household{Name: "List All Household"}
+	if err := houseRepo.Create(hh); err != nil {
+		t.Fatalf("Create household failed: %v", err)
+	}
+	users := []*database.User{
+		{Email: "with@example.com", PasswordHash: "hash", Role: database.RoleMember, HouseholdID: &hh.ID},
+		{Email: "without@example.com", PasswordHash: "hash", Role: database.RoleMember},
+	}
+	for _, u := range users {
+		if err := userRepo.Create(u); err != nil {
+			t.Fatalf("Create user %s failed: %v", u.Email, err)
+		}
+	}
+
+	all, err := userRepo.ListAllUsers()
+	if err != nil {
+		t.Fatalf("ListAllUsers returned unexpected error: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("expected 2 users, got %d", len(all))
+	}
+
+	// Both users present with correct email.
+	emails := map[string]bool{}
+	for _, u := range all {
+		emails[u.Email] = true
+	}
+	if !emails["with@example.com"] || !emails["without@example.com"] {
+		t.Errorf("expected both seeded emails in result, got %v", emails)
+	}
+
+	// Household relation eager-loaded for the member; nil for the loner.
+	for _, u := range all {
+		switch u.Email {
+		case "with@example.com":
+			if u.Household == nil {
+				t.Error("expected Household to be eager-loaded for member, got nil")
+			} else if u.Household.Name != "List All Household" {
+				t.Errorf("expected Household.Name='List All Household', got %q", u.Household.Name)
+			}
+		case "without@example.com":
+			if u.Household != nil {
+				t.Errorf("expected nil Household for user without one, got %q", u.Household.Name)
+			}
+		}
+	}
+}
+
+// TestUserRepo_ListAllUsers_Empty verifies the empty result on a fresh database
+// (triangulation: the collection is empty because no users exist).
+func TestUserRepo_ListAllUsers_Empty(t *testing.T) {
+	repo := setupTestDB(t)
+
+	all, err := repo.ListAllUsers()
+	if err != nil {
+		t.Fatalf("ListAllUsers returned unexpected error: %v", err)
+	}
+	if len(all) != 0 {
+		t.Errorf("expected 0 users on empty db, got %d", len(all))
+	}
+}

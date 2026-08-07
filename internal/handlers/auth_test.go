@@ -18,9 +18,10 @@ import (
 // --- Mock UserRepository ---
 
 type mockUserRepo struct {
-	createFn      func(user *database.User) error
-	findByEmailFn func(email string) (*database.User, error)
-	findByIDFn    func(id uint) (*database.User, error)
+	createFn        func(user *database.User) error
+	findByEmailFn   func(email string) (*database.User, error)
+	findByIDFn      func(id uint) (*database.User, error)
+	listAllUsersFn  func() ([]database.User, error)
 }
 
 func (m *mockUserRepo) Create(user *database.User) error {
@@ -47,6 +48,13 @@ func (m *mockUserRepo) FindByID(id uint) (*database.User, error) {
 func (m *mockUserRepo) Update(user *database.User) error { return nil }
 func (m *mockUserRepo) Delete(id uint) error             { return nil }
 func (m *mockUserRepo) FindByIDWithHousehold(id uint) (*database.User, error) {
+	return nil, nil
+}
+
+func (m *mockUserRepo) ListAllUsers() ([]database.User, error) {
+	if m.listAllUsersFn != nil {
+		return m.listAllUsersFn()
+	}
 	return nil, nil
 }
 

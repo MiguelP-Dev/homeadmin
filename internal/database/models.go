@@ -23,6 +23,10 @@ type Household struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
+	// Members is the inverse of User.HouseholdID; used by ListAllHouseholds
+	// to eager-load member counts for the site-admin page (RF-11). It is a
+	// query-time association only — AutoMigrate creates no column for it.
+	Members []User `gorm:"foreignKey:HouseholdID"`
 }
 
 // Household roles for User.Role (three-tier: owner / admin / member).

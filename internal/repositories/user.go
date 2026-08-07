@@ -60,6 +60,17 @@ func (r *UserRepositoryImpl) FindByIDWithHousehold(id uint) (*database.User, err
 	return &user, nil
 }
 
+// ListAllUsers returns every user with the Household relation eager-loaded,
+// ordered by email. Site-admin listing (RF-11).
+func (r *UserRepositoryImpl) ListAllUsers() ([]database.User, error) {
+	var users []database.User
+	result := r.db.Preload("Household").Order("email").Find(&users)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return users, nil
+}
+
 // Update persists changes to an existing user.
 func (r *UserRepositoryImpl) Update(user *database.User) error {
 	return r.db.Save(user).Error

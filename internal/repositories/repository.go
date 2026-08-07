@@ -21,6 +21,10 @@ type UserRepository interface {
 	FindByIDWithHousehold(id uint) (*database.User, error)
 	Update(user *database.User) error
 	Delete(id uint) error
+
+	// ListAllUsers returns every user with the Household relation
+	// eager-loaded, ordered by email. Site-admin listing (RF-11).
+	ListAllUsers() ([]database.User, error)
 }
 
 // HouseholdRepository defines data-access operations for Household entities.
@@ -37,6 +41,10 @@ type HouseholdRepository interface {
 	Delete(id uint) error
 	AddMember(householdID, userID uint, role string) error
 	RemoveMember(householdID, userID uint) error
+
+	// ListAllHouseholds returns every household with the Members relation
+	// eager-loaded, ordered by name. Site-admin listing (RF-11).
+	ListAllHouseholds() ([]database.Household, error)
 }
 
 // ExpenseRepository defines data-access operations for Expense entities.

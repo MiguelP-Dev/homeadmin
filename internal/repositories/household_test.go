@@ -439,3 +439,61 @@ func TestHouseholdRepo_GetMembers_Empty(t *testing.T) {
 		t.Errorf("expected 0 members for household with no members, got %d", len(found))
 	}
 }
+
+// TestHouseholdRepo_ListAllHouseholds_WithMemberCounts verifies ListAllHouseholds
+// (RF-11 / design D9): every household is returned with its members preloaded,
+// so the site-admin page can render member counts.
+func TestHouseholdRepo_ListAllHouseholds_WithMemberCounts(t *testing.T) {
+	db := setupTestDBRaw(t)
+	houseRepo := NewHouseholdRepository(db)
+	userRepo := NewUserRepository(db)
+
+	full := &database.Household{Name: "Full House"}
+	empty := &database.Household{Name: "Empty House"}
+	if err := houseRepo.Create(full); err != nil {
+		t.Fatalf("Create full household failed: %v", err)
+	}
+	if err := houseRepo.Create(empty); err != nil {
+		t.Fatalf("Create empty household failed: %v", err)
+	}
+
+	for _, email := range []string{"m1@example.com", "m2@example.com"} {
+		user := &database.User{Email: email, PasswordHash: "hash", Role: database.RoleMember, HouseholdID: &full.ID}
+		if err := userRepo.Create(user); err != nil {
+			t.Fatalf("Create user %s failed: %v", email, err)
+		}
+	}
+
+	all, err := houseRepo.ListAllHouseholds()
+	if err != nil {
+		t.Fatalf("ListAllHouseholds returned unexpected error: %v", err)
+	}
+	if len(all) != 2 {
+		t.Fatalf("expected 2 households, got %d", len(all))
+	}
+
+	counts := map[string]int{}
+	for _, h := range all {
+		counts[h.Name] = len(h.Members)
+	}
+	if counts["Full House"] != 2 {
+		t.Errorf("Full House member count = %d, want 2", counts["Full House"])
+	}
+	if counts["Empty House"] != 0 {
+		t.Errorf("Empty House member count = %d, want 0", counts["Empty House"])
+	}
+}
+
+// TestHouseholdRepo_ListAllHouseholds_Empty verifies the empty result on a fresh
+// database (triangulation: no households exist).
+func TestHouseholdRepo_ListAllHouseholds_Empty(t *testing.T) {
+	houseRepo, _ := setupHouseholdTestDB(t)
+
+	all, err := houseRepo.ListAllHouseholds()
+	if err != nil {
+		t.Fatalf("ListAllHouseholds returned unexpected error: %v", err)
+	}
+	if len(all) != 0 {
+		t.Errorf("expected 0 households on empty db, got %d", len(all))
+	}
+}

@@ -94,6 +94,17 @@ func (r *HouseholdRepositoryImpl) GetMembers(householdID uint) ([]database.User,
 	return users, err
 }
 
+// ListAllHouseholds returns every household with the Members relation
+// eager-loaded, ordered by name. Site-admin listing (RF-11).
+func (r *HouseholdRepositoryImpl) ListAllHouseholds() ([]database.Household, error) {
+	var households []database.Household
+	result := r.db.Preload("Members").Order("name").Find(&households)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return households, nil
+}
+
 // Update persists changes to an existing household.
 func (r *HouseholdRepositoryImpl) Update(household *database.Household) error {
 	return r.db.Save(household).Error
