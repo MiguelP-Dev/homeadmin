@@ -903,6 +903,127 @@ func TestHouseholdE2EFlow(t *testing.T) {
 	resp.Body.Close()
 }
 
+// TestHouseholdRole_E2E drives the role-change flow end-to-end (T3.8): a
+// member's role-change POST is rejected with 403; the owner promotes a member
+// to admin → 303 and the role is persisted; the owner's own role is immutable.
+func TestHouseholdRole_E2E(t *testing.T) {
+	const jwtSecret = "test-secret"
+	app, db := newIntegrationAppWithDB(t, "", jwtSecret)
+
+	// register creates a user via the real auth flow and returns the JWT cookie
+	// plus the persisted user ID.
+	register := func(name, email, password string) (cookie string, userID uint) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/register",
+			strings.NewReader("name="+name+"&email="+email+"&password="+password))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("register %s: %v", email, err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/household" {
+			t.Fatalf("register %s: status %d Location %q, want 302 /household",
+				email, resp.StatusCode, resp.Header.Get("Location"))
+		}
+		cookie = getCookieValue(resp, "jwt")
+		if cookie == "" {
+			t.Fatalf("register %s: no jwt cookie in response", email)
+		}
+		var user database.User
+		if err := db.Where("email = ?", email).First(&user).Error; err != nil {
+			t.Fatalf("find user %s in db: %v", email, err)
+		}
+		return cookie, user.ID
+	}
+
+	// post sends a form POST with the given jwt cookie and returns the response.
+	post := func(path, form, cookie string) *http.Response {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Cookie", "jwt="+cookie)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("POST %s: %v", path, err)
+		}
+		return resp
+	}
+
+	// A registers and creates "Role Family" → owner.
+	cookieA, userA := register("Owner A", "owner@example.com", "password123")
+	resp := post("/household", "name=Role+Family", cookieA)
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Fatalf("create household: status %d Location %q, want 302 /dashboard",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+
+	// B registers and joins via invite → member.
+	cookieB, userB := register("Member B", "member@example.com", "password123")
+	resp = post("/household/invite", "", cookieA)
+	inviteBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read invite response: %v", err)
+	}
+	resp.Body.Close()
+	code := inviteCodeRe.FindString(string(inviteBody))
+	if len(code) != 8 {
+		t.Fatalf("invite response does not contain an 8-char code; body: %s", inviteBody)
+	}
+	resp = post("/household/join", "code="+code, cookieB)
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Fatalf("join: status %d Location %q, want 302 /dashboard",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+
+	// TRIANGULATE — member B tries to change roles → 403, role unchanged.
+	resp = post(fmt.Sprintf("/household/members/%d/role", userB), "role=admin", cookieB)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("member role change: status %d, want 403", resp.StatusCode)
+	}
+	resp.Body.Close()
+	var stillMember database.User
+	if err := db.First(&stillMember, userB).Error; err != nil {
+		t.Fatalf("load user B: %v", err)
+	}
+	if stillMember.Role != database.RoleMember {
+		t.Errorf("user B role = %q, want member (must stay unchanged)", stillMember.Role)
+	}
+
+	// Owner A promotes B member → admin → 303 and role persisted.
+	resp = post(fmt.Sprintf("/household/members/%d/role", userB), "role=admin", cookieA)
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/household" {
+		t.Fatalf("promote: status %d Location %q, want 302 /household",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+
+	var promoted database.User
+	if err := db.First(&promoted, userB).Error; err != nil {
+		t.Fatalf("load user B: %v", err)
+	}
+	if promoted.Role != database.RoleAdmin {
+		t.Errorf("user B role = %q, want admin after promotion", promoted.Role)
+	}
+
+	// TRIANGULATE — B is admin but not owner; demoting owner A still 403.
+	resp = post(fmt.Sprintf("/household/members/%d/role", userA), "role=member", cookieB)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("non-owner role change: status %d, want 403", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	var owner database.User
+	if err := db.First(&owner, userA).Error; err != nil {
+		t.Fatalf("load user A: %v", err)
+	}
+	if owner.Role != database.RoleOwner {
+		t.Errorf("user A role = %q, want owner (owner must never change)", owner.Role)
+	}
+}
+
 // TestUnknownRoute_Returns404 verifies that unmatched paths return a real 404,
 // NOT a redirect to /login. Regression for empty-prefix group fallback where
 // RequireAuth ran on every unmatched path (unknown URLs became 302 /login).
