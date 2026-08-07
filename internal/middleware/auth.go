@@ -6,7 +6,8 @@ import (
 )
 
 // RequireAuth returns a Fiber middleware that validates JWT from the "jwt" cookie.
-// On success, it sets c.Locals("userID"), c.Locals("householdID"), and c.Locals("role").
+// On success, it sets c.Locals("userID"), c.Locals("householdID"), c.Locals("role"),
+// c.Locals("email"), and c.Locals("isAdmin").
 // On failure, it redirects to /login.
 func RequireAuth(jwtSecret string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -23,6 +24,8 @@ func RequireAuth(jwtSecret string) fiber.Handler {
 		c.Locals("userID", claims.UserID)
 		c.Locals("householdID", claims.HouseholdID)
 		c.Locals("role", claims.Role)
+		c.Locals("email", claims.Email)
+		c.Locals("isAdmin", claims.IsAdmin)
 
 		return c.Next()
 	}

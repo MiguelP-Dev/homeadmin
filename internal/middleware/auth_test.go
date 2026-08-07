@@ -22,15 +22,17 @@ func setupTestApp() *fiber.App {
 		userID, _ := c.Locals("userID").(uint)
 		householdID, _ := c.Locals("householdID").(*uint)
 		role, _ := c.Locals("role").(string)
-		return c.SendString(fmt.Sprintf("userID=%d,role=%s,hasHousehold=%v", userID, role, householdID != nil))
+		email, _ := c.Locals("email").(string)
+		isAdmin, _ := c.Locals("isAdmin").(bool)
+		return c.SendString(fmt.Sprintf("userID=%d,role=%s,hasHousehold=%v,email=%s,isAdmin=%v", userID, role, householdID != nil, email, isAdmin))
 	})
 
 	return app
 }
 
 // createValidToken generates a JWT cookie value for testing.
-func createValidToken(userID uint, householdID *uint, role string) string {
-	token, _ := services.CreateToken(userID, householdID, role, testSecret, 24)
+func createValidToken(userID uint, householdID *uint, role, email string, isAdmin bool) string {
+	token, _ := services.CreateToken(userID, householdID, role, email, isAdmin, testSecret, 24)
 	return token
 }
 
@@ -38,7 +40,7 @@ func TestRequireAuth_ValidToken(t *testing.T) {
 	app := setupTestApp()
 
 	var householdID uint = 42
-	token := createValidToken(1, &householdID, "admin")
+	token := createValidToken(1, &householdID, "admin", "admin@example.com", false)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
@@ -57,7 +59,7 @@ func TestRequireAuth_ValidToken(t *testing.T) {
 	bodyStr := string(body)
 
 	// Verify the middleware set correct Locals by checking the echoed response
-	if bodyStr != "userID=1,role=admin,hasHousehold=true" {
+	if bodyStr != "userID=1,role=admin,hasHousehold=true,email=admin@example.com,isAdmin=false" {
 		t.Errorf("unexpected response body: %s", bodyStr)
 	}
 }
@@ -65,7 +67,7 @@ func TestRequireAuth_ValidToken(t *testing.T) {
 func TestRequireAuth_ValidToken_NilHousehold(t *testing.T) {
 	app := setupTestApp()
 
-	token := createValidToken(3, nil, "member")
+	token := createValidToken(3, nil, "member", "member@example.com", false)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
@@ -81,7 +83,32 @@ func TestRequireAuth_ValidToken_NilHousehold(t *testing.T) {
 	}
 
 	body, _ := io.ReadAll(resp.Body)
-	expected := "userID=3,role=member,hasHousehold=false"
+	expected := "userID=3,role=member,hasHousehold=false,email=member@example.com,isAdmin=false"
+	if string(body) != expected {
+		t.Errorf("expected %q, got %q", expected, string(body))
+	}
+}
+
+func TestRequireAuth_ValidToken_IsAdmin(t *testing.T) {
+	app := setupTestApp()
+
+	token := createValidToken(7, nil, "admin", "siteadmin@example.com", true)
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	expected := "userID=7,role=admin,hasHousehold=false,email=siteadmin@example.com,isAdmin=true"
 	if string(body) != expected {
 		t.Errorf("expected %q, got %q", expected, string(body))
 	}
@@ -157,7 +184,7 @@ func TestRequireAuth_ExpiredToken(t *testing.T) {
 	app := setupTestApp()
 
 	// Create token with 0 hours expiration — it's already expired
-	token, _ := services.CreateToken(1, nil, "member", testSecret, 0)
+	token, _ := services.CreateToken(1, nil, "member", "member@example.com", false, testSecret, 0)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
@@ -182,7 +209,7 @@ func TestRequireAuth_WrongSecret(t *testing.T) {
 	app := setupTestApp()
 
 	// Create token with a different secret than what the middleware expects
-	token, _ := services.CreateToken(1, nil, "member", "wrong-secret", 24)
+	token, _ := services.CreateToken(1, nil, "member", "member@example.com", false, "wrong-secret", 24)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
