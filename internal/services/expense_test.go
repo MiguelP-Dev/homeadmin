@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -12,14 +13,14 @@ import (
 // --- Mock ExpenseRepository ---
 
 type mockExpenseRepo struct {
-	createFn             func(expense *database.Expense) error
-	findByIDFn           func(id uint) (*database.Expense, error)
-	findByHouseholdFn    func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
-	updateFn             func(expense *database.Expense) error
-	deleteFn             func(id uint) error
-	monthlyTotalFn       func(userID, householdID uint, year int, month time.Month) (float64, error)
-	categoryBreakdownFn  func(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error)
-	recentExpensesFn     func(userID, householdID uint, limit int) ([]database.Expense, error)
+	createFn            func(expense *database.Expense) error
+	findByIDFn          func(id uint) (*database.Expense, error)
+	findByHouseholdFn   func(userID, householdID uint, viewerRole string, filters database.ExpenseFilters) ([]database.Expense, error)
+	updateFn            func(expense *database.Expense) error
+	deleteFn            func(id uint) error
+	monthlyTotalFn      func(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error)
+	categoryBreakdownFn func(userID, householdID uint, viewerRole string, year int, month time.Month) ([]repositories.CategoryTotal, error)
+	recentExpensesFn    func(userID, householdID uint, viewerRole string, limit int) ([]database.Expense, error)
 }
 
 func (m *mockExpenseRepo) Create(expense *database.Expense) error {
@@ -36,9 +37,9 @@ func (m *mockExpenseRepo) FindByID(id uint) (*database.Expense, error) {
 	return nil, nil
 }
 
-func (m *mockExpenseRepo) FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
+func (m *mockExpenseRepo) FindByHousehold(userID, householdID uint, viewerRole string, filters database.ExpenseFilters) ([]database.Expense, error) {
 	if m.findByHouseholdFn != nil {
-		return m.findByHouseholdFn(userID, householdID, filters)
+		return m.findByHouseholdFn(userID, householdID, viewerRole, filters)
 	}
 	return nil, nil
 }
@@ -57,23 +58,23 @@ func (m *mockExpenseRepo) Delete(id uint) error {
 	return nil
 }
 
-func (m *mockExpenseRepo) MonthlyTotal(userID, householdID uint, year int, month time.Month) (float64, error) {
+func (m *mockExpenseRepo) MonthlyTotal(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error) {
 	if m.monthlyTotalFn != nil {
-		return m.monthlyTotalFn(userID, householdID, year, month)
+		return m.monthlyTotalFn(userID, householdID, viewerRole, year, month)
 	}
 	return 0, nil
 }
 
-func (m *mockExpenseRepo) CategoryBreakdown(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error) {
+func (m *mockExpenseRepo) CategoryBreakdown(userID, householdID uint, viewerRole string, year int, month time.Month) ([]repositories.CategoryTotal, error) {
 	if m.categoryBreakdownFn != nil {
-		return m.categoryBreakdownFn(userID, householdID, year, month)
+		return m.categoryBreakdownFn(userID, householdID, viewerRole, year, month)
 	}
 	return nil, nil
 }
 
-func (m *mockExpenseRepo) RecentExpenses(userID, householdID uint, limit int) ([]database.Expense, error) {
+func (m *mockExpenseRepo) RecentExpenses(userID, householdID uint, viewerRole string, limit int) ([]database.Expense, error) {
 	if m.recentExpensesFn != nil {
-		return m.recentExpensesFn(userID, householdID, limit)
+		return m.recentExpensesFn(userID, householdID, viewerRole, limit)
 	}
 	return nil, nil
 }
@@ -87,6 +88,15 @@ func fixedDate() time.Time {
 	return time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC)
 }
 
+// testUserRepo returns a mock user repo whose FindByID resolves the given role.
+func testUserRepo(role string) *mockUserRepo {
+	return &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{ID: id, Role: role}, nil
+		},
+	}
+}
+
 // --- Create tests ---
 
 func TestCreate_EmptyDescription(t *testing.T) {
@@ -96,7 +106,7 @@ func TestCreate_EmptyDescription(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Create(1, 1, 100.0, "", "Rent", fixedDate(), database.VisibleEditable, false)
 	if err == nil {
@@ -114,7 +124,7 @@ func TestCreate_NegativeAmount(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Create(1, 1, -50.0, "Groceries", "Groceries", fixedDate(), database.VisibleEditable, false)
 	if err == nil {
@@ -132,7 +142,7 @@ func TestCreate_InvalidCategory(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Create(1, 1, 100.0, "Rent", "CatCosts", fixedDate(), database.VisibleEditable, false)
 	if err == nil {
@@ -149,7 +159,7 @@ func TestCreate_RepoError(t *testing.T) {
 			return errors.New("db connection lost")
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Create(1, 1, 100.0, "Groceries", "Groceries", fixedDate(), database.VisibleEditable, false)
 	if err == nil {
@@ -168,7 +178,7 @@ func TestCreate_Success(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Create(1, 1, 1500.0, "Monthly Rent", "Rent", fixedDate(), database.VisibleEditable, true)
 	if err != nil {
@@ -220,7 +230,7 @@ func TestUpdate_AllowCreatorVisibleOnly(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Update(1, 1, ExpenseUpdateFields{Description: strPtr("New desc")})
 	if err != nil {
@@ -251,7 +261,7 @@ func TestUpdate_BlockNonCreatorVisibleOnly(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Update(2, 1, ExpenseUpdateFields{Description: strPtr("Hacked")})
 	if err == nil {
@@ -280,7 +290,7 @@ func TestUpdate_AllowAnyMemberVisibleEditable(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	// User 2 is NOT the creator but visible_editable allows any member
 	err := svc.Update(2, 1, ExpenseUpdateFields{Description: strPtr("Updated by member")})
@@ -312,7 +322,7 @@ func TestDelete_AllowCreator(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Delete(1, 1)
 	if err != nil {
@@ -323,21 +333,21 @@ func TestDelete_AllowCreator(t *testing.T) {
 	}
 }
 
-func TestDelete_BlockNonCreator(t *testing.T) {
+func TestDelete_BlockNonCreatorVisibleOnly(t *testing.T) {
 	repo := &mockExpenseRepo{
 		findByIDFn: func(id uint) (*database.Expense, error) {
 			return &database.Expense{
 				ID:          1,
 				CreatedByID: 1,
-				Visibility:  database.VisibleEditable,
+				Visibility:  database.VisibleOnly,
 			}, nil
 		},
 		deleteFn: func(id uint) error {
-			t.Error("Delete should not be called for non-creator")
+			t.Error("Delete should not be called for non-creator on visible_only")
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Delete(2, 1)
 	if err == nil {
@@ -350,10 +360,11 @@ func TestDelete_BlockNonCreator(t *testing.T) {
 
 // --- FindByHousehold tests ---
 
-func TestFindByHousehold_CallsRepo(t *testing.T) {	var calledUserID, calledHouseholdID uint
+func TestFindByHousehold_CallsRepo(t *testing.T) {
+	var calledUserID, calledHouseholdID uint
 	var calledFilters database.ExpenseFilters
 	repo := &mockExpenseRepo{
-		findByHouseholdFn: func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
+		findByHouseholdFn: func(userID, householdID uint, viewerRole string, filters database.ExpenseFilters) ([]database.Expense, error) {
 			calledUserID = userID
 			calledHouseholdID = householdID
 			calledFilters = filters
@@ -362,7 +373,7 @@ func TestFindByHousehold_CallsRepo(t *testing.T) {	var calledUserID, calledHouse
 			}, nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	filters := database.ExpenseFilters{Category: "Rent"}
 	results, err := svc.FindByHousehold(1, 2, filters)
@@ -394,7 +405,7 @@ func TestFindByID_Success(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	expense, err := svc.FindByID(2, 1, 1)
 	if err != nil {
@@ -416,7 +427,7 @@ func TestFindByID_HiddenPrivateBlocksNonCreator(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	_, err := svc.FindByID(2, 1, 1)
 	if !errors.Is(err, ErrPermission) {
@@ -430,7 +441,7 @@ func TestFindByID_NotFound(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	_, err := svc.FindByID(1, 1, 999)
 	if !errors.Is(err, ErrNotFound) {
@@ -446,7 +457,7 @@ func TestFindByID_WrongHouseholdDenied(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	_, err := svc.FindByID(1, 1, 1)
 	if !errors.Is(err, ErrNotFound) {
@@ -460,7 +471,7 @@ func TestFindByID_RepoError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	_, err := svc.FindByID(1, 1, 1)
 	if err == nil || err.Error() != "db error" {
@@ -476,7 +487,7 @@ func TestDelete_RepoError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Delete(1, 999)
 	if err == nil {
@@ -497,7 +508,7 @@ func TestDelete_NotFound(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Delete(1, 999)
 	if err == nil {
@@ -520,7 +531,7 @@ func TestUpdate_NotFound(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Update(1, 999, ExpenseUpdateFields{Description: strPtr("Should not update")})
 	if err == nil {
@@ -548,7 +559,7 @@ func TestUpdate_AllFields(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	amount := 250.50
 	err := svc.Update(1, 1, ExpenseUpdateFields{
@@ -598,7 +609,7 @@ func TestUpdate_InvalidCategory(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	err := svc.Update(1, 1, ExpenseUpdateFields{Category: strPtr("InvalidCat")})
 	if err == nil {
@@ -613,11 +624,11 @@ func TestUpdate_InvalidCategory(t *testing.T) {
 
 func TestGetDashboardSummary_MonthlyTotalError(t *testing.T) {
 	repo := &mockExpenseRepo{
-		monthlyTotalFn: func(userID, householdID uint, year int, month time.Month) (float64, error) {
+		monthlyTotalFn: func(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error) {
 			return 0, errors.New("db error")
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	_, err := svc.GetDashboardSummary(1, 1)
 	if err == nil {
@@ -627,14 +638,14 @@ func TestGetDashboardSummary_MonthlyTotalError(t *testing.T) {
 
 func TestGetDashboardSummary_CategoryBreakdownError(t *testing.T) {
 	repo := &mockExpenseRepo{
-		monthlyTotalFn: func(userID, householdID uint, year int, month time.Month) (float64, error) {
+		monthlyTotalFn: func(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error) {
 			return 0, nil
 		},
-		categoryBreakdownFn: func(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error) {
+		categoryBreakdownFn: func(userID, householdID uint, viewerRole string, year int, month time.Month) ([]repositories.CategoryTotal, error) {
 			return nil, errors.New("category db error")
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	_, err := svc.GetDashboardSummary(1, 1)
 	if err == nil {
@@ -652,23 +663,23 @@ func strPtr(s string) *string {
 
 func TestGetDashboardSummary_Success(t *testing.T) {
 	repo := &mockExpenseRepo{
-		monthlyTotalFn: func(userID, householdID uint, year int, month time.Month) (float64, error) {
+		monthlyTotalFn: func(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error) {
 			return 350.50, nil
 		},
-		categoryBreakdownFn: func(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error) {
+		categoryBreakdownFn: func(userID, householdID uint, viewerRole string, year int, month time.Month) ([]repositories.CategoryTotal, error) {
 			return []repositories.CategoryTotal{
 				{Category: "Groceries", Total: 200.00},
 				{Category: "Rent", Total: 150.50},
 			}, nil
 		},
-		recentExpensesFn: func(userID, householdID uint, limit int) ([]database.Expense, error) {
+		recentExpensesFn: func(userID, householdID uint, viewerRole string, limit int) ([]database.Expense, error) {
 			return []database.Expense{
 				{ID: 1, Description: "Groceries", Amount: 50, Category: "Groceries"},
 				{ID: 2, Description: "Rent", Amount: 150, Category: "Rent"},
 			}, nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	summary, err := svc.GetDashboardSummary(1, 1)
 	if err != nil {
@@ -687,17 +698,17 @@ func TestGetDashboardSummary_Success(t *testing.T) {
 
 func TestGetDashboardSummary_Empty(t *testing.T) {
 	repo := &mockExpenseRepo{
-		monthlyTotalFn: func(userID, householdID uint, year int, month time.Month) (float64, error) {
+		monthlyTotalFn: func(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error) {
 			return 0, nil
 		},
-		categoryBreakdownFn: func(userID, householdID uint, year int, month time.Month) ([]repositories.CategoryTotal, error) {
+		categoryBreakdownFn: func(userID, householdID uint, viewerRole string, year int, month time.Month) ([]repositories.CategoryTotal, error) {
 			return []repositories.CategoryTotal{}, nil
 		},
-		recentExpensesFn: func(userID, householdID uint, limit int) ([]database.Expense, error) {
+		recentExpensesFn: func(userID, householdID uint, viewerRole string, limit int) ([]database.Expense, error) {
 			return []database.Expense{}, nil
 		},
 	}
-	svc := NewExpenseService(repo)
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
 	summary, err := svc.GetDashboardSummary(1, 1)
 	if err != nil {
@@ -711,5 +722,198 @@ func TestGetDashboardSummary_Empty(t *testing.T) {
 	}
 	if len(summary.RecentExpenses) != 0 {
 		t.Errorf("expected 0 recent expenses, got %d", len(summary.RecentExpenses))
+	}
+}
+
+// --- Task 4.2: service resolves the viewer role and forwards it ---
+
+func TestService_ForwardsResolvedViewerRole(t *testing.T) {
+	var got []string
+	repo := &mockExpenseRepo{
+		findByHouseholdFn: func(_ uint, _ uint, viewerRole string, _ database.ExpenseFilters) ([]database.Expense, error) {
+			got = append(got, "list:"+viewerRole)
+			return nil, nil
+		},
+		monthlyTotalFn: func(_ uint, _ uint, viewerRole string, _ int, _ time.Month) (float64, error) {
+			got = append(got, "total:"+viewerRole)
+			return 0, nil
+		},
+		categoryBreakdownFn: func(_ uint, _ uint, viewerRole string, _ int, _ time.Month) ([]repositories.CategoryTotal, error) {
+			got = append(got, "breakdown:"+viewerRole)
+			return nil, nil
+		},
+		recentExpensesFn: func(_ uint, _ uint, viewerRole string, _ int) ([]database.Expense, error) {
+			got = append(got, "recent:"+viewerRole)
+			return nil, nil
+		},
+	}
+	svc := NewExpenseService(repo, testUserRepo(database.RoleOwner))
+
+	if _, err := svc.FindByHousehold(7, 2, database.ExpenseFilters{}); err != nil {
+		t.Fatalf("FindByHousehold: %v", err)
+	}
+	if _, err := svc.GetDashboardSummary(7, 2); err != nil {
+		t.Fatalf("GetDashboardSummary: %v", err)
+	}
+	want := []string{"list:owner", "total:owner", "breakdown:owner", "recent:owner"}
+	if !slices.Equal(got, want) {
+		t.Errorf("viewer role forwarding = %v, want %v", got, want)
+	}
+}
+
+func TestFindByHousehold_MissingUserDefaultsToMember(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByHouseholdFn: func(_ uint, _ uint, viewerRole string, _ database.ExpenseFilters) ([]database.Expense, error) {
+			if viewerRole != database.RoleMember {
+				t.Errorf("expected fail-closed viewerRole %q for missing user, got %q", database.RoleMember, viewerRole)
+			}
+			return nil, nil
+		},
+	}
+	svc := NewExpenseService(repo, &mockUserRepo{}) // FindByID returns nil user
+
+	if _, err := svc.FindByHousehold(7, 2, database.ExpenseFilters{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// --- Task 4.3: edit matrix (canEditExpense) and delete ---
+
+func TestCanEditExpense_Matrix(t *testing.T) {
+	tests := []struct {
+		name       string
+		role       string
+		visibility database.VisibilityType
+		creator    uint // expense creator id
+		actor      uint // user attempting the edit
+		want       bool
+	}{
+		{"visible_editable any member", database.RoleMember, database.VisibleEditable, 1, 2, true},
+		{"visible_editable admin", database.RoleAdmin, database.VisibleEditable, 1, 2, true},
+		{"visible_only creator", database.RoleMember, database.VisibleOnly, 1, 1, true},
+		{"visible_only non-creator", database.RoleMember, database.VisibleOnly, 1, 2, false},
+		{"hidden_private owner creator", database.RoleOwner, database.HiddenPrivate, 1, 1, true},
+		{"hidden_private owner non-creator", database.RoleOwner, database.HiddenPrivate, 1, 2, false},
+		{"hidden_private admin denied (hard rule)", database.RoleAdmin, database.HiddenPrivate, 1, 1, false},
+		{"hidden_private member denied", database.RoleMember, database.HiddenPrivate, 1, 1, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expense := &database.Expense{CreatedByID: tt.creator, Visibility: tt.visibility}
+			if got := canEditExpense(tt.actor, tt.role, expense); got != tt.want {
+				t.Errorf("canEditExpense(%d, %q, %s) = %v, want %v", tt.actor, tt.role, tt.visibility, got, tt.want)
+			}
+		})
+	}
+}
+
+// --- Task 4.4: view matrix (canViewExpense) ---
+
+func TestCanViewExpense_Matrix(t *testing.T) {
+	tests := []struct {
+		name       string
+		role       string
+		visibility database.VisibilityType
+		want       bool
+	}{
+		{"hidden_private owner", database.RoleOwner, database.HiddenPrivate, true},
+		{"hidden_private admin denied", database.RoleAdmin, database.HiddenPrivate, false},
+		{"hidden_private member denied", database.RoleMember, database.HiddenPrivate, false},
+		{"visible_editable member", database.RoleMember, database.VisibleEditable, true},
+		{"visible_only member", database.RoleMember, database.VisibleOnly, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expense := &database.Expense{Visibility: tt.visibility}
+			if got := canViewExpense(tt.role, expense); got != tt.want {
+				t.Errorf("canViewExpense(%q, %s) = %v, want %v", tt.role, tt.visibility, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUpdate_HiddenPrivateCreatorMemberBlocked(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{ID: 1, CreatedByID: 1, Visibility: database.HiddenPrivate}, nil
+		},
+		updateFn: func(e *database.Expense) error {
+			t.Error("Update must not run for a member creator of hidden_private")
+			return nil
+		},
+	}
+	// Creator is user 1 but only holds the member role — hard rule: never edit.
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
+
+	err := svc.Update(1, 1, ExpenseUpdateFields{Description: strPtr("Nope")})
+	if !errors.Is(err, ErrPermission) {
+		t.Errorf("expected ErrPermission, got %v", err)
+	}
+}
+
+func TestUpdate_HiddenPrivateOwnerCreatorAllowed(t *testing.T) {
+	var updated *database.Expense
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{ID: 1, CreatedByID: 1, Visibility: database.HiddenPrivate}, nil
+		},
+		updateFn: func(e *database.Expense) error {
+			updated = e
+			return nil
+		},
+	}
+	svc := NewExpenseService(repo, testUserRepo(database.RoleOwner))
+
+	err := svc.Update(1, 1, ExpenseUpdateFields{Description: strPtr("OK")})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated == nil || updated.Description != "OK" {
+		t.Fatal("expected the hidden_private expense to be updated by its owner")
+	}
+}
+
+func TestDelete_AllowNonCreatorVisibleEditable(t *testing.T) {
+	var deletedID uint
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{ID: 1, CreatedByID: 1, Visibility: database.VisibleEditable}, nil
+		},
+		deleteFn: func(id uint) error {
+			deletedID = id
+			return nil
+		},
+	}
+	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
+
+	// Delete follows the edit matrix: visible_editable is editable by any member.
+	err := svc.Delete(2, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if deletedID != 1 {
+		t.Errorf("expected delete called with ID 1, got %d", deletedID)
+	}
+}
+
+// --- Task 4.4: FindByID honors the owner-only view rule ---
+
+func TestFindByID_HiddenPrivateOwnerCanViewOthers(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{
+				ID: 1, HouseholdID: 1, CreatedByID: 1, Visibility: database.HiddenPrivate,
+			}, nil
+		},
+	}
+	// User 2 is not the creator, but the household owner may view hidden_private.
+	svc := NewExpenseService(repo, testUserRepo(database.RoleOwner))
+
+	expense, err := svc.FindByID(2, 1, 1)
+	if err != nil {
+		t.Fatalf("expected owner to view the hidden_private expense, got error: %v", err)
+	}
+	if expense == nil || expense.ID != 1 {
+		t.Fatal("expected the expense to be returned")
 	}
 }
