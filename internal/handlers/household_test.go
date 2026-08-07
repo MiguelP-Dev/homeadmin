@@ -280,12 +280,65 @@ func TestHouseholdHandler_Create_Success(t *testing.T) {
 		t.Errorf("expected role=%q in claims, got %q", database.RoleOwner, claims.Role)
 	}
 	// Re-issued token reflects the fresh DB user (design D2): email from the
-	// user record, is_admin=false (no site-admin mechanism exists yet).
+	// user record, is_admin from User.IsAdmin (slice 5).
 	if claims.Email != "test@example.com" {
 		t.Errorf("expected Email=test@example.com in claims, got %q", claims.Email)
 	}
 	if claims.IsAdmin {
 		t.Error("expected IsAdmin=false in claims")
+	}
+}
+
+// TestHouseholdHandler_Create_ReissuesTokenWithIsAdmin verifies the re-issued
+// token carries IsAdmin=true when the fresh DB user is a site admin (design D2;
+// slice 5 switches the create/join call sites from a hardcoded false).
+func TestHouseholdHandler_Create_ReissuesTokenWithIsAdmin(t *testing.T) {
+	hhID := uint(7)
+	svc := &mockHouseholdService{
+		createFn: func(userID uint, name string) (*database.Household, error) {
+			return &database.Household{ID: hhID, Name: name}, nil
+		},
+	}
+	userRepo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{ID: id, Email: "siteadmin@example.com", Role: database.RoleOwner, IsAdmin: true}, nil
+		},
+	}
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
+	handler := NewHouseholdHandler(svc, userRepo, hhTestJWTSecret, 24)
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("userID", uint(1))
+		c.Locals("householdID", ptr[uint](1))
+		c.Locals("email", "siteadmin@example.com")
+		c.Locals("csrfToken", "test-csrf-token")
+		return c.Next()
+	})
+	app.Post("/household", handler.Create)
+
+	form := url.Values{}
+	form.Set("name", "Admin Family")
+
+	req := httptest.NewRequest(http.MethodPost, "/household", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected status 302, got %d", resp.StatusCode)
+	}
+
+	claims := decodeJWTCookie(t, resp, hhTestJWTSecret)
+	if !claims.IsAdmin {
+		t.Error("expected IsAdmin=true in re-issued token for a site admin")
+	}
+	if claims.Email != "siteadmin@example.com" {
+		t.Errorf("expected Email=siteadmin@example.com in claims, got %q", claims.Email)
 	}
 }
 

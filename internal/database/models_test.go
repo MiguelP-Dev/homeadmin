@@ -64,6 +64,7 @@ func TestUserModelFields(t *testing.T) {
 		{"Email", reflect.String},
 		{"PasswordHash", reflect.String},
 		{"Role", reflect.String},
+		{"IsAdmin", reflect.Bool},
 		{"HouseholdID", reflect.Ptr},
 		{"CreatedAt", reflect.TypeOf(time.Time{}).Kind()},
 		{"UpdatedAt", reflect.TypeOf(time.Time{}).Kind()},
@@ -126,6 +127,51 @@ func TestExpenseModelFields(t *testing.T) {
 		if f.Type.Kind() != tt.expected {
 			t.Errorf("Expense.%s: expected kind %v, got %v", tt.field, tt.expected, f.Type.Kind())
 		}
+	}
+}
+
+// TestUserIsAdmin_DefaultsFalse verifies a fresh User has IsAdmin=false (RF-9):
+// site-admin is opt-in, never granted at registration.
+func TestUserIsAdmin_DefaultsFalse(t *testing.T) {
+	u := User{}
+	if u.IsAdmin {
+		t.Error("expected fresh User IsAdmin=false, got true")
+	}
+}
+
+// TestUserIsAdmin_PersistsRoundTrip verifies AutoMigrate is additive for the
+// IsAdmin column: a user persisted with IsAdmin=true reloads with IsAdmin=true,
+// and a non-admin user reloads with false.
+func TestUserIsAdmin_PersistsRoundTrip(t *testing.T) {
+	db, err := Connect("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	admin := User{Email: "admin@example.com", PasswordHash: "hash", Role: RoleMember, IsAdmin: true}
+	plain := User{Email: "plain@example.com", PasswordHash: "hash", Role: RoleMember}
+	if err := db.Create(&admin).Error; err != nil {
+		t.Fatalf("create admin user: %v", err)
+	}
+	if err := db.Create(&plain).Error; err != nil {
+		t.Fatalf("create plain user: %v", err)
+	}
+
+	var gotAdmin, gotPlain User
+	if err := db.First(&gotAdmin, admin.ID).Error; err != nil {
+		t.Fatalf("reload admin user: %v", err)
+	}
+	if !gotAdmin.IsAdmin {
+		t.Error("expected IsAdmin=true after reload of promoted user")
+	}
+	if err := db.First(&gotPlain, plain.ID).Error; err != nil {
+		t.Fatalf("reload plain user: %v", err)
+	}
+	if gotPlain.IsAdmin {
+		t.Error("expected IsAdmin=false for non-promoted user")
 	}
 }
 

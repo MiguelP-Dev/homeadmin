@@ -84,15 +84,14 @@ func (h *HouseholdHandler) Create(c *fiber.Ctx) error {
 		return middleware.Internal(fmt.Sprintf("failed to create household: %v", err))
 	}
 
-	// Re-issue JWT with household_id and role=admin from the fresh DB user
-	// (design D2) so the token carries the current household, role, and email.
+	// Re-issue JWT with household_id and role=owner from the fresh DB user
+	// (design D2) so the token carries the current household, role, email,
+	// and site-admin flag (user.IsAdmin, slice 5).
 	user, err := h.userRepo.FindByID(userID)
 	if err != nil || user == nil {
 		return middleware.Internal("failed to load user for token")
 	}
-	// isAdmin is false at issue time: no site-admin mechanism exists yet
-	// (slice 5 adds User.IsAdmin and switches this call site to it).
-	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, false, h.jwtSecret, h.jwtExpirationHours)
+	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
 	if err != nil {
 		return middleware.Internal("failed to issue token")
 	}
@@ -183,14 +182,13 @@ func (h *HouseholdHandler) Join(c *fiber.Ctx) error {
 	}
 
 	// Re-issue JWT with household_id and role=member from the fresh DB user
-	// (design D2) so the token carries the current household, role, and email.
+	// (design D2) so the token carries the current household, role, email,
+	// and site-admin flag (user.IsAdmin, slice 5).
 	user, err := h.userRepo.FindByID(userID)
 	if err != nil || user == nil {
 		return middleware.Internal("failed to load user for token")
 	}
-	// isAdmin is false at issue time: no site-admin mechanism exists yet
-	// (slice 5 adds User.IsAdmin and switches this call site to it).
-	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, false, h.jwtSecret, h.jwtExpirationHours)
+	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
 	if err != nil {
 		return middleware.Internal("failed to issue token")
 	}

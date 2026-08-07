@@ -38,10 +38,15 @@ type User struct {
 	Email        string         `gorm:"size:255;uniqueIndex;not null"`
 	PasswordHash string         `gorm:"size:255;not null"`
 	Role         string         `gorm:"size:20;default:'member'"`
-	HouseholdID  *uint          `gorm:"default:null"`
-	Household    *Household     `gorm:"foreignKey:HouseholdID"`
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	// IsAdmin marks a site-wide administrator (RF-9). It is independent of the
+	// per-household Role: a member can be a site admin, an owner need not be.
+	// Additive AutoMigrate column; defaults to false so registration never
+	// grants site-admin.
+	IsAdmin     bool `gorm:"default:false"`
+	HouseholdID *uint          `gorm:"default:null"`
+	Household   *Household     `gorm:"foreignKey:HouseholdID"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // VisibilityType controls who can see/edit an expense
