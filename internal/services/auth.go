@@ -15,6 +15,8 @@ type Claims struct {
 	UserID      uint   `json:"user_id"`
 	HouseholdID *uint  `json:"household_id"`
 	Role        string `json:"role"`
+	Email       string `json:"email"`
+	IsAdmin     bool   `json:"is_admin"`
 	jwt.RegisteredClaims
 }
 
@@ -35,12 +37,14 @@ func CheckPassword(password, hash string) bool {
 }
 
 // CreateToken generates a signed JWT token with the given claims.
-func CreateToken(userID uint, householdID *uint, role, secret string, expHours int) (string, error) {
+func CreateToken(userID uint, householdID *uint, role, email string, isAdmin bool, secret string, expHours int) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		UserID:      userID,
 		HouseholdID: householdID,
 		Role:        role,
+		Email:       email,
+		IsAdmin:     isAdmin,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(expHours) * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(now),

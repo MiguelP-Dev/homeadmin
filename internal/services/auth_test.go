@@ -64,7 +64,7 @@ func TestCheckPassword_Empty(t *testing.T) {
 
 func TestCreateToken_Success(t *testing.T) {
 	var householdID uint = 42
-	token, err := CreateToken(1, &householdID, "member", "test-secret", 24)
+	token, err := CreateToken(1, &householdID, "member", "user@example.com", false, "test-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken returned unexpected error: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestCreateToken_Success(t *testing.T) {
 }
 
 func TestCreateToken_NilHousehold(t *testing.T) {
-	token, err := CreateToken(1, nil, "admin", "test-secret", 24)
+	token, err := CreateToken(1, nil, "admin", "admin@example.com", true, "test-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken returned unexpected error: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestCreateToken_NilHousehold(t *testing.T) {
 
 func TestValidateToken_Valid(t *testing.T) {
 	var householdID uint = 42
-	token, err := CreateToken(1, &householdID, "member", "test-secret", 24)
+	token, err := CreateToken(1, &householdID, "member", "user@example.com", false, "test-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken failed: %v", err)
 	}
@@ -108,10 +108,16 @@ func TestValidateToken_Valid(t *testing.T) {
 	if claims.Role != "member" {
 		t.Errorf("expected Role=member, got %s", claims.Role)
 	}
+	if claims.Email != "user@example.com" {
+		t.Errorf("expected Email=user@example.com, got %s", claims.Email)
+	}
+	if claims.IsAdmin {
+		t.Errorf("expected IsAdmin=false, got %v", claims.IsAdmin)
+	}
 }
 
 func TestValidateToken_NilHousehold(t *testing.T) {
-	token, err := CreateToken(1, nil, "admin", "test-secret", 24)
+	token, err := CreateToken(1, nil, "admin", "admin@example.com", true, "test-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken failed: %v", err)
 	}
@@ -126,10 +132,16 @@ func TestValidateToken_NilHousehold(t *testing.T) {
 	if claims.Role != "admin" {
 		t.Errorf("expected Role=admin, got %s", claims.Role)
 	}
+	if claims.Email != "admin@example.com" {
+		t.Errorf("expected Email=admin@example.com, got %s", claims.Email)
+	}
+	if !claims.IsAdmin {
+		t.Errorf("expected IsAdmin=true, got %v", claims.IsAdmin)
+	}
 }
 
 func TestValidateToken_WrongSecret(t *testing.T) {
-	token, err := CreateToken(1, nil, "member", "correct-secret", 24)
+	token, err := CreateToken(1, nil, "member", "user@example.com", false, "correct-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken failed: %v", err)
 	}
@@ -144,7 +156,7 @@ func TestValidateToken_WrongSecret(t *testing.T) {
 }
 
 func TestValidateToken_Expired(t *testing.T) {
-	token, err := CreateToken(1, nil, "member", "test-secret", 0)
+	token, err := CreateToken(1, nil, "member", "user@example.com", false, "test-secret", 0)
 	if err != nil {
 		t.Fatalf("CreateToken failed: %v", err)
 	}
