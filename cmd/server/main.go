@@ -43,6 +43,12 @@ func main() {
 	expenseService := services.NewExpenseService(expenseRepo)
 	expenseHandler := handlers.NewExpenseHandler(expenseService)
 
+	householdRepo := repositories.NewHouseholdRepository(dbConn)
+	// The service's inviteRepo surface (MarkUsed) lives on the same repository,
+	// so householdRepo satisfies both arguments.
+	householdService := services.NewHouseholdService(householdRepo, userRepo, householdRepo)
+	householdHandler := handlers.NewHouseholdHandler(householdService, cfg.JWTSecret, cfg.JWTExpirationHours)
+
 	// 5. Create Fiber app with centralized error handler
 	app := fiber.New(fiber.Config{
 		ErrorHandler: middleware.ErrorHandler,
@@ -76,27 +82,50 @@ func main() {
 	app.Post("/register", authHandler.Register)
 	app.Post("/logout", authHandler.Logout)
 
-	// Root redirect — unauthenticated goes to /login
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.Redirect("/login", fiber.StatusFound)
-	})
+	// Root redirect — token-aware: authenticated users go to /dashboard,
+	// everyone else to /login.
+	app.Get("/", rootRedirect(cfg.JWTSecret))
 
 	// 8. Protected routes — RequireAuth middleware applied per-route.
 	// NOTE: do NOT use app.Group("", RequireAuth): Fiber mounts middleware of an
 	// empty-prefix group as a fallback for UNMATCHED paths too, which would turn
 	// every 404 into a redirect to /login before the 404 is generated.
-	app.Get("/dashboard", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.Dashboard)
+	// RequireHousehold runs after RequireAuth on household-mandatory routes
+	// (design §2); /household Show and /household/join must stay reachable with
+	// a nil household (spec: create/join require nil, invite 400s via handler).
+	app.Get("/dashboard", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Dashboard)
 
 	// Expense routes (Phase 4 — PR #2)
-	app.Get("/expenses", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.List)
-	app.Post("/expenses", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.Create)
-	app.Put("/expenses/:id", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.Update)
-	app.Delete("/expenses/:id", middleware.RequireAuth(cfg.JWTSecret), expenseHandler.Delete)
+	app.Get("/expenses", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.List)
+	app.Post("/expenses", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Create)
+	app.Put("/expenses/:id", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Update)
+	app.Delete("/expenses/:id", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Delete)
+
+	// Household routes
+	app.Get("/household", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Show)
+	app.Post("/household", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Create)
+	app.Post("/household/invite", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Invite)
+	app.Post("/household/join", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Join)
 
 	// 9. Start server
 	log.Printf("server starting on :%s (env: %s)", cfg.Port, cfg.Env)
 	if err := app.Listen(fmt.Sprintf(":%s", cfg.Port)); err != nil {
 		log.Fatalf("server failed to start: %v", err)
+	}
+}
+
+// rootRedirect returns a handler that redirects authenticated users (valid
+// "jwt" cookie) to /dashboard and unauthenticated users to /login.
+func rootRedirect(jwtSecret string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		cookie := c.Cookies("jwt")
+		if cookie == "" {
+			return c.Redirect("/login", fiber.StatusFound)
+		}
+		if _, err := services.ValidateToken(cookie, jwtSecret); err != nil {
+			return c.Redirect("/login", fiber.StatusFound)
+		}
+		return c.Redirect("/dashboard", fiber.StatusFound)
 	}
 }
 

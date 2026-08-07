@@ -98,6 +98,68 @@ func TestRootRedirect_Unauthenticated(t *testing.T) {
 	}
 }
 
+// TestRootRedirect_TokenAware verifies the token-aware root handler: a valid
+// JWT cookie redirects to /dashboard, invalid or missing cookies redirect to
+// /login (spec: Root Redirect Fix). Uses a minimal app registering ONLY the
+// root handler — no DB or other routes needed.
+func TestRootRedirect_TokenAware(t *testing.T) {
+	jwtSecret := "test-secret"
+	validToken, err := services.CreateToken(1, nil, "member", jwtSecret, 24)
+	if err != nil {
+		t.Fatalf("CreateToken error: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		cookie     string // raw Cookie header value; "" = no cookie
+		wantStatus int
+		wantLoc    string
+	}{
+		{
+			name:       "valid JWT redirects to dashboard",
+			cookie:     "jwt=" + validToken,
+			wantStatus: fiber.StatusFound,
+			wantLoc:    "/dashboard",
+		},
+		{
+			name:       "invalid JWT redirects to login",
+			cookie:     "jwt=not-a-valid-token",
+			wantStatus: fiber.StatusFound,
+			wantLoc:    "/login",
+		},
+		{
+			name:       "missing cookie redirects to login",
+			cookie:     "",
+			wantStatus: fiber.StatusFound,
+			wantLoc:    "/login",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Get("/", rootRedirect(jwtSecret))
+
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tt.cookie != "" {
+				req.Header.Set("Cookie", tt.cookie)
+			}
+			resp, err := app.Test(req, 5000)
+			if err != nil {
+				t.Fatalf("app.Test() error: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("status = %d, want %d", resp.StatusCode, tt.wantStatus)
+			}
+			if loc := resp.Header.Get("Location"); loc != tt.wantLoc {
+				t.Errorf("Location = %q, want %q", loc, tt.wantLoc)
+			}
+		})
+	}
+}
+
 // TestLoginRoute_Accessible verifies GET /login returns 200 for public access.
 // Covers spec: public auth routes are accessible without authentication.
 func TestLoginRoute_Accessible(t *testing.T) {
