@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -99,8 +100,10 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	app.Get("/dashboard", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Dashboard)
 	app.Get("/expenses", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.List)
 	app.Post("/expenses", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Create)
-	app.Put("/expenses/:id", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Update)
-	app.Delete("/expenses/:id", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Delete)
+	app.Get("/expenses/new", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.ShowNew)
+	app.Get("/expenses/:id/edit", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.ShowEdit)
+	app.Post("/expenses/:id/update", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Update)
+	app.Post("/expenses/:id/delete", middleware.RequireAuth(jwtSecret), middleware.RequireHousehold(), expenseHandler.Delete)
 
 	// Household routes — /household/invite is RequireAuth-only by design (the
 	// handler 400s no-household users; batch-7 deviation from design §3).
@@ -110,6 +113,194 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	app.Post("/household/join", middleware.RequireAuth(jwtSecret), householdHandler.Join)
 
 	return app, db
+}
+
+// TestExpenses_PutDeleteUnregistered verifies PUT /expenses/:id and
+// DELETE /expenses/:id are no longer registered (RF-4): the router answers 404
+// for an unauthenticated request — a registered route would have hit RequireAuth
+// and redirected (302 /login) instead.
+func TestExpenses_PutDeleteUnregistered(t *testing.T) {
+	app := newIntegrationApp(t, "", "test-secret")
+
+	for _, method := range []string{http.MethodPut, http.MethodDelete} {
+		t.Run(method, func(t *testing.T) {
+			req := httptest.NewRequest(method, "/expenses/1", nil)
+			resp, err := app.Test(req, 5000)
+			if err != nil {
+				t.Fatalf("app.Test() error: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != fiber.StatusNotFound {
+				t.Errorf("status = %d, want %d (PUT/DELETE must be unregistered)", resp.StatusCode, fiber.StatusNotFound)
+			}
+		})
+	}
+}
+
+// TestExpenses_CSRFLessPostForbidden verifies a POST /expenses without a CSRF
+// token is rejected with 403 AND no row is persisted (threat matrix, RF-3).
+func TestExpenses_CSRFLessPostForbidden(t *testing.T) {
+	app, db := newIntegrationAppWithDB(t, "test-csrf-key", "test-secret")
+
+	form := "amount=100&description=CSRF+Test&category=Rent&date=2026-07-27"
+	req := httptest.NewRequest(http.MethodPost, "/expenses", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("status = %d, want %d (CSRF must block token-less POST)", resp.StatusCode, fiber.StatusForbidden)
+	}
+
+	var count int64
+	if err := db.Model(&database.Expense{}).Count(&count).Error; err != nil {
+		t.Fatalf("count expenses: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("expense rows = %d, want 0 (no mutation without CSRF)", count)
+	}
+}
+
+// TestExpenseHTML_E2E drives the expense HTML flow end-to-end (T2.7): register
+// → create household → GET /expenses renders HTML → POST valid create → 303 +
+// persisted row → POST update → 303 + persisted change → POST delete → 303 +
+// row gone. Invalid create → 422 + no row.
+func TestExpenseHTML_E2E(t *testing.T) {
+	const jwtSecret = "test-secret"
+	app, db := newIntegrationAppWithDB(t, "", jwtSecret)
+	const email = "expuser@example.com"
+
+	// Register and create a household (mirrors TestHouseholdE2EFlow setup).
+	req := httptest.NewRequest(http.MethodPost, "/register",
+		strings.NewReader("name=ExpUser&email="+email+"&password=password123"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("register error: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/household" {
+		t.Fatalf("register: status %d Location %q, want 302 /household", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	cookie := getCookieValue(resp, "jwt")
+	if cookie == "" {
+		t.Fatal("register: no jwt cookie")
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/household", strings.NewReader("name=Expense+Family"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Cookie", "jwt="+cookie)
+	resp, err = app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("household create error: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Fatalf("household: status %d Location %q, want 302 /dashboard", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	cookie = getCookieValue(resp, "jwt")
+
+	// GET /expenses renders the HTML list (RF-1).
+	req = httptest.NewRequest(http.MethodGet, "/expenses", nil)
+	req.Header.Set("Cookie", "jwt="+cookie)
+	resp, err = app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("GET /expenses error: %v", err)
+	}
+	listBody, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusOK || !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/html") {
+		t.Fatalf("GET /expenses: status %d CT %q, want 200 text/html", resp.StatusCode, resp.Header.Get("Content-Type"))
+	}
+	if !strings.Contains(string(listBody), "Expenses") {
+		t.Errorf("GET /expenses body does not render the Expenses page")
+	}
+
+	// Invalid create → 422, nothing persisted (RF-3 edge).
+	req = httptest.NewRequest(http.MethodPost, "/expenses",
+		strings.NewReader("amount=100&description=&category=Rent&date=2026-07-27"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Cookie", "jwt="+cookie)
+	resp, err = app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("invalid create error: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusUnprocessableEntity {
+		t.Errorf("invalid create: status %d, want 422", resp.StatusCode)
+	}
+	var count int64
+	if err := db.Model(&database.Expense{}).Count(&count).Error; err != nil {
+		t.Fatalf("count after invalid create: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("rows after invalid create = %d, want 0", count)
+	}
+
+	// Valid create → 303 + persisted row (RF-3 happy path).
+	req = httptest.NewRequest(http.MethodPost, "/expenses",
+		strings.NewReader("amount=85.50&description=Groceries&category=Groceries&date=2026-07-27&visibility=visible_editable"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Cookie", "jwt="+cookie)
+	resp, err = app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("valid create error: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusSeeOther || resp.Header.Get("Location") != "/expenses" {
+		t.Fatalf("valid create: status %d Location %q, want 303 /expenses", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	var expense database.Expense
+	if err := db.First(&expense).Error; err != nil {
+		t.Fatalf("created expense not persisted: %v", err)
+	}
+	if expense.Description != "Groceries" || expense.Amount != 85.50 {
+		t.Errorf("persisted expense = %+v, want Groceries 85.50", expense)
+	}
+
+	// Update → 303 + persisted change (RF-4a).
+	updatePath := fmt.Sprintf("/expenses/%d/update", expense.ID)
+	req = httptest.NewRequest(http.MethodPost, updatePath,
+		strings.NewReader("description=Weekly+Groceries&category=Groceries"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Cookie", "jwt="+cookie)
+	resp, err = app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("update error: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusSeeOther || resp.Header.Get("Location") != "/expenses" {
+		t.Fatalf("update: status %d Location %q, want 303 /expenses", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	if err := db.First(&expense, expense.ID).Error; err != nil {
+		t.Fatalf("reload expense: %v", err)
+	}
+	if expense.Description != "Weekly Groceries" {
+		t.Errorf("updated description = %q, want 'Weekly Groceries'", expense.Description)
+	}
+
+	// Delete → 303 + row gone (RF-4b).
+	deletePath := fmt.Sprintf("/expenses/%d/delete", expense.ID)
+	req = httptest.NewRequest(http.MethodPost, deletePath, nil)
+	req.Header.Set("Cookie", "jwt="+cookie)
+	resp, err = app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("delete error: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusSeeOther || resp.Header.Get("Location") != "/expenses" {
+		t.Fatalf("delete: status %d Location %q, want 303 /expenses", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	if err := db.Model(&database.Expense{}).Count(&count).Error; err != nil {
+		t.Fatalf("count after delete: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("rows after delete = %d, want 0", count)
+	}
 }
 
 // TestRootRedirect_Unauthenticated verifies GET / redirects to /login when no JWT cookie.

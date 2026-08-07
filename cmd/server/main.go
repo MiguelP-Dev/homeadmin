@@ -98,8 +98,10 @@ func main() {
 	// Expense routes (Phase 4 — PR #2)
 	app.Get("/expenses", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.List)
 	app.Post("/expenses", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Create)
-	app.Put("/expenses/:id", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Update)
-	app.Delete("/expenses/:id", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Delete)
+	app.Get("/expenses/new", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.ShowNew)
+	app.Get("/expenses/:id/edit", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.ShowEdit)
+	app.Post("/expenses/:id/update", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Update)
+	app.Post("/expenses/:id/delete", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), expenseHandler.Delete)
 
 	// Household routes
 	app.Get("/household", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Show)
