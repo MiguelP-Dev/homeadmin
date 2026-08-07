@@ -144,6 +144,34 @@ Current coverage:
 - [x] Phase 5 — Dashboard summary
 - [x] Phase 6 — Polish and deployment (CSRF fix, error handling, validation, templ migration, Docker, CI targets)
 
+## Open follow-ups
+
+Tracked items that do not block current functionality but are pending
+attention. Captured from review and design findings of the household
+onboarding chain (PR1–PR5, merged to main 2026-08-07).
+
+1. **CSRF round-trip test** — no integration test sends a request with a valid
+   CSRF token through a real handler; household E2E POST flows run with CSRF
+   disabled (`csrfKey` empty) while production mounts CSRF unconditionally.
+2. **JWT claim assertion after Join (E2E)** — the integration suite checks the
+   re-issued JWT is non-empty after Create but never re-reads its claims after
+   Join. Handler-level unit tests already decode claims; add an E2E assert.
+3. **Nav renders unauthenticated for logged-in users** — `RequireAuth`
+   (`internal/middleware/auth.go`) sets only `userID`/`householdID`/`role`
+   locals, never `email`; handlers that read `c.Locals("email")` for the Nav
+   username get `""`, so `components.Nav` shows Login/Register links for
+   authenticated users. Fix requires either adding `Email` to
+   `Claims`+`CreateToken` (signature ripple across auth/household handlers and
+   every `CreateToken` test call) or giving `RequireAuth` a user-repo
+   dependency (ripple at all mount sites).
+4. **JWT expiration hardcoded** — `internal/services/auth.go` hardcodes 24h
+   expiry despite `cfg.JWTExpirationHours`; refactor to read the config value.
+5. **Secure cookie flag** — `SetJWTCookie` does not set `Secure` for HTTPS
+   production; matches current dev behavior, needs enabling for production.
+6. **gofmt debt (pre-existing)** — `internal/database/models.go`,
+   `internal/repositories/expense_test.go`, `internal/services/expense_test.go`
+   were already non-gofmt-clean at the chain base commit.
+
 ## License
 
 [MIT](LICENSE)
