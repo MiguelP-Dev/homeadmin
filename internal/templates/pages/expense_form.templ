@@ -1,0 +1,57 @@
+package pages
+
+import (
+	"github.com/homeadmin/internal/database"
+)
+
+// ExpenseForm renders the create or edit expense form. formAction is the POST
+// target (/expenses for create, /expenses/:id/update for edit), submitLabel is
+// the heading and button text, and errorMsg is shown above the form when
+// non-empty.
+templ ExpenseForm(csrfToken string, formAction string, submitLabel string, errorMsg string, values ExpenseFormValues) {
+	<div class="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+		<h1 class="text-2xl font-bold mb-4">{ submitLabel }</h1>
+		if errorMsg != "" {
+			<p class="text-red-500 mb-4">{ errorMsg }</p>
+		}
+		<form method="POST" action={ formAction }>
+			<input type="hidden" name="csrf" value={ csrfToken }/>
+			<div class="mb-4">
+				<label for="description" class="block text-sm font-medium text-gray-700">Description:</label>
+				<input type="text" id="description" name="description" required class="w-full border rounded p-2" value={ values.Description }/>
+			</div>
+			<div class="mb-4">
+				<label for="amount" class="block text-sm font-medium text-gray-700">Amount:</label>
+				<input type="number" step="0.01" min="0" id="amount" name="amount" required class="w-full border rounded p-2" value={ values.Amount }/>
+			</div>
+			<div class="mb-4">
+				<label for="category" class="block text-sm font-medium text-gray-700">Category:</label>
+				<select id="category" name="category" required class="w-full border rounded p-2">
+					for _, cat := range database.ExpenseCategories {
+						<option value={ cat } selected={ values.Category == cat }>{ cat }</option>
+					}
+				</select>
+			</div>
+			<div class="mb-4">
+				<label for="date" class="block text-sm font-medium text-gray-700">Date:</label>
+				<input type="date" id="date" name="date" class="w-full border rounded p-2" value={ values.Date }/>
+			</div>
+			<div class="mb-4">
+				<label for="visibility" class="block text-sm font-medium text-gray-700">Visibility:</label>
+				<select id="visibility" name="visibility" class="w-full border rounded p-2">
+					<option value="visible_editable" selected={ values.Visibility == database.VisibleEditable || values.Visibility == "" }>Visible &amp; Editable</option>
+					<option value="visible_only" selected={ values.Visibility == database.VisibleOnly }>Visible Only</option>
+					<option value="hidden_private" selected={ values.Visibility == database.HiddenPrivate }>Hidden Private</option>
+				</select>
+			</div>
+			<div class="mb-4">
+				<label for="isFixed" class="flex items-center">
+					<input type="checkbox" id="isFixed" name="isFixed" value="true" checked={ values.IsFixed } class="mr-2"/>
+					<span class="text-sm font-medium text-gray-700">Fixed expense</span>
+				</label>
+			</div>
+			<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">{ submitLabel }</button>
+		</form>
+		<p class="mt-4 text-sm"><a href="/expenses" class="text-blue-500">&larr; Back to Expenses</a></p>
+	</div>
+}

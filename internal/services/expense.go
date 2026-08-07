@@ -134,12 +134,41 @@ func (s *ExpenseService) FindByHousehold(userID, householdID uint, filters datab
 	return s.repo.FindByHousehold(userID, householdID, filters)
 }
 
+// FindByID returns an expense if the user may view it within their household.
+// Permission: the expense must belong to the household; hidden_private expenses
+// require ownership, while visible_editable and visible_only are viewable by
+// any household member.
+func (s *ExpenseService) FindByID(userID, householdID, expenseID uint) (*database.Expense, error) {
+	expense, err := s.repo.FindByID(expenseID)
+	if err != nil {
+		return nil, err
+	}
+	if expense == nil {
+		return nil, ErrNotFound
+	}
+	if expense.HouseholdID != householdID {
+		return nil, ErrNotFound
+	}
+	if !canViewExpense(userID, expense) {
+		return nil, ErrPermission
+	}
+	return expense, nil
+}
+
 // canEditExpense checks if a user can edit an expense based on ownership and visibility.
 func canEditExpense(userID uint, expense *database.Expense) bool {
 	if expense.CreatedByID == userID {
 		return true
 	}
 	return expense.Visibility == database.VisibleEditable
+}
+
+// canViewExpense checks if a user can view an expense based on ownership and visibility.
+func canViewExpense(userID uint, expense *database.Expense) bool {
+	if expense.Visibility == database.HiddenPrivate {
+		return expense.CreatedByID == userID
+	}
+	return true
 }
 
 // DashboardSummary aggregates monthly totals, category breakdown, and recent expenses.

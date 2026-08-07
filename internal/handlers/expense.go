@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 // expenseServiceInterface defines the expense service methods needed by the handler.
 type expenseServiceInterface interface {
 	Create(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error
+	FindByID(userID, householdID, expenseID uint) (*database.Expense, error)
 	FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
 	Update(userID, expenseID uint, fields services.ExpenseUpdateFields) error
 	Delete(userID, expenseID uint) error
@@ -127,6 +129,54 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 
 	component := pages.Expenses(expenses)
 	page := layouts.Base("Expenses — HomeAdmin", csrfToken, username)
+	c.Type("html")
+	ctx := templ.WithChildren(c.Context(), component)
+	return page.Render(ctx, c.Response().BodyWriter())
+}
+
+// ShowNew handles GET /expenses/new — renders the create-expense form.
+func (h *ExpenseHandler) ShowNew(c *fiber.Ctx) error {
+	csrfToken, _ := c.Locals("csrfToken").(string)
+	username, _ := c.Locals("email").(string)
+
+	component := pages.ExpenseForm(csrfToken, "/expenses", "Create Expense", "", pages.ExpenseFormValuesFrom(nil))
+	page := layouts.Base("Create Expense — HomeAdmin", csrfToken, username)
+	c.Type("html")
+	ctx := templ.WithChildren(c.Context(), component)
+	return page.Render(ctx, c.Response().BodyWriter())
+}
+
+// ShowEdit handles GET /expenses/:id/edit — renders the edit form for an
+// expense the user may view within their household.
+func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(uint)
+	householdID, ok := c.Locals("householdID").(*uint)
+	if !ok || householdID == nil {
+		return middleware.BadRequest("household required")
+	}
+	hhID := *householdID
+
+	expenseID, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return middleware.BadRequest("invalid expense id")
+	}
+
+	expense, err := h.Service.FindByID(userID, hhID, uint(expenseID))
+	if err != nil {
+		if err == services.ErrPermission {
+			return middleware.Forbidden(err.Error())
+		}
+		if err == services.ErrNotFound {
+			return middleware.NotFound("expense not found")
+		}
+		return middleware.Internal("failed to load expense")
+	}
+
+	csrfToken, _ := c.Locals("csrfToken").(string)
+	username, _ := c.Locals("email").(string)
+
+	component := pages.ExpenseForm(csrfToken, fmt.Sprintf("/expenses/%d/update", expenseID), "Update Expense", "", pages.ExpenseFormValuesFrom(expense))
+	page := layouts.Base("Edit Expense — HomeAdmin", csrfToken, username)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())

@@ -21,6 +21,7 @@ import (
 
 type mockExpenseService struct {
 	createFn              func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error
+	findByIDFn            func(userID, householdID, expenseID uint) (*database.Expense, error)
 	findByHouseholdFn     func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
 	updateFn              func(userID, expenseID uint, fields services.ExpenseUpdateFields) error
 	deleteFn              func(userID, expenseID uint) error
@@ -32,6 +33,13 @@ func (m *mockExpenseService) Create(userID, householdID uint, amount float64, de
 		return m.createFn(userID, householdID, amount, description, category, date, visibility, isFixed)
 	}
 	return nil
+}
+
+func (m *mockExpenseService) FindByID(userID, householdID, expenseID uint) (*database.Expense, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(userID, householdID, expenseID)
+	}
+	return nil, services.ErrNotFound
 }
 
 func (m *mockExpenseService) FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
@@ -94,6 +102,8 @@ func setupExpenseAppWithHousehold(svc expenseServiceInterface, householdID *uint
 
 	app.Post("/expenses", handler.Create)
 	app.Get("/expenses", handler.List)
+	app.Get("/expenses/new", handler.ShowNew)
+	app.Get("/expenses/:id/edit", handler.ShowEdit)
 	app.Put("/expenses/:id", handler.Update)
 	app.Delete("/expenses/:id", handler.Delete)
 	app.Get("/dashboard", handler.Dashboard)
@@ -352,6 +362,142 @@ func TestListHandler_Empty(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if !strings.Contains(string(body), "No expenses yet") {
 		t.Error("expected 'No expenses yet' empty state in HTML list")
+	}
+}
+
+// --- ShowNew / ShowEdit tests ---
+
+func TestShowNewHandler_RendersForm(t *testing.T) {
+	app := setupExpenseApp(&mockExpenseService{})
+
+	req := httptest.NewRequest(http.MethodGet, "/expenses/new", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("Content-Type = %q, want text/html", ct)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, `action="/expenses"`) {
+		t.Error("expected create form to POST to /expenses")
+	}
+	if !strings.Contains(bodyStr, "Create Expense") {
+		t.Error("expected 'Create Expense' heading/button")
+	}
+	if !strings.Contains(bodyStr, `name="csrf"`) {
+		t.Error("expected a csrf input in the form")
+	}
+}
+
+func TestShowEditHandler_RendersForm(t *testing.T) {
+	svc := &mockExpenseService{
+		findByIDFn: func(userID, householdID, expenseID uint) (*database.Expense, error) {
+			if expenseID != 7 {
+				t.Errorf("expected expenseID 7, got %d", expenseID)
+			}
+			return &database.Expense{
+				ID: 7, Description: "Groceries", Amount: 85.50, Category: "Groceries",
+				Visibility: database.VisibleEditable,
+			}, nil
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/expenses/7/edit", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("Content-Type = %q, want text/html", ct)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, `action="/expenses/7/update"`) {
+		t.Error("expected edit form to POST to /expenses/7/update")
+	}
+	if !strings.Contains(bodyStr, "Update Expense") {
+		t.Error("expected 'Update Expense' heading/button")
+	}
+	if !strings.Contains(bodyStr, `value="Groceries"`) {
+		t.Error("expected pre-filled description")
+	}
+	if !strings.Contains(bodyStr, `name="csrf"`) {
+		t.Error("expected a csrf input in the form")
+	}
+}
+
+func TestShowEditHandler_NotFound(t *testing.T) {
+	svc := &mockExpenseService{
+		findByIDFn: func(userID, householdID, expenseID uint) (*database.Expense, error) {
+			return nil, services.ErrNotFound
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/expenses/999/edit", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("expected status 404 for unknown expense, got %d", resp.StatusCode)
+	}
+}
+
+func TestShowEditHandler_Forbidden(t *testing.T) {
+	svc := &mockExpenseService{
+		findByIDFn: func(userID, householdID, expenseID uint) (*database.Expense, error) {
+			return nil, services.ErrPermission
+		},
+	}
+	app := setupExpenseApp(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/expenses/1/edit", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("expected status 403 for hidden expense, got %d", resp.StatusCode)
+	}
+}
+
+func TestShowEditHandler_InvalidID(t *testing.T) {
+	app := setupExpenseApp(&mockExpenseService{})
+
+	req := httptest.NewRequest(http.MethodGet, "/expenses/abc/edit", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected status 400 for invalid id, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "invalid expense id") {
+		t.Errorf("expected 'invalid expense id' in response, got: %s", string(body))
 	}
 }
 

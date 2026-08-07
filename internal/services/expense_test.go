@@ -350,8 +350,7 @@ func TestDelete_BlockNonCreator(t *testing.T) {
 
 // --- FindByHousehold tests ---
 
-func TestFindByHousehold_CallsRepo(t *testing.T) {
-	var calledUserID, calledHouseholdID uint
+func TestFindByHousehold_CallsRepo(t *testing.T) {	var calledUserID, calledHouseholdID uint
 	var calledFilters database.ExpenseFilters
 	repo := &mockExpenseRepo{
 		findByHouseholdFn: func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error) {
@@ -381,6 +380,91 @@ func TestFindByHousehold_CallsRepo(t *testing.T) {
 	}
 	if calledFilters.Category != "Rent" {
 		t.Errorf("expected filters.Category='Rent', got '%s'", calledFilters.Category)
+	}
+}
+
+// --- FindByID tests ---
+
+func TestFindByID_Success(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{
+				ID: 1, HouseholdID: 1, CreatedByID: 1, Visibility: database.VisibleEditable,
+				Description: "Rent", Amount: 1500, Category: "Rent",
+			}, nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	expense, err := svc.FindByID(2, 1, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if expense == nil {
+		t.Fatal("expected an expense to be returned")
+	}
+	if expense.Description != "Rent" {
+		t.Errorf("expected description 'Rent', got '%s'", expense.Description)
+	}
+}
+
+func TestFindByID_HiddenPrivateBlocksNonCreator(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{
+				ID: 1, HouseholdID: 1, CreatedByID: 1, Visibility: database.HiddenPrivate,
+			}, nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	_, err := svc.FindByID(2, 1, 1)
+	if !errors.Is(err, ErrPermission) {
+		t.Errorf("expected ErrPermission for hidden_private expense, got %v", err)
+	}
+}
+
+func TestFindByID_NotFound(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return nil, nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	_, err := svc.FindByID(1, 1, 999)
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestFindByID_WrongHouseholdDenied(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return &database.Expense{
+				ID: 1, HouseholdID: 99, CreatedByID: 1, Visibility: database.VisibleEditable,
+			}, nil
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	_, err := svc.FindByID(1, 1, 1)
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound for expense outside the household, got %v", err)
+	}
+}
+
+func TestFindByID_RepoError(t *testing.T) {
+	repo := &mockExpenseRepo{
+		findByIDFn: func(id uint) (*database.Expense, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewExpenseService(repo)
+
+	_, err := svc.FindByID(1, 1, 1)
+	if err == nil || err.Error() != "db error" {
+		t.Errorf("expected 'db error', got %v", err)
 	}
 }
 
