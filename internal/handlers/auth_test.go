@@ -331,22 +331,30 @@ func TestRegister_Success(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// Should redirect to /dashboard
+	// Should redirect to /household — new users always have a nil household
+	// (mirrors Login's nil-household branch).
 	if resp.StatusCode != fiber.StatusFound {
 		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
 	}
 	location := resp.Header.Get("Location")
-	if location != "/dashboard" {
-		t.Errorf("expected redirect to /dashboard, got %s", location)
+	if location != "/household" {
+		t.Errorf("expected redirect to /household, got %s", location)
 	}
 
-	// Should set JWT cookie
+	// Should set JWT cookie with the standard attributes (approval: attrs must
+	// stay unchanged when the handler refactored to the shared SetJWTCookie).
 	found := false
 	for _, c := range resp.Cookies() {
 		if c.Name == "jwt" && c.Value != "" {
 			found = true
 			if !c.HttpOnly {
 				t.Error("expected JWT cookie to be HttpOnly")
+			}
+			if c.SameSite != http.SameSiteStrictMode {
+				t.Errorf("expected JWT cookie SameSite Strict, got %v", c.SameSite)
+			}
+			if c.Path != "/" {
+				t.Errorf("expected JWT cookie Path /, got %q", c.Path)
 			}
 			break
 		}

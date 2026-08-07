@@ -14,3 +14,16 @@ func SetJWTCookie(c *fiber.Ctx, token string) {
 		Path:     "/",
 	})
 }
+
+// ClearJWTCookie expires the JWT cookie using the same standard attributes as
+// SetJWTCookie, plus MaxAge 0 so the browser deletes it immediately.
+func ClearJWTCookie(c *fiber.Ctx) {
+	c.Cookie(&fiber.Cookie{
+		Name:     "jwt",
+		Value:    "",
+		MaxAge:   0,
+		HTTPOnly: true,
+		SameSite: "Strict",
+		Path:     "/",
+	})
+}

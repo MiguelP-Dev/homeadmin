@@ -90,13 +90,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return middleware.Internal("internal server error")
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "jwt",
-		Value:    token,
-		HTTPOnly: true,
-		SameSite: "Strict",
-		Path:     "/",
-	})
+	SetJWTCookie(c, token)
 
 	if user.HouseholdID == nil {
 		return c.Redirect("/household", fiber.StatusFound)
@@ -106,7 +100,8 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 const minPasswordLength = 8
 
-// Register creates a new user, sets JWT cookie, and redirects to /dashboard.
+// Register creates a new user, sets JWT cookie, and redirects to /household
+// (new users never belong to a household yet).
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	email := c.FormValue("email")
 	password := c.FormValue("password")
@@ -152,26 +147,17 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return middleware.Internal("internal server error")
 	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "jwt",
-		Value:    token,
-		HTTPOnly: true,
-		SameSite: "Strict",
-		Path:     "/",
-	})
+	SetJWTCookie(c, token)
 
+	// New users have no household — send them to create/join (mirrors Login).
+	if user.HouseholdID == nil {
+		return c.Redirect("/household", fiber.StatusFound)
+	}
 	return c.Redirect("/dashboard", fiber.StatusFound)
 }
 
 // Logout clears the JWT cookie and redirects to /login.
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
-	c.Cookie(&fiber.Cookie{
-		Name:     "jwt",
-		Value:    "",
-		MaxAge:   0,
-		HTTPOnly: true,
-		SameSite: "Strict",
-		Path:     "/",
-	})
+	ClearJWTCookie(c)
 	return c.Redirect("/login", fiber.StatusFound)
 }
