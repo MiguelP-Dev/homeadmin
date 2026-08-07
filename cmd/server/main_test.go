@@ -139,11 +139,11 @@ func TestRootRedirect_Unauthenticated(t *testing.T) {
 // root handler — no DB or other routes needed.
 func TestRootRedirect_TokenAware(t *testing.T) {
 	jwtSecret := "test-secret"
-	validToken, err := services.CreateToken(1, nil, "member", jwtSecret, 24)
+	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
-	expiredToken, err := services.CreateToken(1, nil, "member", jwtSecret, -1)
+	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, -1)
 	if err != nil {
 		t.Fatalf("CreateToken(expired) error: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestDashboard_WithHouseholdJWT_NoPanic(t *testing.T) {
 	app := newIntegrationApp(t, "", jwtSecret)
 
 	householdID := uint(1)
-	token, err := services.CreateToken(1, &householdID, "member", jwtSecret, 24)
+	token, err := services.CreateToken(1, &householdID, "member", "user@example.com", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
@@ -340,7 +340,7 @@ func TestDashboard_NoHousehold_RedirectsToHousehold(t *testing.T) {
 	jwtSecret := "test-secret"
 	app := newIntegrationApp(t, "", jwtSecret)
 
-	token, err := services.CreateToken(1, nil, "member", jwtSecret, 24)
+	token, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
@@ -369,11 +369,11 @@ func TestRootRedirect_Integration(t *testing.T) {
 	jwtSecret := "test-secret"
 	app := newIntegrationApp(t, "", jwtSecret)
 
-	validToken, err := services.CreateToken(1, nil, "member", jwtSecret, 24)
+	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
-	expiredToken, err := services.CreateToken(1, nil, "member", jwtSecret, -1)
+	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, -1)
 	if err != nil {
 		t.Fatalf("CreateToken(expired) error: %v", err)
 	}
@@ -452,6 +452,73 @@ func TestRegisterRedirectsToHousehold(t *testing.T) {
 	}
 	if loc := resp.Header.Get("Location"); loc != "/household" {
 		t.Errorf("Location = %q, want %q", loc, "/household")
+	}
+}
+
+// TestAuthNavE2E_EmailInProtectedPage proves the broken-guest-nav fix
+// end-to-end (PR1, T1.7): the token issued at registration carries the user's
+// email and is_admin claim, and a protected page rendered after login shows the
+// logged-in nav with that email instead of the guest nav.
+func TestAuthNavE2E_EmailInProtectedPage(t *testing.T) {
+	const jwtSecret = "test-secret"
+	app := newIntegrationApp(t, "", jwtSecret)
+	const email = "navuser@example.com"
+
+	// Register through the real flow — the issued token must carry the email.
+	req := httptest.NewRequest(http.MethodPost, "/register",
+		strings.NewReader("name=NavUser&email="+email+"&password=password123"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() register error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/household" {
+		t.Fatalf("register: status %d Location %q, want 302 /household", resp.StatusCode, resp.Header.Get("Location"))
+	}
+	cookie := getCookieValue(resp, "jwt")
+	if cookie == "" {
+		t.Fatal("register: no jwt cookie in response")
+	}
+
+	claims, err := services.ValidateToken(cookie, jwtSecret)
+	if err != nil {
+		t.Fatalf("ValidateToken(register cookie): %v", err)
+	}
+	if claims.Email != email {
+		t.Errorf("claims.Email = %q, want %q", claims.Email, email)
+	}
+	if claims.IsAdmin {
+		t.Error("claims.IsAdmin = true, want false for a fresh registration")
+	}
+
+	// The protected page must render the logged-in nav with the user's email
+	// (the broken-guest-nav fix: RequireAuth now sets the email local).
+	req2 := httptest.NewRequest(http.MethodGet, "/household", nil)
+	req2.Header.Set("Cookie", "jwt="+cookie)
+	resp2, err := app.Test(req2, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() /household error: %v", err)
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != fiber.StatusOK {
+		t.Fatalf("/household status = %d, want %d", resp2.StatusCode, fiber.StatusOK)
+	}
+	body, err := io.ReadAll(resp2.Body)
+	if err != nil {
+		t.Fatalf("failed to read /household body: %v", err)
+	}
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, email) {
+		t.Errorf("protected page does not render the user's email %q (guest nav still shown)", email)
+	}
+	if !strings.Contains(bodyStr, `href="/logout"`) {
+		t.Error("protected page does not render the logged-in nav /logout link")
+	}
+	if strings.Contains(bodyStr, `href="/login"`) {
+		t.Error("protected page still renders the guest nav /login link")
 	}
 }
 
