@@ -253,22 +253,15 @@ func setupHouseholdApp(locals map[string]any) *fiber.App {
 }
 
 // setupSiteAdminApp builds a Fiber app whose routes are guarded by
-// RequireSiteAdmin, with a probe handler echoing the isAdmin value when the
+// RequireSiteAdmin, with a probe handler echoing the isAdmin claim when the
 // middleware lets the request through. The centralized ErrorHandler is wired
 // so the 403 Forbidden path renders through the same pipeline as production.
-func setupSiteAdminApp(locals map[string]any) *fiber.App {
+func setupSiteAdminApp() *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: ErrorHandler,
 	})
 
-	app.Use(func(c *fiber.Ctx) error {
-		for k, v := range locals {
-			c.Locals(k, v)
-		}
-		return c.Next()
-	})
-
-	app.Get("/protected", RequireSiteAdmin(), func(c *fiber.Ctx) error {
+	app.Get("/protected", RequireSiteAdmin(testSecret), func(c *fiber.Ctx) error {
 		isAdmin, _ := c.Locals("isAdmin").(bool)
 		return c.SendString(fmt.Sprintf("isAdmin=%v", isAdmin))
 	})
@@ -277,33 +270,39 @@ func setupSiteAdminApp(locals map[string]any) *fiber.App {
 }
 
 func TestRequireSiteAdmin(t *testing.T) {
+	adminToken := createValidToken(1, nil, "owner", "siteadmin@example.com", true)
+	memberToken := createValidToken(2, nil, "member", "member@example.com", false)
+
 	tests := []struct {
 		name         string
-		locals       map[string]any
+		cookie       *http.Cookie
 		wantStatus   int
 		wantLocation string
 		wantBody     string
 	}{
-		// Unauthenticated: the isAdmin claim is absent or malformed, so the
-		// middleware treats the request as not logged in and redirects.
-		{"no isAdmin local", map[string]any{}, fiber.StatusFound, "/login", ""},
-		{"nil interface value", map[string]any{"isAdmin": nil}, fiber.StatusFound, "/login", ""},
-		{"wrong type string value", map[string]any{"isAdmin": "true"}, fiber.StatusFound, "/login", ""},
-		{"wrong type int value", map[string]any{"isAdmin": 1}, fiber.StatusFound, "/login", ""},
-		{"other auth locals but no isAdmin", map[string]any{"userID": uint(1), "email": "member@example.com", "role": "member"}, fiber.StatusFound, "/login", ""},
-		// Authenticated but not a site admin: forbidden.
-		{"authenticated but not admin", map[string]any{"isAdmin": false}, fiber.StatusForbidden, "", ""},
-		{"authenticated member with other locals", map[string]any{"userID": uint(1), "householdID": (*uint)(nil), "role": "member", "email": "member@example.com", "isAdmin": false}, fiber.StatusForbidden, "", ""},
+		// Unauthenticated: no cookie or a malformed one -> 302 /login.
+		{"no cookie", nil, fiber.StatusFound, "/login", ""},
+		{"empty cookie", &http.Cookie{Name: "jwt", Value: ""}, fiber.StatusFound, "/login", ""},
+		{"invalid cookie", &http.Cookie{Name: "jwt", Value: "not-a-real-token"}, fiber.StatusFound, "/login", ""},
+		{"expired token", &http.Cookie{Name: "jwt", Value: func() string {
+			tok, _ := services.CreateToken(1, nil, "owner", "siteadmin@example.com", true, testSecret, 0)
+			return tok
+		}()}, fiber.StatusFound, "/login", ""},
+		// Authenticated but not a site admin: forbidden (no ordering
+		// dependency — the middleware parses the jwt cookie itself).
+		{"authenticated but not admin", &http.Cookie{Name: "jwt", Value: memberToken}, fiber.StatusForbidden, "", ""},
 		// Site admin: allowed through.
-		{"site admin", map[string]any{"isAdmin": true}, fiber.StatusOK, "", "isAdmin=true"},
-		{"site admin with other locals", map[string]any{"userID": uint(1), "role": "member", "email": "siteadmin@example.com", "isAdmin": true}, fiber.StatusOK, "", "isAdmin=true"},
+		{"site admin", &http.Cookie{Name: "jwt", Value: adminToken}, fiber.StatusOK, "", "isAdmin=true"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			app := setupSiteAdminApp(tt.locals)
+			app := setupSiteAdminApp()
 
 			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+			if tt.cookie != nil {
+				req.AddCookie(tt.cookie)
+			}
 			resp, err := app.Test(req)
 			if err != nil {
 				t.Fatalf("app.Test failed: %v", err)

@@ -47,21 +47,32 @@ func RequireHousehold() fiber.Handler {
 }
 
 // RequireSiteAdmin returns a Fiber middleware that allows only site
-// administrators through to the protected route (RF-9). It reads the
-// "isAdmin" Locals value that RequireAuth stores from the JWT claim:
-//   - absent or malformed → treated as unauthenticated → 302 to /login
-//   - present but false   → authenticated non-admin → 403 Forbidden
-//   - true                → pass through
-//
-// Self-contained: it does not depend on RequireAuth having run, so it also
-// fails closed when the claim is missing entirely.
-func RequireSiteAdmin() fiber.Handler {
+// administrators through to the protected route (RF-9). It is self-contained:
+// it parses the "jwt" cookie itself and checks the IsAdmin claim, so it has
+// no ordering dependency on RequireAuth. On success it also mirrors the
+// RequireAuth Locals so downstream handlers see the full claim set:
+//   - missing/invalid/expired cookie → 302 to /login
+//   - valid cookie with IsAdmin=false  → 403 Forbidden
+//   - valid cookie with IsAdmin=true   → pass through
+func RequireSiteAdmin(jwtSecret string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		isAdmin, ok := c.Locals("isAdmin").(bool)
-		if !ok {
+		cookie := c.Cookies("jwt")
+		if cookie == "" {
 			return c.Redirect("/login", fiber.StatusFound)
 		}
-		if !isAdmin {
+
+		claims, err := services.ValidateToken(cookie, jwtSecret)
+		if err != nil {
+			return c.Redirect("/login", fiber.StatusFound)
+		}
+
+		c.Locals("userID", claims.UserID)
+		c.Locals("householdID", claims.HouseholdID)
+		c.Locals("role", claims.Role)
+		c.Locals("email", claims.Email)
+		c.Locals("isAdmin", claims.IsAdmin)
+
+		if !claims.IsAdmin {
 			return Forbidden("site administrator access required")
 		}
 		return c.Next()
