@@ -1,5 +1,6 @@
 # Binaries
 /server
+/promote
 *.exe
 *.exe~
 *.dll
@@ -41,3 +42,8 @@ homeadmin.db
 
 # Generated Tailwind CSS
 static/css/output.css
+
+# Kilo / OpenClaw runtime config (IAS)
+.openclaw/
+AGENTS.md
+SOUL.md
