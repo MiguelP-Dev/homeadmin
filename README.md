@@ -6,11 +6,13 @@ Self-hosted household financial management built with the GoTTH stack.
 
 Manage shared expenses within households with fine-grained visibility controls:
 
-- **Expense tracking** — fixed and variable expenses with categories
-- **Visibility rules** — shared editable, shared read-only, or private
+- **Expense tracking** — fixed and variable expenses with categories, fully server-rendered HTML
+- **Visibility rules** — shared editable, shared read-only, or private (owner-only)
 - **Dashboard** — monthly summaries with category breakdown and recent activity
-- **Household management** — create households, invite members, role-based access
+- **Household management** — create households, invite members, role-based access (owner/admin/member)
+- **Site administration** — read-only admin panel to inspect users and households
 - **Authentication** — email/password with JWT, CSRF protection
+- **Theming** — dark mode toggle with localStorage persistence
 
 ## Tech stack
 
@@ -22,7 +24,7 @@ Manage shared expenses within households with fine-grained visibility controls:
 | Database | PostgreSQL (production) / SQLite (dev/test) |
 | Auth | JWT (HttpOnly cookies) + CSRF |
 | Templating | Templ + HTMX |
-| Styling | Tailwind CSS |
+| Styling | Tailwind CSS (compiled to `static/css/output.css`) |
 | Runtime | Docker + docker-compose |
 
 ## Project structure
@@ -30,6 +32,7 @@ Manage shared expenses within households with fine-grained visibility controls:
 ```
 homeadmin/
 ├── cmd/server/              # Entry point, DI, routes
+├── cmd/promote/              # CLI: promote user to site admin
 ├── internal/
 │   ├── config/              # Environment config
 │   ├── database/            # Models, migrations, seed
@@ -39,16 +42,18 @@ homeadmin/
 │   ├── services/            # Business logic
 │   └── templates/           # Templ components
 │       ├── layouts/         # Base layout shell
-│       ├── pages/           # Page templates (login, register, dashboard, expenses)
+│       ├── pages/           # Page templates (login, register, dashboard, expenses, admin)
 │       └── components/      # Reusable components (nav, expense_card, toast)
 ├── static/
 │   ├── css/input.css        # Tailwind source
+│   ├── css/output.css       # Compiled CSS (committed)
 │   └── js/htmx.min.js       # Vendored HTMX
 ├── docs/spec.md             # Full specification
 ├── Dockerfile               # Multi-stage production build
 ├── docker-compose.yml       # App + PostgreSQL local dev
 ├── Makefile                 # Build, test, coverage, docker targets
-├── tailwind.config.js       # Tailwind content paths
+├── tailwind.config.js       # Tailwind content paths + darkMode: 'class'
+├── package.json             # Tailwind build scripts
 ├── .env.example
 └── go.mod
 ```
@@ -67,6 +72,9 @@ go mod tidy
 
 # Generate templ code
 make templ
+
+# Build CSS
+make css
 
 # Set up environment
 cp .env.example .env
@@ -103,6 +111,12 @@ make lint
 # Regenerate templ templates after changes
 make templ
 
+# Build CSS (Tailwind)
+make css
+
+# Watch CSS during development
+make css-watch
+
 # Build Docker image
 make docker-build
 
@@ -110,6 +124,33 @@ make docker-build
 make docker-up
 make docker-stop
 ```
+
+## Site administration
+
+Promote a user to site admin:
+
+```bash
+go run cmd/promote/main.go -email user@example.com
+```
+
+Site admins can access `/admin` to view all users and households.
+
+## Role model
+
+| Role | Scope | Privileges |
+|------|-------|------------|
+| Owner | Household | Full control: invite, change roles, view/edit all expenses |
+| Admin | Household | Invite members, view/edit shared expenses |
+| Member | Household | View shared expenses, add own expenses |
+| Site admin | Global | Read-only access to `/admin` (users + households) |
+
+### Expense visibility
+
+| Visibility | Who can view | Who can edit |
+|------------|--------------|--------------|
+| `visible_editable` | All members | All members |
+| `visible_only` | All members | Creator only |
+| `hidden_private` | Owner only | Owner only |
 
 ## Testing
 
@@ -142,7 +183,8 @@ Current coverage:
 - [x] Phase 3 — Household management (create, invite, join)
 - [x] Phase 4 — Expenses (CRUD with visibility controls)
 - [x] Phase 5 — Dashboard summary
-- [x] Phase 6 — Polish and deployment (CSRF fix, error handling, validation, templ migration, Docker, CI targets)
+- [x] Phase 6 — UI Polish & Admin Roles (HTML-first, roles, site-admin, Tailwind CSS, dark mode)
+- [x] Phase 7 — Polish and deployment (CSRF fix, error handling, validation, templ migration, Docker, CI targets)
 
 ## Open follow-ups
 
@@ -151,26 +193,14 @@ attention. Captured from review and design findings of the household
 onboarding chain (PR1–PR5, merged to main 2026-08-07).
 
 1. **CSRF round-trip test** — no integration test sends a request with a valid
-   CSRF token through a real handler; household E2E POST flows run with CSRF
-   disabled (`csrfKey` empty) while production mounts CSRF unconditionally.
+    CSRF token through a real handler; household E2E POST flows run with CSRF
+    disabled (`csrfKey` empty) while production mounts CSRF unconditionally.
 2. **JWT claim assertion after Join (E2E)** — the integration suite checks the
-   re-issued JWT is non-empty after Create but never re-reads its claims after
-   Join. Handler-level unit tests already decode claims; add an E2E assert.
-3. **Nav renders unauthenticated for logged-in users** — `RequireAuth`
-   (`internal/middleware/auth.go`) sets only `userID`/`householdID`/`role`
-   locals, never `email`; handlers that read `c.Locals("email")` for the Nav
-   username get `""`, so `components.Nav` shows Login/Register links for
-   authenticated users. Fix requires either adding `Email` to
-   `Claims`+`CreateToken` (signature ripple across auth/household handlers and
-   every `CreateToken` test call) or giving `RequireAuth` a user-repo
-   dependency (ripple at all mount sites).
-4. **JWT expiration hardcoded** — `internal/services/auth.go` hardcodes 24h
-   expiry despite `cfg.JWTExpirationHours`; refactor to read the config value.
-5. **Secure cookie flag** — `SetJWTCookie` does not set `Secure` for HTTPS
-   production; matches current dev behavior, needs enabling for production.
-6. **gofmt debt (pre-existing)** — `internal/database/models.go`,
-   `internal/repositories/expense_test.go`, `internal/services/expense_test.go`
-   were already non-gofmt-clean at the chain base commit.
+    re-issued JWT is non-empty after Create but never re-reads its claims after
+    Join. Handler-level unit tests already decode claims; add an E2E assert.
+3. **gofmt debt (pre-existing)** — `internal/database/models.go`,
+    `internal/repositories/expense_test.go`, `internal/services/expense_test.go`
+    were already non-gofmt-clean at the chain base commit.
 
 ## License
 
