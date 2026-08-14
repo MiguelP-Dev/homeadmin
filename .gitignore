@@ -50,3 +50,6 @@ SOUL.md
 
 # Node dependencies
 node_modules/
+
+# CodeGraph index
+.codegraph/
