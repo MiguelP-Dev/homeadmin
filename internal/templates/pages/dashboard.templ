@@ -4,18 +4,23 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/homeadmin/internal/database"
 	"github.com/homeadmin/internal/services"
-	"github.com/homeadmin/internal/templates/components"
 )
 
 // Dashboard renders the monthly expense summary page.
-// It receives a DashboardSummary with monthly totals, category breakdown, and recent expenses.
-templ Dashboard(summary *services.DashboardSummary) {
+// viewerRole determines whether the Invite CTA is shown (owner/admin only).
+templ Dashboard(summary *services.DashboardSummary, viewerRole string) {
 	<div class="max-w-4xl mx-auto p-6">
 		<div class="flex items-center justify-between mb-2">
-			<h1 class="text-3xl font-bold text-gray-900">Dashboard — { time.Now().Format("January 2006") }</h1>
+			<h1 class="text-3xl font-bold text-gray-900">Dashboard — { fmt.Sprintf("%s %d", time.Now().Format("January"), time.Now().Year()) }</h1>
 			<a href="/expenses/new" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Expense</a>
 		</div>
+		if viewerRole == database.RoleOwner || viewerRole == database.RoleAdmin {
+			<div class="mb-4">
+				<a href="/household" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Invite member</a>
+			</div>
+		}
 		<div class="text-2xl font-bold text-green-700 mb-6">Monthly Total: { fmt.Sprintf("$%.2f", summary.MonthlyTotal) }</div>
 
 		<h2 class="text-xl font-semibold text-gray-800 mb-3">Category Breakdown</h2>

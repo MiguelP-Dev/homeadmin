@@ -128,10 +128,11 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 	}
 
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	username, _ := c.Locals("email").(string)
+	email, _ := c.Locals("email").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
 
 	component := pages.Expenses(expenses)
-	page := layouts.Base("Expenses — HomeAdmin", csrfToken, username)
+	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -140,10 +141,11 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 // ShowNew handles GET /expenses/new — renders the create-expense form.
 func (h *ExpenseHandler) ShowNew(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	username, _ := c.Locals("email").(string)
+	email, _ := c.Locals("email").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
 
 	component := pages.ExpenseForm(csrfToken, "/expenses", "Create Expense", "", pages.ExpenseFormValuesFrom(nil))
-	page := layouts.Base("Create Expense — HomeAdmin", csrfToken, username)
+	page := layouts.Base("Create Expense — HomeAdmin", csrfToken, email, isAdmin)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -176,10 +178,11 @@ func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
 	}
 
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	username, _ := c.Locals("email").(string)
+	email, _ := c.Locals("email").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
 
 	component := pages.ExpenseForm(csrfToken, fmt.Sprintf("/expenses/%d/update", expenseID), "Update Expense", "", pages.ExpenseFormValuesFrom(expense))
-	page := layouts.Base("Edit Expense — HomeAdmin", csrfToken, username)
+	page := layouts.Base("Edit Expense — HomeAdmin", csrfToken, email, isAdmin)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -281,10 +284,12 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	}
 
 	username, _ := c.Locals("email").(string)
+	viewerRole, _ := c.Locals("role").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
 	csrfToken, _ := c.Locals("csrfToken").(string)
 
-	component := pages.Dashboard(summary)
-	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username)
+	component := pages.Dashboard(summary, viewerRole)
+	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())

@@ -1,3 +1,15 @@
+# Stage 0: Build Tailwind CSS
+FROM node:20-alpine AS css-builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --silent
+
+COPY static/css/input.css ./static/css/input.css
+COPY tailwind.config.js ./
+RUN npm run build:css
+
 # Stage 1: Build the Go binary
 FROM golang:1.26-alpine AS builder
 
@@ -21,6 +33,7 @@ WORKDIR /app
 
 COPY --from=builder /app/server .
 COPY --from=builder /app/static ./static
+COPY --from=css-builder /app/static/css/output.css ./static/css/output.css
 
 EXPOSE 8080
 

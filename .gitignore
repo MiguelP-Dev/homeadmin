@@ -40,10 +40,13 @@ sdd/
 # Local dev database
 homeadmin.db
 
-# Generated Tailwind CSS
-static/css/output.css
+# Generated Tailwind CSS (committed in repo)
+# static/css/output.css
 
 # Kilo / OpenClaw runtime config (IAS)
 .openclaw/
 AGENTS.md
 SOUL.md
+
+# Node dependencies
+node_modules/

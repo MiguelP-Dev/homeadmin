@@ -32,6 +32,14 @@ coverage:
 templ:
 	templ generate ./...
 
+# Build Tailwind CSS
+css:
+	npm run build:css
+
+# Watch Tailwind CSS
+css-watch:
+	npm run watch:css
+
 # Build Docker image
 docker-build:
 	docker build -t homeadmin .

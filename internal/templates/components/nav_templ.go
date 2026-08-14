@@ -9,9 +9,9 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 // Nav renders the navigation bar.
-// When username is empty, it shows unauthenticated links (Login, Register).
-// When username is non-empty, it shows authenticated links (Dashboard, Expenses, Household, Logout).
-func Nav(username string) templ.Component {
+// email is empty for unauthenticated users, non-empty for logged-in users.
+// isAdmin controls whether the /admin link is shown.
+func Nav(email string, isAdmin bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -32,35 +32,45 @@ func Nav(username string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<nav class=\"bg-gray-800 text-white sticky top-0 z-40\"><div class=\"container mx-auto flex items-center justify-between p-4\"><a href=\"/\" class=\"text-lg font-bold\">HomeAdmin</a><ul class=\"flex space-x-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<nav class=\"bg-gray-800 text-white sticky top-0 z-40\"><div class=\"container mx-auto flex items-center justify-between p-4\"><a href=\"/\" class=\"text-lg font-bold\">HomeAdmin</a> <button id=\"theme-toggle\" class=\"text-white mr-4 focus:outline-none\" aria-label=\"Toggle dark mode\"><svg id=\"theme-icon-sun\" class=\"w-5 h-5 hidden\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z\"></path></svg> <svg id=\"theme-icon-moon\" class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z\"></path></svg></button> <button id=\"nav-menu-button\" class=\"md:hidden text-white focus:outline-none\" aria-label=\"Toggle menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button><ul id=\"nav-menu\" class=\"hidden md:flex md:space-x-4 space-x-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if username != "" {
+		if email != "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<li><span class=\"text-gray-400 mr-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
-			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(username)
+			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(email)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 12, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 27, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span></li><li><a href=\"/dashboard\" class=\"hover:text-gray-300\">Dashboard</a></li><li><a href=\"/expenses\" class=\"hover:text-gray-300\">Expenses</a></li><li><a href=\"/household\" class=\"hover:text-gray-300\">Household</a></li><li><a href=\"/logout\" class=\"hover:text-gray-300\">Logout</a></li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span></li>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if isAdmin {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<li><a href=\"/admin\" class=\"hover:text-gray-300\">Admin</a></li>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <li><a href=\"/dashboard\" class=\"hover:text-gray-300\">Dashboard</a></li><li><a href=\"/expenses\" class=\"hover:text-gray-300\">Expenses</a></li><li><a href=\"/household\" class=\"hover:text-gray-300\">Household</a></li><li><form method=\"POST\" action=\"/logout\" class=\"inline\"><button type=\"submit\" class=\"hover:text-gray-300\">Logout</button></form></li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<li><a href=\"/login\" class=\"hover:text-gray-300\">Login</a></li><li><a href=\"/register\" class=\"hover:text-gray-300\">Register</a></li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<li><a href=\"/login\" class=\"hover:text-gray-300\">Login</a></li><li><a href=\"/register\" class=\"hover:text-gray-300\">Register</a></li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</ul></div></nav>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</ul></div></nav><script>\n\t\t(function() {\n\t\t\tvar btn = document.getElementById('nav-menu-button');\n\t\t\tvar menu = document.getElementById('nav-menu');\n\t\t\tif (btn && menu) {\n\t\t\t\tbtn.addEventListener('click', function() {\n\t\t\t\t\tmenu.classList.toggle('hidden');\n\t\t\t\t});\n\t\t\t}\n\t\t\tvar themeBtn = document.getElementById('theme-toggle');\n\t\t\tvar sunIcon = document.getElementById('theme-icon-sun');\n\t\t\tvar moonIcon = document.getElementById('theme-icon-moon');\n\t\t\tif (themeBtn && sunIcon && moonIcon) {\n\t\t\t\tthemeBtn.addEventListener('click', function() {\n\t\t\t\t\tvar html = document.documentElement;\n\t\t\t\t\tif (html.classList.contains('dark')) {\n\t\t\t\t\t\thtml.classList.remove('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'light');\n\t\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t\t} else {\n\t\t\t\t\t\thtml.classList.add('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'dark');\n\t\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tif (document.documentElement.classList.contains('dark')) {\n\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t} else {\n\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t}\n\t\t\t}\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

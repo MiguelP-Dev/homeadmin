@@ -46,7 +46,8 @@ func NewHouseholdHandler(service householdServiceInterface, userRepo repositorie
 func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	username, _ := c.Locals("email").(string)
+	email, _ := c.Locals("email").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
 
 	view, err := h.service.Show(userID)
 	if err != nil {
@@ -57,13 +58,13 @@ func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 
 	if view == nil {
 		component := pages.HouseholdSetup(csrfToken, "")
-		page := layouts.Base("Household — HomeAdmin", csrfToken, username)
+		page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
 		ctx := templ.WithChildren(c.Context(), component)
 		return page.Render(ctx, c.Response().BodyWriter())
 	}
 
 	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, "")
-	page := layouts.Base("Household — HomeAdmin", csrfToken, username)
+	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
 }
@@ -105,7 +106,8 @@ func (h *HouseholdHandler) Create(c *fiber.Ctx) error {
 func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	username, _ := c.Locals("email").(string)
+	email, _ := c.Locals("email").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
 
 	code, err := h.service.Invite(userID)
 	if err != nil {
@@ -125,7 +127,7 @@ func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
 	}
 
 	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, code)
-	page := layouts.Base("Household — HomeAdmin", csrfToken, username)
+	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
 	ctx := templ.WithChildren(c.Context(), component)
 	c.Type("html")
 	return page.Render(ctx, c.Response().BodyWriter())

@@ -30,7 +30,7 @@ func newTestApp(allowedOrigins string) *fiber.App {
 	// CORS middleware at position 2 (matching main.go)
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     allowedOrigins,
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowMethods:     "GET,POST,OPTIONS",
 		AllowHeaders:     "Content-Type,Authorization,X-CSRF-Token,HX-Request",
 		AllowCredentials: true,
 	}))
@@ -736,8 +736,8 @@ func TestAuthNavE2E_EmailInProtectedPage(t *testing.T) {
 	if !strings.Contains(bodyStr, email) {
 		t.Errorf("protected page does not render the user's email %q (guest nav still shown)", email)
 	}
-	if !strings.Contains(bodyStr, `href="/logout"`) {
-		t.Error("protected page does not render the logged-in nav /logout link")
+	if !strings.Contains(bodyStr, `Logout`) {
+		t.Error("protected page does not render the logged-in nav Logout button")
 	}
 	if strings.Contains(bodyStr, `href="/login"`) {
 		t.Error("protected page still renders the guest nav /login link")
@@ -1414,7 +1414,7 @@ func TestCORSMiddlewareIntegration(t *testing.T) {
 			origin:           "http://localhost:8080",
 			wantStatusCode:   fiber.StatusNoContent,
 			wantAllowOrigin:  "http://localhost:8080",
-			wantAllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+			wantAllowMethods: "GET,POST,OPTIONS",
 			wantAllowCreds:   true,
 			isPreflight:      true,
 		},
@@ -1592,12 +1592,12 @@ func TestCORSOriginMatchingPrecision(t *testing.T) {
 				t.Errorf("status code = %d, want %d", resp.StatusCode, fiber.StatusOK)
 			}
 
-			buf := make([]byte, 1024)
-			n, _ := resp.Body.Read(buf)
-			body := strings.TrimSpace(string(buf[:n]))
-			if body != "ok" {
-				t.Errorf("response body = %q, want %q", body, "ok")
-			}
+		buf := make([]byte, 1024)
+		n, _ := resp.Body.Read(buf)
+		body := strings.TrimSpace(string(buf[:n]))
+		if body != "ok" {
+			t.Errorf("response body = %q, want %q", body, "ok")
+		}
 		})
 	}
 }

@@ -51,9 +51,9 @@ func NewAuthHandler(repo repositories.UserRepository, jwtSecret string) *AuthHan
 }
 
 // renderPage renders a templ component wrapped in the base layout.
-func (h *AuthHandler) renderPage(c *fiber.Ctx, title, csrfToken, username string, content templ.Component) error {
+func (h *AuthHandler) renderPage(c *fiber.Ctx, title, csrfToken, email string, isAdmin bool, content templ.Component) error {
 	c.Type("html")
-	base := layouts.Base(title, csrfToken, username)
+	base := layouts.Base(title, csrfToken, email, isAdmin)
 	ctx := templ.WithChildren(c.Context(), content)
 	return base.Render(ctx, c.Response().BodyWriter())
 }
@@ -61,13 +61,13 @@ func (h *AuthHandler) renderPage(c *fiber.Ctx, title, csrfToken, username string
 // ShowLogin renders the login form via templ templates.
 func (h *AuthHandler) ShowLogin(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	return h.renderPage(c, "Login", csrfToken, "", pages.Login(csrfToken, ""))
+	return h.renderPage(c, "Login", csrfToken, "", false, pages.Login(csrfToken, ""))
 }
 
 // ShowRegister renders the registration form via templ templates.
 func (h *AuthHandler) ShowRegister(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	return h.renderPage(c, "Register", csrfToken, "", pages.Register(csrfToken, ""))
+	return h.renderPage(c, "Register", csrfToken, "", false, pages.Register(csrfToken, ""))
 }
 
 // Login validates credentials, sets JWT cookie, and redirects by household.
@@ -82,12 +82,10 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	if user == nil || !h.AuthService.CheckPassword(password, user.PasswordHash) {
 		csrfToken, _ := c.Locals("csrfToken").(string)
-		return h.renderPage(c, "Login", csrfToken, "", pages.Login(csrfToken, "Invalid credentials"))
+		return h.renderPage(c, "Login", csrfToken, "", false, pages.Login(csrfToken, "Invalid credentials"))
 	}
 
-	// isAdmin is false at issue time: no site-admin mechanism exists yet
-	// (slice 5 adds User.IsAdmin and switches these call sites to it).
-	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, false, h.JWTSecret, 24)
+	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, user.IsAdmin, h.JWTSecret, 24)
 	if err != nil {
 		return middleware.Internal("internal server error")
 	}
@@ -127,7 +125,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 	if existing != nil {
 		csrfToken, _ := c.Locals("csrfToken").(string)
-		return h.renderPage(c, "Register", csrfToken, "", pages.Register(csrfToken, "Email already registered"))
+		return h.renderPage(c, "Register", csrfToken, "", false, pages.Register(csrfToken, "Email already registered"))
 	}
 
 	hash, err := h.AuthService.HashPassword(password)
@@ -144,7 +142,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		return middleware.Internal("internal server error")
 	}
 
-	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, false, h.JWTSecret, 24)
+	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, user.IsAdmin, h.JWTSecret, 24)
 	if err != nil {
 		return middleware.Internal("internal server error")
 	}

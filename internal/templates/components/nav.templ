@@ -1,19 +1,41 @@
 package components
 
+import "github.com/homeadmin/internal/database"
+
 // Nav renders the navigation bar.
-// When username is empty, it shows unauthenticated links (Login, Register).
-// When username is non-empty, it shows authenticated links (Dashboard, Expenses, Household, Logout).
-templ Nav(username string) {
+// email is empty for unauthenticated users, non-empty for logged-in users.
+// isAdmin controls whether the /admin link is shown.
+templ Nav(email string, isAdmin bool) {
 	<nav class="bg-gray-800 text-white sticky top-0 z-40">
 		<div class="container mx-auto flex items-center justify-between p-4">
 			<a href="/" class="text-lg font-bold">HomeAdmin</a>
-			<ul class="flex space-x-4">
-				if username != "" {
-					<li><span class="text-gray-400 mr-2">{ username }</span></li>
+			<button id="theme-toggle" class="text-white mr-4 focus:outline-none" aria-label="Toggle dark mode">
+				<svg id="theme-icon-sun" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+				</svg>
+				<svg id="theme-icon-moon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+				</svg>
+			</button>
+			<button id="nav-menu-button" class="md:hidden text-white focus:outline-none" aria-label="Toggle menu">
+				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+				</svg>
+			</button>
+			<ul id="nav-menu" class="hidden md:flex md:space-x-4 space-x-4">
+				if email != "" {
+					<li><span class="text-gray-400 mr-2">{ email }</span></li>
+					if isAdmin {
+						<li><a href="/admin" class="hover:text-gray-300">Admin</a></li>
+					}
 					<li><a href="/dashboard" class="hover:text-gray-300">Dashboard</a></li>
 					<li><a href="/expenses" class="hover:text-gray-300">Expenses</a></li>
 					<li><a href="/household" class="hover:text-gray-300">Household</a></li>
-					<li><a href="/logout" class="hover:text-gray-300">Logout</a></li>
+					<li>
+						<form method="POST" action="/logout" class="inline">
+							<button type="submit" class="hover:text-gray-300">Logout</button>
+						</form>
+					</li>
 				} else {
 					<li><a href="/login" class="hover:text-gray-300">Login</a></li>
 					<li><a href="/register" class="hover:text-gray-300">Register</a></li>
@@ -21,4 +43,41 @@ templ Nav(username string) {
 			</ul>
 		</div>
 	</nav>
+	<script>
+		(function() {
+			var btn = document.getElementById('nav-menu-button');
+			var menu = document.getElementById('nav-menu');
+			if (btn && menu) {
+				btn.addEventListener('click', function() {
+					menu.classList.toggle('hidden');
+				});
+			}
+			var themeBtn = document.getElementById('theme-toggle');
+			var sunIcon = document.getElementById('theme-icon-sun');
+			var moonIcon = document.getElementById('theme-icon-moon');
+			if (themeBtn && sunIcon && moonIcon) {
+				themeBtn.addEventListener('click', function() {
+					var html = document.documentElement;
+					if (html.classList.contains('dark')) {
+						html.classList.remove('dark');
+						localStorage.setItem('theme', 'light');
+						sunIcon.classList.add('hidden');
+						moonIcon.classList.remove('hidden');
+					} else {
+						html.classList.add('dark');
+						localStorage.setItem('theme', 'dark');
+						sunIcon.classList.remove('hidden');
+						moonIcon.classList.add('hidden');
+					}
+				});
+				if (document.documentElement.classList.contains('dark')) {
+					sunIcon.classList.remove('hidden');
+					moonIcon.classList.add('hidden');
+				} else {
+					sunIcon.classList.add('hidden');
+					moonIcon.classList.remove('hidden');
+				}
+			}
+		})();
+	</script>
 }

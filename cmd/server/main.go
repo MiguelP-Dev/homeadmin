@@ -49,6 +49,9 @@ func main() {
 	householdService := services.NewHouseholdService(householdRepo, userRepo, householdRepo)
 	householdHandler := handlers.NewHouseholdHandler(householdService, userRepo, cfg.JWTSecret, cfg.JWTExpirationHours)
 
+	siteAdminService := services.NewSiteAdminService(userRepo, householdRepo)
+	adminHandler := handlers.NewAdminHandler(siteAdminService)
+
 	// 5. Create Fiber app with centralized error handler
 	app := fiber.New(fiber.Config{
 		ErrorHandler: middleware.ErrorHandler,
@@ -58,7 +61,7 @@ func main() {
 	app.Use(logger.New())         // Position 1: request logging
 	app.Use(cors.New(cors.Config{ // Position 2: CORS headers
 		AllowOrigins:     strings.Join(cfg.CORSOrigins, ","),
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
+		AllowMethods:     "GET,POST,OPTIONS",
 		AllowHeaders:     "Content-Type,Authorization,X-CSRF-Token,HX-Request",
 		AllowCredentials: true,
 	}))
@@ -109,6 +112,9 @@ func main() {
 	app.Post("/household/invite", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Invite)
 	app.Post("/household/join", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Join)
 	app.Post("/household/members/:id/role", middleware.RequireAuth(cfg.JWTSecret), householdHandler.SetMemberRole)
+
+	// Site-admin routes
+	app.Get("/admin", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireSiteAdmin(cfg.JWTSecret), adminHandler.Show)
 
 	// 9. Start server
 	log.Printf("server starting on :%s (env: %s)", cfg.Port, cfg.Env)
