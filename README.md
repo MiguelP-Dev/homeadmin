@@ -9,10 +9,12 @@ Manage shared expenses within households with fine-grained visibility controls:
 - **Expense tracking** — fixed and variable expenses with categories, fully server-rendered HTML
 - **Visibility rules** — shared editable, shared read-only, or private (owner-only)
 - **Dashboard** — monthly summaries with category breakdown and recent activity
-- **Household management** — create households, invite members, role-based access (owner/admin/member)
+- **Household management** — create households, invite members, role-based access (owner/admin/member), remove members
 - **Site administration** — read-only admin panel to inspect users and households
+- **Internationalization** — English/Spanish with per-user language preference, translated UI and currency/date formatting
 - **Authentication** — email/password with JWT, CSRF protection
 - **Theming** — dark mode toggle with localStorage persistence
+- **Navigation** — responsive drawer (hamburger on mobile), language switcher, aria-current page indicator
 
 ## Tech stack
 
@@ -127,7 +129,9 @@ make docker-stop
 
 ## Site administration
 
-Promote a user to site admin:
+The first registered user automatically becomes a site admin (first-user admin privilege).
+
+Promote a user to site admin manually:
 
 ```bash
 go run cmd/promote/main.go -email user@example.com
@@ -135,14 +139,30 @@ go run cmd/promote/main.go -email user@example.com
 
 Site admins can access `/admin` to view all users and households.
 
+## Internationalization
+
+- **Languages**: English (default) and Spanish
+- **Per-user preference**: stored in database, persisted in JWT
+- **Nav switcher**: toggle between EN/ES from the navigation drawer
+- **Locale-aware display**: currency (`$1.234,56` in ES), dates (`2 de enero de 2006`), categories, and visibility labels
+- **Translated errors**: form validation, auth, and household error messages
+
+### Key routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/settings/lang` | Switch language (CSRF-protected) |
+| POST | `/household/members/:id/role` | Promote/demote member (owner only) |
+| POST | `/household/members/:id/remove` | Remove member (owner only) |
+
 ## Role model
 
 | Role | Scope | Privileges |
 |------|-------|------------|
-| Owner | Household | Full control: invite, change roles, view/edit all expenses |
+| Owner | Household | Full control: invite, change roles, remove members, view/edit all expenses |
 | Admin | Household | Invite members, view/edit shared expenses |
 | Member | Household | View shared expenses, add own expenses |
-| Site admin | Global | Read-only access to `/admin` (users + households) |
+| Site admin | Global | Read-only access to `/admin` (users + households); first registered user gets this automatically |
 
 ### Expense visibility
 
