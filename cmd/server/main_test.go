@@ -91,6 +91,9 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	app.Post("/register", authHandler.Register)
 	app.Post("/logout", authHandler.Logout)
 
+	// Language switch route (WU-5)
+	app.Post("/settings/lang", middleware.RequireAuth(jwtSecret), authHandler.LangSwitch)
+
 	// Root redirect — token-aware: authenticated users go to /dashboard,
 	// everyone else to /login (same handler main.go mounts).
 	app.Get("/", rootRedirect(jwtSecret))
@@ -1355,6 +1358,25 @@ func TestCSRFBlocksLogoutPost(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusForbidden {
 		t.Errorf("status code = %d, want %d (CSRF should block POST /logout without token)", resp.StatusCode, fiber.StatusForbidden)
+	}
+}
+
+// TestLangSwitch_CSRFLessPostForbidden verifies POST /settings/lang without a CSRF
+// token is rejected with 403 (threat matrix: state-mutating POST requires CSRF).
+func TestLangSwitch_CSRFLessPostForbidden(t *testing.T) {
+	app := newIntegrationApp(t, "test-csrf-key", "test-secret")
+
+	form := "lang=es"
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("status = %d, want %d (CSRF must block token-less POST to /settings/lang)", resp.StatusCode, fiber.StatusForbidden)
 	}
 }
 

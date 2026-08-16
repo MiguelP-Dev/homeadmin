@@ -85,6 +85,9 @@ func main() {
 	app.Post("/register", authHandler.Register)
 	app.Post("/logout", authHandler.Logout)
 
+	// Language switch (WU-5)
+	app.Post("/settings/lang", middleware.RequireAuth(cfg.JWTSecret), authHandler.LangSwitch)
+
 	// Root redirect — token-aware: authenticated users go to /dashboard,
 	// everyone else to /login.
 	app.Get("/", rootRedirect(cfg.JWTSecret))
