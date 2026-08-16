@@ -20,6 +20,24 @@ func (r *UserRepositoryImpl) Create(user *database.User) error {
 	return r.db.Create(user).Error
 }
 
+// CountAndCreate counts existing users and creates the new user in a single
+// transaction. If the count is 0, the user is marked as IsAdmin (first-user
+// admin privilege). NOTE: there is a documented race window between the COUNT
+// and the INSERT if two registrations arrive simultaneously; the last writer
+// wins IsAdmin=false. This is acceptable for a single-server household app.
+func (r *UserRepositoryImpl) CountAndCreate(user *database.User) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Model(&database.User{}).Count(&count).Error; err != nil {
+			return err
+		}
+		if count == 0 {
+			user.IsAdmin = true
+		}
+		return tx.Create(user).Error
+	})
+}
+
 // FindByID looks up a user by primary key. Returns (nil, nil) on not-found.
 func (r *UserRepositoryImpl) FindByID(id uint) (*database.User, error) {
 	var user database.User

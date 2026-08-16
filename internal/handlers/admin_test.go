@@ -106,6 +106,7 @@ type mockUserRepoForAdminTest struct {
 }
 
 func (m *mockUserRepoForAdminTest) Create(user *database.User) error                          { return nil }
+func (m *mockUserRepoForAdminTest) CountAndCreate(user *database.User) error                  { return nil }
 func (m *mockUserRepoForAdminTest) FindByID(id uint) (*database.User, error)                  { return nil, nil }
 func (m *mockUserRepoForAdminTest) FindByEmail(email string) (*database.User, error)           { return nil, nil }
 func (m *mockUserRepoForAdminTest) FindByIDWithHousehold(id uint) (*database.User, error)      { return nil, nil }

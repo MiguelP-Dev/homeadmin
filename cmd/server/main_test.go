@@ -714,8 +714,8 @@ func TestAuthNavE2E_EmailInProtectedPage(t *testing.T) {
 	if claims.Email != email {
 		t.Errorf("claims.Email = %q, want %q", claims.Email, email)
 	}
-	if claims.IsAdmin {
-		t.Error("claims.IsAdmin = true, want false for a fresh registration")
+	if !claims.IsAdmin {
+		t.Error("claims.IsAdmin = false, want true for the first registered user (first-user admin)")
 	}
 
 	// The protected page must render the logged-in nav with the user's email

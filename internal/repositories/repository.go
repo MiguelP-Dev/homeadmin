@@ -16,6 +16,7 @@ type CategoryTotal struct {
 // Service layers depend on this interface, not on GORM directly.
 type UserRepository interface {
 	Create(user *database.User) error
+	CountAndCreate(user *database.User) error
 	FindByID(id uint) (*database.User, error)
 	FindByEmail(email string) (*database.User, error)
 	FindByIDWithHousehold(id uint) (*database.User, error)

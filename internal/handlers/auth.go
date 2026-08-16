@@ -145,7 +145,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		PasswordHash: hash,
 		Role:         "member",
 	}
-	if err := h.UserRepo.Create(user); err != nil {
+	if err := h.UserRepo.CountAndCreate(user); err != nil {
 		return middleware.Keyed(500, "error.internal_server")
 	}
 

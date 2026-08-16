@@ -19,16 +19,24 @@ import (
 // --- Mock UserRepository ---
 
 type mockUserRepo struct {
-	createFn        func(user *database.User) error
-	findByEmailFn   func(email string) (*database.User, error)
-	findByIDFn      func(id uint) (*database.User, error)
-	updateFn        func(user *database.User) error
-	listAllUsersFn  func() ([]database.User, error)
+	createFn          func(user *database.User) error
+	countAndCreateFn  func(user *database.User) error
+	findByEmailFn     func(email string) (*database.User, error)
+	findByIDFn        func(id uint) (*database.User, error)
+	updateFn          func(user *database.User) error
+	listAllUsersFn    func() ([]database.User, error)
 }
 
 func (m *mockUserRepo) Create(user *database.User) error {
 	if m.createFn != nil {
 		return m.createFn(user)
+	}
+	return nil
+}
+
+func (m *mockUserRepo) CountAndCreate(user *database.User) error {
+	if m.countAndCreateFn != nil {
+		return m.countAndCreateFn(user)
 	}
 	return nil
 }
