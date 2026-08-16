@@ -83,7 +83,7 @@ func RequireSiteAdmin(jwtSecret string) fiber.Handler {
 		c.Locals("lang", lang)
 
 		if !claims.IsAdmin {
-			return Forbidden("site administrator access required")
+			return Keyed(403, "auth.site_admin_required")
 		}
 		return c.Next()
 	}

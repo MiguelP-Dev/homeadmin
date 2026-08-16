@@ -24,12 +24,12 @@ func NewAdminHandler(service *services.SiteAdminService) *AdminHandler {
 func (h *AdminHandler) Show(c *fiber.Ctx) error {
 	users, err := h.service.ListUsers()
 	if err != nil {
-		return middleware.Internal("failed to load users")
+		return middleware.Keyed(500, "admin.load_failed")
 	}
 
 	households, err := h.service.ListHouseholds()
 	if err != nil {
-		return middleware.Internal("failed to load households")
+		return middleware.Keyed(500, "admin.load_failed")
 	}
 
 	email, _ := c.Locals("email").(string)

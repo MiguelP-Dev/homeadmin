@@ -77,7 +77,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	user, err := h.UserRepo.FindByEmail(email)
 	if err != nil {
-		return middleware.Internal("internal server error")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	if user == nil || !h.AuthService.CheckPassword(password, user.PasswordHash) {
@@ -87,7 +87,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, user.Lang, user.IsAdmin, h.JWTSecret, 24)
 	if err != nil {
-		return middleware.Internal("internal server error")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	SetJWTCookie(c, token)
@@ -121,7 +121,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	// Check for duplicate email
 	existing, err := h.UserRepo.FindByEmail(email)
 	if err != nil {
-		return middleware.Internal("internal server error")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 	if existing != nil {
 		csrfToken, _ := c.Locals("csrfToken").(string)
@@ -130,7 +130,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 
 	hash, err := h.AuthService.HashPassword(password)
 	if err != nil {
-		return middleware.Internal("internal server error")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	user := &database.User{
@@ -139,12 +139,12 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		Role:         "member",
 	}
 	if err := h.UserRepo.Create(user); err != nil {
-		return middleware.Internal("internal server error")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, user.Lang, user.IsAdmin, h.JWTSecret, 24)
 	if err != nil {
-		return middleware.Internal("internal server error")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	SetJWTCookie(c, token)
