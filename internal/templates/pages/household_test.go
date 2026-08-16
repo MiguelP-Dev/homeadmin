@@ -179,8 +179,8 @@ func TestHouseholdShow_RendersViewerRole(t *testing.T) {
 	hh := &database.Household{Name: "My Family"}
 	members := []database.User{{ID: 1, Email: "owner@example.com", Role: database.RoleOwner}}
 	output := mustRenderHouseholdShow(hh, members, database.RoleOwner, "csrf-token", "", "en")
-	if !strings.Contains(output, "Your role: owner") {
-		t.Error("expected the viewer's role to be rendered")
+	if !strings.Contains(output, "Your role: Owner") {
+		t.Errorf("expected 'Your role: Owner' in output, got: %s", output)
 	}
 }
 
