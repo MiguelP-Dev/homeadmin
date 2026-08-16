@@ -47,6 +47,11 @@ func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
 	email, _ := c.Locals("email").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
 
 	view, err := h.service.Show(userID)
 	if err != nil {
@@ -57,13 +62,13 @@ func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 
 	if view == nil {
 		component := pages.HouseholdSetup(csrfToken, "")
-		page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
+		page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 		ctx := templ.WithChildren(c.Context(), component)
 		return page.Render(ctx, c.Response().BodyWriter())
 	}
 
 	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, "")
-	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
+	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
 }
@@ -126,7 +131,12 @@ func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
 	}
 
 	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, code)
-	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
+	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	ctx := templ.WithChildren(c.Context(), component)
 	c.Type("html")
 	return page.Render(ctx, c.Response().BodyWriter())

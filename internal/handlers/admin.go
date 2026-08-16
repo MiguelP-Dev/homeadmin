@@ -35,9 +35,14 @@ func (h *AdminHandler) Show(c *fiber.Ctx) error {
 	email, _ := c.Locals("email").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
 	csrfToken, _ := c.Locals("csrfToken").(string)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
 
 	component := pages.Admin(users, households)
-	page := layouts.Base("Admin — HomeAdmin", csrfToken, email, isAdmin)
+	page := layouts.Base("Admin — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
