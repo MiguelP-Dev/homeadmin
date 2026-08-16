@@ -32,14 +32,14 @@ func SavingsForm(csrfToken string, formAction string, submitLabel string, errorM
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-md mx-auto mt-10 p-6 bg-white rounded shadow\"><h1 class=\"text-2xl font-bold mb-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-md mx-auto mt-10 p-6 bg-white dark:bg-gray-800 rounded shadow\"><h1 class=\"text-2xl font-bold mb-4 dark:text-white\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(submitLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings_form.templ`, Line: 8, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings_form.templ`, Line: 8, Col: 67}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -94,46 +94,46 @@ func SavingsForm(csrfToken string, formAction string, submitLabel string, errorM
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><div class=\"mb-4\"><label for=\"description\" class=\"block text-sm font-medium text-gray-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><div class=\"mb-4\"><label for=\"description\" class=\"block text-sm font-medium text-gray-900 dark:text-gray-100\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "savings.description"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings_form.templ`, Line: 15, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings_form.templ`, Line: 15, Col: 133}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, ":</label> <input type=\"text\" id=\"description\" name=\"description\" required class=\"w-full border rounded p-2\"></div><div class=\"mb-4\"><label for=\"amount\" class=\"block text-sm font-medium text-gray-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, ":</label> <input type=\"text\" id=\"description\" name=\"description\" required class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\"></div><div class=\"mb-4\"><label for=\"amount\" class=\"block text-sm font-medium text-gray-900 dark:text-gray-100\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "savings.amount"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings_form.templ`, Line: 19, Col: 104}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings_form.templ`, Line: 19, Col: 123}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, ":</label> <input type=\"number\" step=\"0.01\" min=\"0\" id=\"amount\" name=\"amount\" required class=\"w-full border rounded p-2\"></div><div class=\"mb-4\"><label for=\"target\" class=\"block text-sm font-medium text-gray-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, ":</label> <input type=\"number\" step=\"0.01\" min=\"0\" id=\"amount\" name=\"amount\" required class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\"></div><div class=\"mb-4\"><label for=\"target\" class=\"block text-sm font-medium text-gray-900 dark:text-gray-100\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "savings.target"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings_form.templ`, Line: 23, Col: 104}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings_form.templ`, Line: 23, Col: 123}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, ":</label> <input type=\"number\" step=\"0.01\" min=\"0\" id=\"target\" name=\"target\" class=\"w-full border rounded p-2\" value=\"0\"></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, ":</label> <input type=\"number\" step=\"0.01\" min=\"0\" id=\"target\" name=\"target\" class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\" value=\"0\"></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

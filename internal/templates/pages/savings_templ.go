@@ -35,14 +35,14 @@ func Savings(savings []database.Savings, total float64, lang string, csrfToken s
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><div class=\"flex items-center justify-between mb-6\"><h1 class=\"text-3xl font-bold text-gray-900\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><div class=\"flex items-center justify-between mb-6\"><h1 class=\"text-3xl font-bold text-gray-900 dark:text-white\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "savings.title"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 12, Col: 79}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 12, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -61,14 +61,14 @@ func Savings(savings []database.Savings, total float64, lang string, csrfToken s
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</a></div><!-- Total Saved --><div class=\"bg-white p-4 rounded-lg shadow mb-6 border-l-4 border-green-500\"><div class=\"text-sm text-gray-500\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</a></div><!-- Total Saved --><div class=\"bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6 border-l-4 border-green-500\"><div class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "savings.total"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 18, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 18, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -115,14 +115,14 @@ func Savings(savings []database.Savings, total float64, lang string, csrfToken s
 				return templ_7745c5c3_Err
 			}
 			for _, s := range savings {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50\"><div class=\"flex-1\"><div class=\"font-medium text-gray-900\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700\"><div class=\"flex-1\"><div class=\"font-medium text-gray-900 dark:text-white\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(s.Description)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 29, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 29, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -133,14 +133,14 @@ func Savings(savings []database.Savings, total float64, lang string, csrfToken s
 					return templ_7745c5c3_Err
 				}
 				if s.Target > 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"text-sm text-gray-500\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"text-sm text-gray-600 dark:text-gray-400\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var8 string
 					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "savings.target"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 32, Col: 41}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 32, Col: 40}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 					if templ_7745c5c3_Err != nil {
@@ -153,7 +153,7 @@ func Savings(savings []database.Savings, total float64, lang string, csrfToken s
 					var templ_7745c5c3_Var9 string
 					templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.FormatCurrency(lang, s.Target))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 32, Col: 82}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 32, Col: 81}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 					if templ_7745c5c3_Err != nil {
@@ -164,14 +164,14 @@ func Savings(savings []database.Savings, total float64, lang string, csrfToken s
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div><div class=\"flex items-center gap-2\"><div class=\"text-right\"><div class=\"font-semibold text-gray-900\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div><div class=\"flex items-center gap-2\"><div class=\"text-right\"><div class=\"font-semibold text-gray-900 dark:text-white\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.FormatCurrency(lang, s.Amount))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 38, Col: 86}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/savings.templ`, Line: 38, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {

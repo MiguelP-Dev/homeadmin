@@ -15,7 +15,7 @@ import (
 templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang string, csrfToken string) {
 	<div class="max-w-4xl mx-auto p-6">
 		<div class="flex items-center justify-between mb-2">
-			<h1 class="text-3xl font-bold text-gray-900">Dashboard — { fmt.Sprintf("%s %d", i18n.MonthName(lang, time.Now()), time.Now().Year()) }</h1>
+			<h1 class="text-3xl font-bold text-gray-900 dark:text-white">Dashboard — { fmt.Sprintf("%s %d", i18n.MonthName(lang, time.Now()), time.Now().Year()) }</h1>
 			<a href="/expenses/new" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Expense</a>
 		</div>
 		if viewerRole == database.RoleOwner || viewerRole == database.RoleAdmin {
@@ -26,16 +26,16 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 
 		<!-- Summary Cards -->
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-			<div class="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
-				<div class="text-sm text-gray-500">{ i18n.T(lang, "total_income") }</div>
+			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-green-500">
+				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "total_income") }</div>
 				<div class="text-2xl font-bold text-green-600">{ i18n.FormatCurrency(lang, summary.TotalIncome) }</div>
 			</div>
-			<div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
-				<div class="text-sm text-gray-500">{ i18n.T(lang, "total_expenses") }</div>
+			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-red-500">
+				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "total_expenses") }</div>
 				<div class="text-2xl font-bold text-red-600">{ i18n.FormatCurrency(lang, summary.TotalExpenses) }</div>
 			</div>
-			<div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
-				<div class="text-sm text-gray-500">{ i18n.T(lang, "balance") }</div>
+			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-blue-500">
+				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "balance") }</div>
 				if summary.Balance >= 0 {
 					<div class="text-2xl font-bold text-green-600">{ i18n.FormatCurrency(lang, summary.Balance) }</div>
 				} else {
@@ -45,18 +45,18 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 		</div>
 
 		<!-- Last 5 Transactions -->
-		<h2 class="text-xl font-semibold text-gray-800 mb-3">{ i18n.T(lang, "last_transactions") }</h2>
+		<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">{ i18n.T(lang, "last_transactions") }</h2>
 		if len(summary.RecentExpenses) == 0 {
 			<p class="text-gray-500 italic">No recent expenses</p>
 		} else {
 			<table class="w-full border-collapse mb-8">
 				<thead>
-					<tr class="bg-gray-100">
-						<th class="text-left p-3 border-b">{ i18n.T(lang, "date") }</th>
-						<th class="text-left p-3 border-b">{ i18n.T(lang, "description") }</th>
-						<th class="text-left p-3 border-b">{ i18n.T(lang, "category") }</th>
-						<th class="text-left p-3 border-b">{ i18n.T(lang, "type") }</th>
-						<th class="text-right p-3 border-b">{ i18n.T(lang, "amount") }</th>
+					<tr class="bg-gray-100 dark:bg-gray-700">
+						<th class="text-left p-3 border-b dark:text-gray-200">{ i18n.T(lang, "date") }</th>
+						<th class="text-left p-3 border-b dark:text-gray-200">{ i18n.T(lang, "description") }</th>
+						<th class="text-left p-3 border-b dark:text-gray-200">{ i18n.T(lang, "category") }</th>
+						<th class="text-left p-3 border-b dark:text-gray-200">{ i18n.T(lang, "type") }</th>
+						<th class="text-right p-3 border-b dark:text-gray-200">{ i18n.T(lang, "amount") }</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -76,12 +76,12 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 		}
 
 		<!-- Category Breakdown -->
-		<h2 class="text-xl font-semibold text-gray-800 mb-3">Category Breakdown</h2>
+		<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Category Breakdown</h2>
 		<table class="w-full border-collapse mb-8">
 			<thead>
-				<tr class="bg-gray-100">
-					<th class="text-left p-3 border-b">Category</th>
-					<th class="text-left p-3 border-b">Total</th>
+				<tr class="bg-gray-100 dark:bg-gray-700">
+					<th class="text-left p-3 border-b dark:text-gray-200">Category</th>
+					<th class="text-left p-3 border-b dark:text-gray-200">Total</th>
 				</tr>
 			</thead>
 			<tbody>

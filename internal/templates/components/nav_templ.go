@@ -103,7 +103,7 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<button id=\"nav-menu-button\" class=\"md:hidden text-white focus:outline-none\" aria-label=\"Toggle menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button><ul id=\"nav-menu\" class=\"hidden md:flex md:space-x-4 space-x-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<button id=\"nav-menu-button\" class=\"md:hidden text-white focus:outline-none\" aria-label=\"Toggle menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button><ul id=\"nav-menu\" class=\"hidden md:flex md:space-x-4 space-x-4 flex-col md:flex-row bg-gray-800 md:bg-transparent p-4 md:p-0 space-y-3 md:space-y-0\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

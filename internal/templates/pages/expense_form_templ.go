@@ -38,7 +38,7 @@ func ExpenseForm(csrfToken string, formAction string, submitLabel string, errorM
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-md mx-auto mt-10 p-6 bg-white rounded shadow\"><h1 class=\"text-2xl font-bold mb-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-md mx-auto mt-10 p-6 bg-white dark:bg-gray-800 rounded shadow\"><h1 class=\"text-2xl font-bold mb-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -100,7 +100,7 @@ func ExpenseForm(csrfToken string, formAction string, submitLabel string, errorM
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><div class=\"mb-4\"><label class=\"block text-sm font-medium text-gray-700 mb-2\">Type:</label><div class=\"flex gap-4\"><label class=\"flex items-center\"><input type=\"radio\" name=\"type\" value=\"expense\" checked=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"><div class=\"mb-4\"><label class=\"block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2\">Type:</label><div class=\"flex gap-4\"><label class=\"flex items-center\"><input type=\"radio\" name=\"type\" value=\"expense\" checked=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -113,14 +113,14 @@ func ExpenseForm(csrfToken string, formAction string, submitLabel string, errorM
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"mr-1\"> <span class=\"text-sm text-gray-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"mr-1\"> <span class=\"text-sm text-gray-900 dark:text-gray-100\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "expense"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 25, Col: 67}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 25, Col: 86}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -139,46 +139,46 @@ func ExpenseForm(csrfToken string, formAction string, submitLabel string, errorM
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" class=\"mr-1\"> <span class=\"text-sm text-gray-700\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" class=\"mr-1\"> <span class=\"text-sm text-gray-900 dark:text-gray-100\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "income"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 29, Col: 66}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 29, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span></label></div></div><div class=\"mb-4\"><label for=\"description\" class=\"block text-sm font-medium text-gray-700\">Description:</label> <input type=\"text\" id=\"description\" name=\"description\" required class=\"w-full border rounded p-2\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span></label></div></div><div class=\"mb-4\"><label for=\"description\" class=\"block text-sm font-medium text-gray-900 dark:text-gray-100\">Description:</label> <input type=\"text\" id=\"description\" name=\"description\" required class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(values.Description)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 35, Col: 128}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 35, Col: 182}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"></div><div class=\"mb-4\"><label for=\"amount\" class=\"block text-sm font-medium text-gray-700\">Amount:</label> <input type=\"number\" step=\"0.01\" min=\"0\" id=\"amount\" name=\"amount\" required class=\"w-full border rounded p-2\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"></div><div class=\"mb-4\"><label for=\"amount\" class=\"block text-sm font-medium text-gray-900 dark:text-gray-100\">Amount:</label> <input type=\"number\" step=\"0.01\" min=\"0\" id=\"amount\" name=\"amount\" required class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(values.Amount)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 39, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 39, Col: 189}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"></div><div class=\"mb-4\"><label for=\"category\" class=\"block text-sm font-medium text-gray-700\">Category:</label> <select id=\"category\" name=\"category\" required class=\"w-full border rounded p-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"></div><div class=\"mb-4\"><label for=\"category\" class=\"block text-sm font-medium text-gray-900 dark:text-gray-100\">Category:</label> <select id=\"category\" name=\"category\" required class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -272,20 +272,20 @@ func ExpenseForm(csrfToken string, formAction string, submitLabel string, errorM
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</select></div><div class=\"mb-4\"><label for=\"date\" class=\"block text-sm font-medium text-gray-700\">Date:</label> <input type=\"date\" id=\"date\" name=\"date\" class=\"w-full border rounded p-2\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</select></div><div class=\"mb-4\"><label for=\"date\" class=\"block text-sm font-medium text-gray-900 dark:text-gray-100\">Date:</label> <input type=\"date\" id=\"date\" name=\"date\" class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(values.Date)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 54, Col: 98}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/expense_form.templ`, Line: 54, Col: 152}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\"></div><div class=\"mb-4\"><label for=\"visibility\" class=\"block text-sm font-medium text-gray-700\">Visibility:</label> <select id=\"visibility\" name=\"visibility\" class=\"w-full border rounded p-2\"><option value=\"visible_editable\" selected=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\"></div><div class=\"mb-4\"><label for=\"visibility\" class=\"block text-sm font-medium text-gray-900 dark:text-gray-100\">Visibility:</label> <select id=\"visibility\" name=\"visibility\" class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\"><option value=\"visible_editable\" selected=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -337,7 +337,7 @@ func ExpenseForm(csrfToken string, formAction string, submitLabel string, errorM
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" class=\"mr-2\"> <span class=\"text-sm font-medium text-gray-700\">Fixed expense</span></label></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" class=\"mr-2\"> <span class=\"text-sm font-medium text-gray-900 dark:text-gray-100\">Fixed expense</span></label></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

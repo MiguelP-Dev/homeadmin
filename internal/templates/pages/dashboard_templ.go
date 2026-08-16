@@ -41,14 +41,14 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string, lang strin
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><div class=\"flex items-center justify-between mb-2\"><h1 class=\"text-3xl font-bold text-gray-900\">Dashboard — ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><div class=\"flex items-center justify-between mb-2\"><h1 class=\"text-3xl font-bold text-gray-900 dark:text-white\">Dashboard — ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%s %d", i18n.MonthName(lang, time.Now()), time.Now().Year()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 18, Col: 137}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 18, Col: 153}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -64,14 +64,14 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string, lang strin
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<!-- Summary Cards --><div class=\"grid grid-cols-1 md:grid-cols-3 gap-4 mb-8\"><div class=\"bg-white p-4 rounded-lg shadow border-l-4 border-green-500\"><div class=\"text-sm text-gray-500\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<!-- Summary Cards --><div class=\"grid grid-cols-1 md:grid-cols-3 gap-4 mb-8\"><div class=\"bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-green-500\"><div class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "total_income"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 30, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 30, Col: 100}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -90,14 +90,14 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string, lang strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div><div class=\"bg-white p-4 rounded-lg shadow border-l-4 border-red-500\"><div class=\"text-sm text-gray-500\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div><div class=\"bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-red-500\"><div class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "total_expenses"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 34, Col: 71}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 34, Col: 102}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -116,14 +116,14 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string, lang strin
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></div><div class=\"bg-white p-4 rounded-lg shadow border-l-4 border-blue-500\"><div class=\"text-sm text-gray-500\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></div><div class=\"bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-blue-500\"><div class=\"text-sm font-medium text-gray-700 dark:text-gray-300\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "balance"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 38, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 38, Col: 95}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
@@ -170,14 +170,14 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string, lang strin
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></div><!-- Last 5 Transactions --><h2 class=\"text-xl font-semibold text-gray-800 mb-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</div></div><!-- Last 5 Transactions --><h2 class=\"text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "last_transactions"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 48, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 48, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -193,66 +193,66 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string, lang strin
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<table class=\"w-full border-collapse mb-8\"><thead><tr class=\"bg-gray-100\"><th class=\"text-left p-3 border-b\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<table class=\"w-full border-collapse mb-8\"><thead><tr class=\"bg-gray-100 dark:bg-gray-700\"><th class=\"text-left p-3 border-b dark:text-gray-200\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "date"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 55, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 55, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</th><th class=\"text-left p-3 border-b\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</th><th class=\"text-left p-3 border-b dark:text-gray-200\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 56, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 56, Col: 89}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</th><th class=\"text-left p-3 border-b\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</th><th class=\"text-left p-3 border-b dark:text-gray-200\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "category"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 57, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 57, Col: 86}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</th><th class=\"text-left p-3 border-b\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</th><th class=\"text-left p-3 border-b dark:text-gray-200\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "type"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 58, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 58, Col: 82}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</th><th class=\"text-right p-3 border-b\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</th><th class=\"text-right p-3 border-b dark:text-gray-200\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "amount"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 59, Col: 66}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 59, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -360,7 +360,7 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string, lang strin
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<!-- Category Breakdown --><h2 class=\"text-xl font-semibold text-gray-800 mb-3\">Category Breakdown</h2><table class=\"w-full border-collapse mb-8\"><thead><tr class=\"bg-gray-100\"><th class=\"text-left p-3 border-b\">Category</th><th class=\"text-left p-3 border-b\">Total</th></tr></thead> <tbody>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<!-- Category Breakdown --><h2 class=\"text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3\">Category Breakdown</h2><table class=\"w-full border-collapse mb-8\"><thead><tr class=\"bg-gray-100 dark:bg-gray-700\"><th class=\"text-left p-3 border-b dark:text-gray-200\">Category</th><th class=\"text-left p-3 border-b dark:text-gray-200\">Total</th></tr></thead> <tbody>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
