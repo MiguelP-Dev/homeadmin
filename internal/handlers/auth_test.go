@@ -444,11 +444,8 @@ func TestRegister_MissingFields(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
-	if !strings.Contains(bodyStr, "email is required") {
-		t.Errorf("expected 'email is required' message, got: %s", bodyStr)
-	}
-	if !strings.Contains(bodyStr, "name is required") {
-		t.Errorf("expected 'name is required' message, got: %s", bodyStr)
+	if !strings.Contains(bodyStr, "Please correct the errors below") {
+		t.Errorf("expected validation summary message, got: %s", bodyStr)
 	}
 }
 
@@ -482,8 +479,8 @@ func TestRegister_WeakPassword(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
-	if !strings.Contains(bodyStr, "password must be at least 8 characters") {
-		t.Errorf("expected 'password must be at least 8 characters' message, got: %s", bodyStr)
+	if !strings.Contains(bodyStr, "Please correct the errors below") {
+		t.Errorf("expected validation summary message, got: %s", bodyStr)
 	}
 
 	// Should NOT set JWT cookie

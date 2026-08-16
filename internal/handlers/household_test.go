@@ -470,8 +470,8 @@ func TestHouseholdHandler_Invite_NoHousehold(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	html := string(body)
-	if !strings.Contains(html, "You must belong to a household") {
-		t.Errorf("expected error 'You must belong to a household', got: %s", html)
+	if !strings.Contains(html, "You do not belong to a household") {
+		t.Errorf("expected error 'You do not belong to a household', got: %s", html)
 	}
 }
 
@@ -496,8 +496,8 @@ func TestHouseholdHandler_Invite_NonAdmin(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	html := string(body)
-	if !strings.Contains(html, "Only admins can invite") {
-		t.Errorf("expected error 'Only admins can invite', got: %s", html)
+	if !strings.Contains(html, "Only owners can manage household members") {
+		t.Errorf("expected error 'Only owners can manage household members', got: %s", html)
 	}
 }
 
@@ -593,8 +593,8 @@ func TestHouseholdHandler_Join_ExpiredCode(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	html := string(body)
-	if !strings.Contains(html, "Invite code has expired") {
-		t.Errorf("expected error 'Invite code has expired', got: %s", html)
+	if !strings.Contains(html, "This invite code has expired") {
+		t.Errorf("expected error 'This invite code has expired', got: %s", html)
 	}
 }
 
@@ -624,8 +624,8 @@ func TestHouseholdHandler_Join_UsedCode(t *testing.T) {
 
 	body, _ := io.ReadAll(resp.Body)
 	html := string(body)
-	if !strings.Contains(html, "Invite code has already been used") {
-		t.Errorf("expected error 'Invite code has already been used', got: %s", html)
+	if !strings.Contains(html, "This invite code has already been used") {
+		t.Errorf("expected error 'This invite code has already been used', got: %s", html)
 	}
 }
 

@@ -175,3 +175,121 @@ func TestValidate_SingleError(t *testing.T) {
 		t.Errorf("error message should contain \"email\": %s", appErr.Error())
 	}
 }
+
+// --- WU-3: Keyed validation tests ---
+
+func TestValidateRequired_HasKey(t *testing.T) {
+	vErr := ValidateRequired("", "name")
+	if vErr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if vErr.Key != "validation.required" {
+		t.Errorf("Key = %q, want %q", vErr.Key, "validation.required")
+	}
+}
+
+func TestValidateRequired_HasArgs(t *testing.T) {
+	vErr := ValidateRequired("", "email")
+	if vErr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if len(vErr.Args) != 1 || vErr.Args[0] != "email" {
+		t.Errorf("Args = %v, want [email]", vErr.Args)
+	}
+}
+
+func TestValidateMinLength_HasKey(t *testing.T) {
+	vErr := ValidateMinLength("ab", "password", 8)
+	if vErr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if vErr.Key != "validation.min_length" {
+		t.Errorf("Key = %q, want %q", vErr.Key, "validation.min_length")
+	}
+}
+
+func TestValidateIn_HasKey(t *testing.T) {
+	vErr := ValidateIn("bad", "category", []string{"food"})
+	if vErr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if vErr.Key != "validation.in" {
+		t.Errorf("Key = %q, want %q", vErr.Key, "validation.in")
+	}
+}
+
+func TestValidateReturnsKeyedAppError(t *testing.T) {
+	err := Validate(
+		ValidateRequired("", "desc"),
+	)
+	if err == nil {
+		t.Fatal("expected non-nil")
+	}
+	var appErr *AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("error type = %T, want *AppError", err)
+	}
+	if appErr.Key != "expense.validation_failed" {
+		t.Errorf("Key = %q, want %q", appErr.Key, "expense.validation_failed")
+	}
+	// Message should still contain field messages for backward compat
+	if appErr.Message == "" {
+		t.Error("Message should not be empty (backward compat)")
+	}
+	if !strings.Contains(appErr.Message, "desc") {
+		t.Errorf("Message should contain field name: %s", appErr.Message)
+	}
+}
+
+// --- Triangulation: more validator Key coverage ---
+
+func TestValidatePositive_HasKey(t *testing.T) {
+	vErr := ValidatePositive(-1, "amount")
+	if vErr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if vErr.Key != "validation.positive" {
+		t.Errorf("Key = %q, want %q", vErr.Key, "validation.positive")
+	}
+}
+
+func TestValidateMaxLength_HasKey(t *testing.T) {
+	vErr := ValidateMaxLength(strings.Repeat("a", 256), "name", 255)
+	if vErr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if vErr.Key != "validation.max_length" {
+		t.Errorf("Key = %q, want %q", vErr.Key, "validation.max_length")
+	}
+}
+
+func TestValidateEmailFormat_HasKey(t *testing.T) {
+	vErr := ValidateEmailFormat("notanemail", "email")
+	if vErr == nil {
+		t.Fatal("expected non-nil")
+	}
+	if vErr.Key != "validation.email" {
+		t.Errorf("Key = %q, want %q", vErr.Key, "validation.email")
+	}
+}
+
+// Triangulate: Validate with multiple errors still sets the top-level Key
+func TestValidateMultipleErrorsHasKey(t *testing.T) {
+	err := Validate(
+		ValidateRequired("", "name"),
+		ValidatePositive(-1, "amount"),
+	)
+	if err == nil {
+		t.Fatal("expected non-nil")
+	}
+	var appErr *AppError
+	if !errors.As(err, &appErr) {
+		t.Fatalf("error type = %T, want *AppError", err)
+	}
+	if appErr.Key != "expense.validation_failed" {
+		t.Errorf("Key = %q, want %q", appErr.Key, "expense.validation_failed")
+	}
+	if !strings.Contains(appErr.Message, "name") || !strings.Contains(appErr.Message, "amount") {
+		t.Errorf("Message should contain both fields: %s", appErr.Message)
+	}
+}
