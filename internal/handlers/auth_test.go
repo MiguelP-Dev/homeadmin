@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -21,6 +22,7 @@ type mockUserRepo struct {
 	createFn        func(user *database.User) error
 	findByEmailFn   func(email string) (*database.User, error)
 	findByIDFn      func(id uint) (*database.User, error)
+	updateFn        func(user *database.User) error
 	listAllUsersFn  func() ([]database.User, error)
 }
 
@@ -45,7 +47,12 @@ func (m *mockUserRepo) FindByID(id uint) (*database.User, error) {
 	return nil, nil
 }
 
-func (m *mockUserRepo) Update(user *database.User) error { return nil }
+func (m *mockUserRepo) Update(user *database.User) error {
+	if m.updateFn != nil {
+		return m.updateFn(user)
+	}
+	return nil
+}
 func (m *mockUserRepo) Delete(id uint) error             { return nil }
 func (m *mockUserRepo) FindByIDWithHousehold(id uint) (*database.User, error) {
 	return nil, nil
@@ -76,6 +83,7 @@ func setupHandlerApp(repo repositories.UserRepository) *fiber.App {
 	app.Get("/register", handler.ShowRegister)
 	app.Post("/register", handler.Register)
 	app.Post("/logout", handler.Logout)
+	app.Post("/settings/lang", handler.LangSwitch)
 
 	return app
 }
@@ -608,5 +616,425 @@ func TestLogout(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected jwt cookie to be present (cleared) in response")
+	}
+}
+
+// --- LangSwitch tests (WU-5) ---
+
+// langSwitchApp creates a test app with the LangSwitch route and the given mock repo.
+func langSwitchApp(repo repositories.UserRepository) *fiber.App {
+	app := fiber.New(fiber.Config{
+		ErrorHandler: middleware.ErrorHandler,
+	})
+	handler := NewAuthHandler(repo, testJWTSecret)
+	app.Post("/settings/lang", handler.LangSwitch)
+	return app
+}
+
+// createValidJWT creates a valid JWT cookie string for testing.
+func createValidJWT(t *testing.T, userID uint, lang string) string {
+	t.Helper()
+	var householdID uint = 1
+	token, err := services.CreateToken(userID, &householdID, "member", "test@example.com", lang, false, testJWTSecret, 24)
+	if err != nil {
+		t.Fatalf("failed to create test JWT: %v", err)
+	}
+	return token
+}
+
+func TestLangSwitch_Success_SwitchToEs(t *testing.T) {
+	var capturedUser *database.User
+	repo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{
+				ID:    1,
+				Email: "test@example.com",
+				Lang:  "en",
+				Role:  "member",
+			}, nil
+		},
+		updateFn: func(user *database.User) error {
+			capturedUser = user
+			return nil
+		},
+	}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "es")
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: createValidJWT(t, 1, "en")})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Should redirect (302)
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
+	}
+
+	// Should default redirect to /dashboard
+	location := resp.Header.Get("Location")
+	if location != "/dashboard" {
+		t.Errorf("expected redirect to /dashboard, got %s", location)
+	}
+
+	// Should update user.Lang to "es" in DB
+	if capturedUser == nil {
+		t.Fatal("expected Update to be called on user repo")
+	}
+	if capturedUser.Lang != "es" {
+		t.Errorf("expected user.Lang = 'es', got %q", capturedUser.Lang)
+	}
+
+	// Should set new JWT cookie with lang=es in claims
+	claims := decodeJWTCookie(t, resp, testJWTSecret)
+	if claims.Lang != "es" {
+		t.Errorf("expected JWT claim Lang='es', got %q", claims.Lang)
+	}
+}
+
+func TestLangSwitch_Success_SwitchToEn(t *testing.T) {
+	var capturedUser *database.User
+	repo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{
+				ID:    1,
+				Email: "test@example.com",
+				Lang:  "es",
+				Role:  "member",
+			}, nil
+		},
+		updateFn: func(user *database.User) error {
+			capturedUser = user
+			return nil
+		},
+	}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "en")
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: createValidJWT(t, 1, "es")})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
+	}
+
+	if capturedUser == nil {
+		t.Fatal("expected Update to be called")
+	}
+	if capturedUser.Lang != "en" {
+		t.Errorf("expected user.Lang = 'en', got %q", capturedUser.Lang)
+	}
+
+	claims := decodeJWTCookie(t, resp, testJWTSecret)
+	if claims.Lang != "en" {
+		t.Errorf("expected JWT claim Lang='en', got %q", claims.Lang)
+	}
+}
+
+func TestLangSwitch_InvalidLang_DefaultsToEn(t *testing.T) {
+	var capturedUser *database.User
+	repo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{
+				ID:    1,
+				Email: "test@example.com",
+				Lang:  "en",
+				Role:  "member",
+			}, nil
+		},
+		updateFn: func(user *database.User) error {
+			capturedUser = user
+			return nil
+		},
+	}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "fr") // invalid — not "en" or "es"
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: createValidJWT(t, 1, "en")})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
+	}
+
+	// Invalid lang should fall back to "en"
+	if capturedUser == nil {
+		t.Fatal("expected Update to be called")
+	}
+	if capturedUser.Lang != "en" {
+		t.Errorf("expected user.Lang = 'en' (fallback), got %q", capturedUser.Lang)
+	}
+
+	claims := decodeJWTCookie(t, resp, testJWTSecret)
+	if claims.Lang != "en" {
+		t.Errorf("expected JWT claim Lang='en' (fallback), got %q", claims.Lang)
+	}
+}
+
+func TestLangSwitch_EmptyLang_DefaultsToEn(t *testing.T) {
+	var capturedUser *database.User
+	repo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{
+				ID:    1,
+				Email: "test@example.com",
+				Lang:  "es",
+				Role:  "member",
+			}, nil
+		},
+		updateFn: func(user *database.User) error {
+			capturedUser = user
+			return nil
+		},
+	}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("csrf", "test-csrf-token")
+	// lang is omitted — should default to "en"
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: createValidJWT(t, 1, "es")})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if capturedUser == nil {
+		t.Fatal("expected Update to be called")
+	}
+	if capturedUser.Lang != "en" {
+		t.Errorf("expected user.Lang = 'en' (empty fallback), got %q", capturedUser.Lang)
+	}
+}
+
+func TestLangSwitch_NoJWT_RedirectsToLogin(t *testing.T) {
+	repo := &mockUserRepo{}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "es")
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
+	}
+	location := resp.Header.Get("Location")
+	if location != "/login" {
+		t.Errorf("expected redirect to /login, got %s", location)
+	}
+}
+
+func TestLangSwitch_InvalidJWT_RedirectsToLogin(t *testing.T) {
+	repo := &mockUserRepo{}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "es")
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: "invalid.jwt.token"})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
+	}
+	location := resp.Header.Get("Location")
+	if location != "/login" {
+		t.Errorf("expected redirect to /login, got %s", location)
+	}
+}
+
+func TestLangSwitch_UserNotFound_RedirectsToLogin(t *testing.T) {
+	repo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return nil, nil // user not found
+		},
+	}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "es")
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: createValidJWT(t, 1, "en")})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
+	}
+	location := resp.Header.Get("Location")
+	if location != "/login" {
+		t.Errorf("expected redirect to /login, got %s", location)
+	}
+}
+
+func TestLangSwitch_PreservesRefererPath(t *testing.T) {
+	repo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{
+				ID:    1,
+				Email: "test@example.com",
+				Lang:  "en",
+				Role:  "member",
+			}, nil
+		},
+		updateFn: func(user *database.User) error {
+			return nil
+		},
+	}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "es")
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", "https://example.com/expenses?month=1")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: createValidJWT(t, 1, "en")})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
+	}
+	location := resp.Header.Get("Location")
+	if location != "/expenses?month=1" {
+		t.Errorf("expected redirect to /expenses?month=1, got %s", location)
+	}
+}
+
+func TestLangSwitch_ProtocolRelativeReferer_FallsBackToDashboard(t *testing.T) {
+	repo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{
+				ID:    1,
+				Email: "test@example.com",
+				Lang:  "en",
+				Role:  "member",
+			}, nil
+		},
+		updateFn: func(user *database.User) error {
+			return nil
+		},
+	}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "es")
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", "//evil.example.com/steal")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: createValidJWT(t, 1, "en")})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("expected redirect 302, got %d", resp.StatusCode)
+	}
+	location := resp.Header.Get("Location")
+	// Protocol-relative Referer with "//" prefix should be rejected → fallback
+	if location != "/dashboard" {
+		t.Errorf("expected redirect to /dashboard (protocol-relative blocked), got %s", location)
+	}
+}
+
+func TestLangSwitch_UpdateError_Returns500(t *testing.T) {
+	repo := &mockUserRepo{
+		findByIDFn: func(id uint) (*database.User, error) {
+			return &database.User{
+				ID:    1,
+				Email: "test@example.com",
+				Lang:  "en",
+				Role:  "member",
+			}, nil
+		},
+		updateFn: func(user *database.User) error {
+			return fmt.Errorf("database error")
+		},
+	}
+	app := langSwitchApp(repo)
+
+	form := url.Values{}
+	form.Set("lang", "es")
+	form.Set("csrf", "test-csrf-token")
+
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: createValidJWT(t, 1, "en")})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusInternalServerError {
+		t.Errorf("expected status 500, got %d", resp.StatusCode)
 	}
 }

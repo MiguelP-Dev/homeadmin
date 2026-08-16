@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
@@ -165,4 +167,67 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	ClearJWTCookie(c)
 	return c.Redirect("/login", fiber.StatusFound)
+}
+
+// LangSwitch updates the user's preferred language and re-issues the JWT
+// with the new lang claim. It redirects back to the Referer path when safe
+// (starts with "/" and not "//"), otherwise to /dashboard.
+func (h *AuthHandler) LangSwitch(c *fiber.Ctx) error {
+	lang := c.FormValue("lang")
+	if lang != "en" && lang != "es" {
+		lang = "en" // fallback
+	}
+
+	// Validate JWT from cookie
+	cookie := c.Cookies("jwt")
+	if cookie == "" {
+		return c.Redirect("/login", fiber.StatusFound)
+	}
+
+	claims, err := services.ValidateToken(cookie, h.JWTSecret)
+	if err != nil {
+		return c.Redirect("/login", fiber.StatusFound)
+	}
+
+	// Fetch user from DB
+	user, err := h.UserRepo.FindByID(claims.UserID)
+	if err != nil || user == nil {
+		return c.Redirect("/login", fiber.StatusFound)
+	}
+
+	// Update lang
+	user.Lang = lang
+	if err := h.UserRepo.Update(user); err != nil {
+		return middleware.Keyed(500, "error.internal_server")
+	}
+
+	// Re-issue token with updated lang
+	token, err := h.AuthService.CreateToken(
+		user.ID, user.HouseholdID, user.Role, user.Email, user.Lang, user.IsAdmin,
+		h.JWTSecret, 24,
+	)
+	if err != nil {
+		return middleware.Keyed(500, "error.internal_server")
+	}
+	SetJWTCookie(c, token)
+
+	// Redirect to Referer path if safe
+	referer := c.Get("Referer")
+	redirectPath := "/dashboard"
+	if len(referer) > 0 {
+		// Extract path from referer URL
+		if idx := strings.Index(referer, "://"); idx > 0 {
+			pathStart := idx + 3
+			if slashIdx := strings.Index(referer[pathStart:], "/"); slashIdx >= 0 {
+				referer = referer[pathStart+slashIdx:]
+			} else {
+				referer = "/"
+			}
+		}
+		if strings.HasPrefix(referer, "/") && !strings.HasPrefix(referer, "//") {
+			redirectPath = referer
+		}
+	}
+
+	return c.Redirect(redirectPath, fiber.StatusFound)
 }
