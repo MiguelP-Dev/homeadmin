@@ -64,7 +64,7 @@ func TestCheckPassword_Empty(t *testing.T) {
 
 func TestCreateToken_Success(t *testing.T) {
 	var householdID uint = 42
-	token, err := CreateToken(1, &householdID, "member", "user@example.com", false, "test-secret", 24)
+	token, err := CreateToken(1, &householdID, "member", "user@example.com", "", false, "test-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken returned unexpected error: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestCreateToken_Success(t *testing.T) {
 }
 
 func TestCreateToken_NilHousehold(t *testing.T) {
-	token, err := CreateToken(1, nil, "admin", "admin@example.com", true, "test-secret", 24)
+	token, err := CreateToken(1, nil, "admin", "admin@example.com", "", true, "test-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken returned unexpected error: %v", err)
 	}
@@ -87,7 +87,7 @@ func TestCreateToken_NilHousehold(t *testing.T) {
 
 func TestValidateToken_Valid(t *testing.T) {
 	var householdID uint = 42
-	token, err := CreateToken(1, &householdID, "member", "user@example.com", false, "test-secret", 24)
+	token, err := CreateToken(1, &householdID, "member", "user@example.com", "", false, "test-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken failed: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestValidateToken_Valid(t *testing.T) {
 }
 
 func TestValidateToken_NilHousehold(t *testing.T) {
-	token, err := CreateToken(1, nil, "admin", "admin@example.com", true, "test-secret", 24)
+	token, err := CreateToken(1, nil, "admin", "admin@example.com", "", true, "test-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken failed: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestValidateToken_NilHousehold(t *testing.T) {
 }
 
 func TestValidateToken_WrongSecret(t *testing.T) {
-	token, err := CreateToken(1, nil, "member", "user@example.com", false, "correct-secret", 24)
+	token, err := CreateToken(1, nil, "member", "user@example.com", "", false, "correct-secret", 24)
 	if err != nil {
 		t.Fatalf("CreateToken failed: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestValidateToken_WrongSecret(t *testing.T) {
 }
 
 func TestValidateToken_Expired(t *testing.T) {
-	token, err := CreateToken(1, nil, "member", "user@example.com", false, "test-secret", 0)
+	token, err := CreateToken(1, nil, "member", "user@example.com", "", false, "test-secret", 0)
 	if err != nil {
 		t.Fatalf("CreateToken failed: %v", err)
 	}
@@ -177,5 +177,37 @@ func TestValidateToken_EmptyString(t *testing.T) {
 	}
 	if claims != nil {
 		t.Error("ValidateToken should return nil claims on error")
+	}
+}
+
+// --- CreateToken Lang tests (WU-2) ---
+
+func TestCreateToken_WithLang(t *testing.T) {
+	token, err := CreateToken(1, nil, "member", "user@example.com", "es", false, "test-secret", 24)
+	if err != nil {
+		t.Fatalf("CreateToken returned unexpected error: %v", err)
+	}
+
+	claims, err := ValidateToken(token, "test-secret")
+	if err != nil {
+		t.Fatalf("ValidateToken returned unexpected error: %v", err)
+	}
+	if claims.Lang != "es" {
+		t.Errorf("expected Lang=es, got %q", claims.Lang)
+	}
+}
+
+func TestValidateToken_EmptyLang_DefaultsEmpty(t *testing.T) {
+	token, err := CreateToken(1, nil, "member", "user@example.com", "", false, "test-secret", 24)
+	if err != nil {
+		t.Fatalf("CreateToken returned unexpected error: %v", err)
+	}
+
+	claims, err := ValidateToken(token, "test-secret")
+	if err != nil {
+		t.Fatalf("ValidateToken returned unexpected error: %v", err)
+	}
+	if claims.Lang != "" {
+		t.Errorf("expected empty Lang for empty input, got %q", claims.Lang)
 	}
 }
