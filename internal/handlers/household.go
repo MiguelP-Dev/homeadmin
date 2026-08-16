@@ -92,7 +92,7 @@ func (h *HouseholdHandler) Create(c *fiber.Ctx) error {
 	if err != nil || user == nil {
 		return middleware.Internal("failed to load user for token")
 	}
-	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
+	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.Lang, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
 	if err != nil {
 		return middleware.Internal("failed to issue token")
 	}
@@ -190,7 +190,7 @@ func (h *HouseholdHandler) Join(c *fiber.Ctx) error {
 	if err != nil || user == nil {
 		return middleware.Internal("failed to load user for token")
 	}
-	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
+	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.Lang, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
 	if err != nil {
 		return middleware.Internal("failed to issue token")
 	}
