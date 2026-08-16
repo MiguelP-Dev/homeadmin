@@ -93,6 +93,7 @@ func TestDictionariesCoverAllDesignKeys(t *testing.T) {
 		"household.expired", "household.used", "household.not_admin",
 		"household.no_household", "household.member_not_found", "household.role_forbidden",
 		"household.self_role", "household.self_removal",
+		"household.role.owner", "household.role.admin", "household.role.member",
 		"admin.load_failed",
 		"nav.dashboard", "nav.expenses", "nav.household", "nav.admin", "nav.logout",
 		"common.create", "common.save", "common.cancel",

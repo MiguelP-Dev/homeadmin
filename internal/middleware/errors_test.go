@@ -211,6 +211,240 @@ func TestErrorHandlerFiberNotFound(t *testing.T) {
 	}
 }
 
+// --- WU-3: Keyed error tests ---
+
+func TestKeyedErrorSetsKeyAndArgs(t *testing.T) {
+	err := Keyed(400, "household.already_has")
+	if err.Status != 400 {
+		t.Errorf("Status = %d, want 400", err.Status)
+	}
+	if err.Key != "household.already_has" {
+		t.Errorf("Key = %q, want %q", err.Key, "household.already_has")
+	}
+	if err.Message != "" {
+		t.Errorf("Message should be empty for keyed error, got %q", err.Message)
+	}
+}
+
+func TestKeyedErrorWithArgs(t *testing.T) {
+	err := Keyed(400, "validation.required", "email")
+	if len(err.Args) != 1 || err.Args[0] != "email" {
+		t.Errorf("Args = %v, want [email]", err.Args)
+	}
+}
+
+func TestErrorHandlerKeyedES_HTML(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		c.Locals("lang", "es")
+		return Keyed(400, "household.already_has")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	body := make([]byte, 8192)
+	n, _ := resp.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if !containsStr(bodyStr, "Ya perteneces a un hogar") {
+		t.Errorf("HTML body missing Spanish translation: %s", bodyStr)
+	}
+	if !containsStr(bodyStr, `lang="es"`) {
+		t.Errorf("HTML body missing lang=\"es\": %s", bodyStr)
+	}
+}
+
+func TestErrorHandlerKeyedEN_HTML(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		c.Locals("lang", "en")
+		return Keyed(400, "household.already_has")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	body := make([]byte, 8192)
+	n, _ := resp.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if !containsStr(bodyStr, "You already belong to a household") {
+		t.Errorf("HTML body missing English translation: %s", bodyStr)
+	}
+}
+
+func TestErrorHandlerRawMessagePassThrough(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		c.Locals("lang", "es")
+		return NotFound("custom raw message")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	body := make([]byte, 4096)
+	n, _ := resp.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if !containsStr(bodyStr, "custom raw message") {
+		t.Errorf("JSON body should contain raw message, got: %s", bodyStr)
+	}
+}
+
+func TestErrorHandlerKeyedES_HTMXToast(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		c.Locals("lang", "es")
+		return Keyed(400, "household.already_has")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("HX-Request", "true")
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	trigger := resp.Header.Get("HX-Trigger")
+	if !containsStr(trigger, "Ya perteneces a un hogar") {
+		t.Errorf("HX-Trigger missing Spanish toast: %s", trigger)
+	}
+}
+
+func TestErrorHandlerKeyedWithArgs_HTML(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		c.Locals("lang", "en")
+		return Keyed(400, "validation.required", "email")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	body := make([]byte, 8192)
+	n, _ := resp.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	// "The email field is required." — interpolated from validation.required
+	if !containsStr(bodyStr, "email") {
+		t.Errorf("HTML body missing interpolated arg 'email': %s", bodyStr)
+	}
+}
+
+func TestErrorHandlerDefaultLangFallback(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		// No lang set — should fallback to "en"
+		return Keyed(400, "household.already_has")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	body := make([]byte, 8192)
+	n, _ := resp.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if !containsStr(bodyStr, "You already belong to a household") {
+		t.Errorf("HTML body missing English translation (fallback): %s", bodyStr)
+	}
+}
+
+// --- Triangulation: validate key translation round-trips for JSON too ---
+
+func TestErrorHandlerKeyedES_JSON(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		c.Locals("lang", "es")
+		return Keyed(400, "household.already_has")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	body := make([]byte, 4096)
+	n, _ := resp.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if !containsStr(bodyStr, "Ya perteneces a un hogar") {
+		t.Errorf("JSON body missing Spanish translation: %s", bodyStr)
+	}
+}
+
+func TestErrorHandlerKeyedEN_JSON(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		c.Locals("lang", "en")
+		return Keyed(400, "household.already_has")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	body := make([]byte, 4096)
+	n, _ := resp.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if !containsStr(bodyStr, "You already belong to a household") {
+		t.Errorf("JSON body missing English translation: %s", bodyStr)
+	}
+}
+
+// Triangulate: errorPageHTML with lang="en" has lang="en"
+func TestErrorHandlerKeyedEN_LangAttr(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		c.Locals("lang", "en")
+		return Keyed(400, "household.already_has")
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Accept", "text/html")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	body := make([]byte, 8192)
+	n, _ := resp.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if !containsStr(bodyStr, `lang="en"`) {
+		t.Errorf("HTML body missing lang=\"en\": %s", bodyStr)
+	}
+}
+
 func containsStr(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {

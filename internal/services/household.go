@@ -31,6 +31,7 @@ type householdRepo interface {
 	CreateInviteCode(invite *database.InviteCode) error
 	GetMembers(householdID uint) ([]database.User, error)
 	AddMember(householdID, userID uint, role string) error
+	RemoveMember(householdID, userID uint) error
 }
 
 // userRepo is the user data-access surface the service depends on.
@@ -224,6 +225,40 @@ func (s *HouseholdService) Show(userID uint) (*HouseholdView, error) {
 		Members:    members,
 		ViewerRole: user.Role,
 	}, nil
+}
+
+// ErrSelfRemoval means a user tried to remove themselves from the household.
+var ErrSelfRemoval = errors.New("cannot remove yourself from the household")
+
+// RemoveMember removes a user from the household by clearing their HouseholdID.
+// Only the household owner may remove non-owner members. The owner cannot remove
+// themselves (ErrSelfRemoval), and only owners may remove anyone (ErrNotOwner).
+// The target must be a member of the same household (ErrNotMember).
+func (s *HouseholdService) RemoveMember(ownerID, targetID uint) error {
+	owner, err := s.userRepo.FindByID(ownerID)
+	if err != nil {
+		return err
+	}
+	if owner == nil || owner.Role != database.RoleOwner {
+		return ErrNotOwner
+	}
+
+	if targetID == ownerID {
+		return ErrSelfRemoval
+	}
+
+	target, err := s.userRepo.FindByID(targetID)
+	if err != nil {
+		return err
+	}
+	if target == nil || target.HouseholdID == nil || owner.HouseholdID == nil || *target.HouseholdID != *owner.HouseholdID {
+		return ErrNotMember
+	}
+	if target.Role == database.RoleOwner {
+		return ErrOwnerImmutable
+	}
+
+	return s.houseRepo.RemoveMember(*target.HouseholdID, targetID)
 }
 
 // SetMemberRole changes a member's role (admin|member). Only the household

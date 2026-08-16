@@ -32,7 +32,7 @@ func setupTestApp() *fiber.App {
 
 // createValidToken generates a JWT cookie value for testing.
 func createValidToken(userID uint, householdID *uint, role, email string, isAdmin bool) string {
-	token, _ := services.CreateToken(userID, householdID, role, email, isAdmin, testSecret, 24)
+	token, _ := services.CreateToken(userID, householdID, role, email, "", isAdmin, testSecret, 24)
 	return token
 }
 
@@ -184,7 +184,7 @@ func TestRequireAuth_ExpiredToken(t *testing.T) {
 	app := setupTestApp()
 
 	// Create token with 0 hours expiration — it's already expired
-	token, _ := services.CreateToken(1, nil, "member", "member@example.com", false, testSecret, 0)
+	token, _ := services.CreateToken(1, nil, "member", "member@example.com", "", false, testSecret, 0)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
@@ -209,7 +209,7 @@ func TestRequireAuth_WrongSecret(t *testing.T) {
 	app := setupTestApp()
 
 	// Create token with a different secret than what the middleware expects
-	token, _ := services.CreateToken(1, nil, "member", "member@example.com", false, "wrong-secret", 24)
+	token, _ := services.CreateToken(1, nil, "member", "member@example.com", "", false, "wrong-secret", 24)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
@@ -227,6 +227,75 @@ func TestRequireAuth_WrongSecret(t *testing.T) {
 	location := resp.Header.Get("Location")
 	if location != "/login" {
 		t.Errorf("expected redirect to /login, got %s", location)
+	}
+}
+
+// setupLangTestApp creates a Fiber app with RequireAuth middleware that echoes
+// the Lang local set by the middleware.
+func setupLangTestApp() *fiber.App {
+	app := fiber.New()
+
+	app.Get("/protected", RequireAuth(testSecret), func(c *fiber.Ctx) error {
+		lang, _ := c.Locals("lang").(string)
+		return c.SendString("lang=" + lang)
+	})
+
+	return app
+}
+
+// createValidTokenWithLang generates a JWT cookie value with a lang claim for testing.
+func createValidTokenWithLang(userID uint, householdID *uint, role, email, lang string, isAdmin bool) string {
+	token, _ := services.CreateToken(userID, householdID, role, email, lang, isAdmin, testSecret, 24)
+	return token
+}
+
+func TestRequireAuth_LangFromClaims(t *testing.T) {
+	app := setupLangTestApp()
+
+	token := createValidTokenWithLang(1, nil, "member", "user@example.com", "es", false)
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if string(body) != "lang=es" {
+		t.Errorf("expected lang=es, got %s", string(body))
+	}
+}
+
+func TestRequireAuth_LangEmptyFallback(t *testing.T) {
+	app := setupLangTestApp()
+
+	// Create a token WITHOUT lang field (simulating old tokens) — should fallback to "en"
+	token := createValidTokenWithLang(1, nil, "member", "user@example.com", "", false)
+
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.AddCookie(&http.Cookie{Name: "jwt", Value: token})
+
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	// Empty lang in token → middleware falls back to "en"
+	if string(body) != "lang=en" {
+		t.Errorf("expected lang=en (fallback from empty claim), got %s", string(body))
 	}
 }
 
@@ -285,7 +354,7 @@ func TestRequireSiteAdmin(t *testing.T) {
 		{"empty cookie", &http.Cookie{Name: "jwt", Value: ""}, fiber.StatusFound, "/login", ""},
 		{"invalid cookie", &http.Cookie{Name: "jwt", Value: "not-a-real-token"}, fiber.StatusFound, "/login", ""},
 		{"expired token", &http.Cookie{Name: "jwt", Value: func() string {
-			tok, _ := services.CreateToken(1, nil, "owner", "siteadmin@example.com", true, testSecret, 0)
+			tok, _ := services.CreateToken(1, nil, "owner", "siteadmin@example.com", "", true, testSecret, 0)
 			return tok
 		}()}, fiber.StatusFound, "/login", ""},
 		// Authenticated but not a site admin: forbidden (no ordering

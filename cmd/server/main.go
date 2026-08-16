@@ -85,6 +85,9 @@ func main() {
 	app.Post("/register", authHandler.Register)
 	app.Post("/logout", authHandler.Logout)
 
+	// Language switch (WU-5)
+	app.Post("/settings/lang", middleware.RequireAuth(cfg.JWTSecret), authHandler.LangSwitch)
+
 	// Root redirect — token-aware: authenticated users go to /dashboard,
 	// everyone else to /login.
 	app.Get("/", rootRedirect(cfg.JWTSecret))
@@ -112,6 +115,7 @@ func main() {
 	app.Post("/household/invite", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Invite)
 	app.Post("/household/join", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Join)
 	app.Post("/household/members/:id/role", middleware.RequireAuth(cfg.JWTSecret), householdHandler.SetMemberRole)
+	app.Post("/household/members/:id/remove", middleware.RequireAuth(cfg.JWTSecret), householdHandler.RemoveMember)
 
 	// Site-admin routes
 	app.Get("/admin", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireSiteAdmin(cfg.JWTSecret), adminHandler.Show)

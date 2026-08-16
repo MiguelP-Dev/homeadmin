@@ -26,6 +26,11 @@ func RequireAuth(jwtSecret string) fiber.Handler {
 		c.Locals("role", claims.Role)
 		c.Locals("email", claims.Email)
 		c.Locals("isAdmin", claims.IsAdmin)
+		lang := claims.Lang
+		if lang == "" {
+			lang = "en"
+		}
+		c.Locals("lang", lang)
 
 		return c.Next()
 	}
@@ -71,9 +76,14 @@ func RequireSiteAdmin(jwtSecret string) fiber.Handler {
 		c.Locals("role", claims.Role)
 		c.Locals("email", claims.Email)
 		c.Locals("isAdmin", claims.IsAdmin)
+		lang := claims.Lang
+		if lang == "" {
+			lang = "en"
+		}
+		c.Locals("lang", lang)
 
 		if !claims.IsAdmin {
-			return Forbidden("site administrator access required")
+			return Keyed(403, "auth.site_admin_required")
 		}
 		return c.Next()
 	}

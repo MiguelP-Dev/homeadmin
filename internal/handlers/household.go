@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
@@ -21,6 +20,7 @@ type householdServiceInterface interface {
 	Join(userID uint, code string) (*database.Household, error)
 	Show(userID uint) (*services.HouseholdView, error)
 	SetMemberRole(ownerID, targetID uint, role string) error
+	RemoveMember(ownerID, targetID uint) error
 }
 
 // HouseholdHandler handles household management HTTP routes.
@@ -48,23 +48,28 @@ func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
 	email, _ := c.Locals("email").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
 
 	view, err := h.service.Show(userID)
 	if err != nil {
-		return middleware.Internal("failed to load household")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	c.Type("html")
 
 	if view == nil {
 		component := pages.HouseholdSetup(csrfToken, "")
-		page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
+		page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 		ctx := templ.WithChildren(c.Context(), component)
 		return page.Render(ctx, c.Response().BodyWriter())
 	}
 
-	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, "")
-	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
+	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, "", lang)
+	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
 }
@@ -77,12 +82,12 @@ func (h *HouseholdHandler) Create(c *fiber.Ctx) error {
 	hh, err := h.service.Create(userID, name)
 	if err != nil {
 		if errors.Is(err, services.ErrAlreadyHasHousehold) {
-			return middleware.BadRequest("You already belong to a household")
+			return middleware.Keyed(400, "household.already_has")
 		}
 		if errors.Is(err, services.ErrNameRequired) {
-			return middleware.BadRequest("Household name is required")
+			return middleware.Keyed(400, "household.name_required")
 		}
-		return middleware.Internal(fmt.Sprintf("failed to create household: %v", err))
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	// Re-issue JWT with household_id and role=owner from the fresh DB user
@@ -90,11 +95,11 @@ func (h *HouseholdHandler) Create(c *fiber.Ctx) error {
 	// and site-admin flag (user.IsAdmin, slice 5).
 	user, err := h.userRepo.FindByID(userID)
 	if err != nil || user == nil {
-		return middleware.Internal("failed to load user for token")
+		return middleware.Keyed(500, "error.internal_server")
 	}
-	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
+	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.Lang, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
 	if err != nil {
-		return middleware.Internal("failed to issue token")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	SetJWTCookie(c, token)
@@ -112,22 +117,27 @@ func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
 	code, err := h.service.Invite(userID)
 	if err != nil {
 		if errors.Is(err, services.ErrNoHousehold) {
-			return middleware.BadRequest("You must belong to a household")
+			return middleware.Keyed(400, "household.no_household")
 		}
 		if errors.Is(err, services.ErrNotAdmin) {
-			return middleware.Forbidden("Only admins can invite")
+			return middleware.Keyed(403, "household.not_admin")
 		}
-		return middleware.Internal("failed to generate invite code")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	// Re-fetch household to render HouseholdShow with the invite code.
 	view, err := h.service.Show(userID)
 	if err != nil || view == nil {
-		return middleware.Internal("failed to load household")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
-	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, code)
-	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, code, lang)
+	activePath := c.Path()
+	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	ctx := templ.WithChildren(c.Context(), component)
 	c.Type("html")
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -141,18 +151,18 @@ func (h *HouseholdHandler) SetMemberRole(c *fiber.Ctx) error {
 
 	targetID, err := c.ParamsInt("id")
 	if err != nil || targetID <= 0 {
-		return middleware.BadRequest("invalid member id")
+		return middleware.Keyed(400, "household.member_not_found")
 	}
 
 	role := c.FormValue("role")
 	if err := h.service.SetMemberRole(userID, uint(targetID), role); err != nil {
 		switch {
 		case errors.Is(err, services.ErrNotOwner), errors.Is(err, services.ErrOwnerImmutable):
-			return middleware.Forbidden("You cannot change this member's role")
+			return middleware.Keyed(403, "household.role_forbidden")
 		case errors.Is(err, services.ErrSelfRoleChange):
-			return middleware.BadRequest("You cannot change your own role")
+			return middleware.Keyed(400, "household.self_role")
 		case errors.Is(err, services.ErrNotMember):
-			return middleware.NotFound("User is not a member of this household")
+			return middleware.Keyed(404, "household.member_not_found")
 		default:
 			return middleware.BadRequest("Invalid role")
 		}
@@ -169,18 +179,18 @@ func (h *HouseholdHandler) Join(c *fiber.Ctx) error {
 	hh, err := h.service.Join(userID, code)
 	if err != nil {
 		if errors.Is(err, services.ErrAlreadyHasHousehold) {
-			return middleware.BadRequest("You already belong to a household")
+			return middleware.Keyed(400, "household.already_has")
 		}
 		if errors.Is(err, services.ErrInvalidCode) {
-			return middleware.BadRequest("Invalid invite code")
+			return middleware.Keyed(400, "household.invalid_code")
 		}
 		if errors.Is(err, services.ErrExpiredCode) {
-			return middleware.BadRequest("Invite code has expired")
+			return middleware.Keyed(400, "household.expired")
 		}
 		if errors.Is(err, services.ErrUsedCode) {
-			return middleware.BadRequest("Invite code has already been used")
+			return middleware.Keyed(400, "household.used")
 		}
-		return middleware.Internal("failed to join household")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	// Re-issue JWT with household_id and role=member from the fresh DB user
@@ -188,14 +198,40 @@ func (h *HouseholdHandler) Join(c *fiber.Ctx) error {
 	// and site-admin flag (user.IsAdmin, slice 5).
 	user, err := h.userRepo.FindByID(userID)
 	if err != nil || user == nil {
-		return middleware.Internal("failed to load user for token")
+		return middleware.Keyed(500, "error.internal_server")
 	}
-	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
+	token, err := services.CreateToken(user.ID, &hh.ID, user.Role, user.Email, user.Lang, user.IsAdmin, h.jwtSecret, h.jwtExpirationHours)
 	if err != nil {
-		return middleware.Internal("failed to issue token")
+		return middleware.Keyed(500, "error.internal_server")
 	}
 
 	SetJWTCookie(c, token)
 
 	return c.Status(fiber.StatusFound).Redirect("/dashboard")
+}
+
+// RemoveMember handles POST /household/members/:id/remove — owner-only member
+// removal. The target member is removed from the household (HouseholdID cleared).
+func (h *HouseholdHandler) RemoveMember(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(uint)
+
+	targetID, err := c.ParamsInt("id")
+	if err != nil || targetID <= 0 {
+		return middleware.Keyed(400, "household.member_not_found")
+	}
+
+	if err := h.service.RemoveMember(userID, uint(targetID)); err != nil {
+		switch {
+		case errors.Is(err, services.ErrSelfRemoval):
+			return middleware.Keyed(400, "household.self_removal")
+		case errors.Is(err, services.ErrNotOwner), errors.Is(err, services.ErrOwnerImmutable):
+			return middleware.Keyed(403, "household.role_forbidden")
+		case errors.Is(err, services.ErrNotMember):
+			return middleware.Keyed(404, "household.member_not_found")
+		default:
+			return middleware.Keyed(500, "error.internal_server")
+		}
+	}
+
+	return c.Status(fiber.StatusFound).Redirect("/household")
 }

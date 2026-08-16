@@ -6,8 +6,8 @@ import (
 )
 
 // Expenses renders the expense list page content.
-// It receives a slice of expenses to display.
-templ Expenses(expenses []database.Expense) {
+// It receives a slice of expenses to display and lang for locale formatting.
+templ Expenses(expenses []database.Expense, lang string) {
 	<div class="max-w-4xl mx-auto p-6">
 		<div class="flex items-center justify-between mb-6">
 			<h1 class="text-3xl font-bold text-gray-900">Expenses</h1>
@@ -19,7 +19,7 @@ templ Expenses(expenses []database.Expense) {
 		} else {
 			<div class="space-y-3">
 				for _, e := range expenses {
-					@components.ExpenseCard(e)
+					@components.ExpenseCard(e, lang)
 				}
 			</div>
 		}

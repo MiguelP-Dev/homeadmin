@@ -4,12 +4,15 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/homeadmin/internal/i18n"
 )
 
 // AppError represents a structured application error with HTTP status and message.
 type AppError struct {
 	Status  int
 	Message string
+	Key     string
+	Args    []any
 	Wrap    error
 }
 
@@ -48,6 +51,21 @@ func Internal(msg string) *AppError {
 	return &AppError{Status: fiber.StatusInternalServerError, Message: msg}
 }
 
+// Keyed creates an AppError identified by an i18n translation key.
+// The Message field is left empty; ErrorHandler translates via lang at response time.
+func Keyed(status int, key string, args ...any) *AppError {
+	return &AppError{Status: status, Key: key, Args: args}
+}
+
+// translate resolves the display message for an AppError.
+// For keyed errors it uses i18n.Tf; for raw errors it returns the Message as-is.
+func translate(lang string, e *AppError) string {
+	if e.Key != "" {
+		return i18n.Tf(lang, e.Key, e.Args...)
+	}
+	return e.Message
+}
+
 // ErrorHandler is the centralized Fiber error handler.
 // It content-negotiates: JSON for API clients, HTML for browsers.
 // For HTMX requests, it sets the HX-Trigger header so client-side JS can show toasts.
@@ -55,10 +73,15 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 	// Extract status and message from AppError or fallback to generic error
 	status := fiber.StatusInternalServerError
 	message := err.Error()
+	lang := "en"
 
 	if e, ok := err.(*AppError); ok {
 		status = e.Status
-		message = e.Message
+		// Resolve lang from Locals (set by middleware/auth.go WU-2)
+		if l, ok := c.Locals("lang").(string); ok && l != "" {
+			lang = l
+		}
+		message = translate(lang, e)
 	} else if fe, ok := err.(*fiber.Error); ok {
 		// Preserve Fiber's own error codes (e.g. fiber.ErrNotFound → 404)
 		// instead of collapsing every non-AppError into a generic 500.
@@ -80,7 +103,7 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 	accept := c.Get("Accept")
 	if containsHTML(accept) {
 		c.Type("html")
-		return c.Status(status).SendString(errorPageHTML(status, message))
+		return c.Status(status).SendString(errorPageHTML(status, message, lang))
 	}
 
 	return c.Status(status).JSON(fiber.Map{"error": message})
@@ -113,9 +136,9 @@ func containsHTML(accept string) bool {
 }
 
 // errorPageHTML renders a minimal HTML error page.
-func errorPageHTML(status int, message string) string {
+func errorPageHTML(status int, message string, lang string) string {
 	return fmt.Sprintf(`<!DOCTYPE html>
-<html lang="en">
+<html lang="%s">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -136,5 +159,5 @@ func errorPageHTML(status int, message string) string {
         <p><a href="/">Home</a></p>
     </div>
 </body>
-</html>`, status, status, message)
+</html>`, lang, status, status, message)
 }

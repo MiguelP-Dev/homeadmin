@@ -62,6 +62,7 @@ type mockUserRepoForSiteAdmin struct {
 }
 
 func (m *mockUserRepoForSiteAdmin) Create(user *database.User) error { return nil }
+func (m *mockUserRepoForSiteAdmin) CountAndCreate(user *database.User) error { return nil }
 func (m *mockUserRepoForSiteAdmin) FindByID(id uint) (*database.User, error) {
 	for _, u := range m.all {
 		if u.ID == id {

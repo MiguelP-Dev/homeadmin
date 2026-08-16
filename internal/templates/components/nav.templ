@@ -1,11 +1,16 @@
 package components
 
-import "github.com/homeadmin/internal/database"
+import "github.com/homeadmin/internal/i18n"
 
 // Nav renders the navigation bar.
 // email is empty for unauthenticated users, non-empty for logged-in users.
 // isAdmin controls whether the /admin link is shown.
-templ Nav(email string, isAdmin bool) {
+// lang is the locale code ("en", "es") for i18n labels.
+// activePath is the current request path for active link highlighting.
+// csrfToken is the CSRF token for the logout form.
+templ Nav(email string, isAdmin bool, lang string, activePath string, csrfToken string) {
+	<!-- Scrim overlay for mobile drawer -->
+	<div id="nav-scrim" class="fixed inset-0 bg-black/50 z-30 hidden"></div>
 	<nav class="bg-gray-800 text-white sticky top-0 z-40">
 		<div class="container mx-auto flex items-center justify-between p-4">
 			<a href="/" class="text-lg font-bold">HomeAdmin</a>
@@ -17,6 +22,28 @@ templ Nav(email string, isAdmin bool) {
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
 				</svg>
 			</button>
+			if email != "" {
+				<div class="flex items-center space-x-1 mr-2">
+					<form method="POST" action="/settings/lang" class="inline">
+						<input type="hidden" name="csrf" value={ csrfToken }/>
+						<input type="hidden" name="lang" value="en"/>
+						if lang == "en" {
+							<button type="submit" class="text-white font-bold text-sm">EN</button>
+						} else {
+							<button type="submit" class="text-gray-400 hover:text-white text-sm">EN</button>
+						}
+					</form>
+					<form method="POST" action="/settings/lang" class="inline">
+						<input type="hidden" name="csrf" value={ csrfToken }/>
+						<input type="hidden" name="lang" value="es"/>
+						if lang == "es" {
+							<button type="submit" class="text-white font-bold text-sm">ES</button>
+						} else {
+							<button type="submit" class="text-gray-400 hover:text-white text-sm">ES</button>
+						}
+					</form>
+				</div>
+			}
 			<button id="nav-menu-button" class="md:hidden text-white focus:outline-none" aria-label="Toggle menu">
 				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
@@ -26,14 +53,31 @@ templ Nav(email string, isAdmin bool) {
 				if email != "" {
 					<li><span class="text-gray-400 mr-2">{ email }</span></li>
 					if isAdmin {
-						<li><a href="/admin" class="hover:text-gray-300">Admin</a></li>
+						if activePath == "/admin" {
+							<li><a href="/admin" class="hover:text-gray-300 font-semibold" aria-current="page">{ i18n.T(lang, "nav.admin") }</a></li>
+						} else {
+							<li><a href="/admin" class="hover:text-gray-300">{ i18n.T(lang, "nav.admin") }</a></li>
+						}
 					}
-					<li><a href="/dashboard" class="hover:text-gray-300">Dashboard</a></li>
-					<li><a href="/expenses" class="hover:text-gray-300">Expenses</a></li>
-					<li><a href="/household" class="hover:text-gray-300">Household</a></li>
+					if activePath == "/dashboard" {
+						<li><a href="/dashboard" class="hover:text-gray-300 font-semibold" aria-current="page">{ i18n.T(lang, "nav.dashboard") }</a></li>
+					} else {
+						<li><a href="/dashboard" class="hover:text-gray-300">{ i18n.T(lang, "nav.dashboard") }</a></li>
+					}
+					if activePath == "/expenses" {
+						<li><a href="/expenses" class="hover:text-gray-300 font-semibold" aria-current="page">{ i18n.T(lang, "nav.expenses") }</a></li>
+					} else {
+						<li><a href="/expenses" class="hover:text-gray-300">{ i18n.T(lang, "nav.expenses") }</a></li>
+					}
+					if activePath == "/household" {
+						<li><a href="/household" class="hover:text-gray-300 font-semibold" aria-current="page">{ i18n.T(lang, "nav.household") }</a></li>
+					} else {
+						<li><a href="/household" class="hover:text-gray-300">{ i18n.T(lang, "nav.household") }</a></li>
+					}
 					<li>
 						<form method="POST" action="/logout" class="inline">
-							<button type="submit" class="hover:text-gray-300">Logout</button>
+							<input type="hidden" name="csrf" value={ csrfToken }/>
+							<button type="submit" class="hover:text-gray-300">{ i18n.T(lang, "nav.logout") }</button>
 						</form>
 					</li>
 				} else {
@@ -47,10 +91,34 @@ templ Nav(email string, isAdmin bool) {
 		(function() {
 			var btn = document.getElementById('nav-menu-button');
 			var menu = document.getElementById('nav-menu');
-			if (btn && menu) {
+			var scrim = document.getElementById('nav-scrim');
+			function openDrawer() {
+				menu.classList.remove('hidden');
+				scrim.classList.remove('hidden');
+			}
+			function closeDrawer() {
+				menu.classList.add('hidden');
+				scrim.classList.add('hidden');
+			}
+			if (btn && menu && scrim) {
 				btn.addEventListener('click', function() {
-					menu.classList.toggle('hidden');
+					if (menu.classList.contains('hidden')) {
+						openDrawer();
+					} else {
+						closeDrawer();
+					}
 				});
+				scrim.addEventListener('click', closeDrawer);
+				document.addEventListener('keydown', function(e) {
+					if (e.key === 'Escape') {
+						closeDrawer();
+					}
+				});
+				// Close drawer when a nav link is clicked (mobile)
+				var links = menu.querySelectorAll('a');
+				for (var i = 0; i < links.length; i++) {
+					links[i].addEventListener('click', closeDrawer);
+				}
 			}
 			var themeBtn = document.getElementById('theme-toggle');
 			var sunIcon = document.getElementById('theme-icon-sun');

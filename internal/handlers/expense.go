@@ -130,9 +130,14 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
 	email, _ := c.Locals("email").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
 
-	component := pages.Expenses(expenses)
-	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin)
+	component := pages.Expenses(expenses, lang)
+	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -143,9 +148,14 @@ func (h *ExpenseHandler) ShowNew(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
 	email, _ := c.Locals("email").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
 
 	component := pages.ExpenseForm(csrfToken, "/expenses", "Create Expense", "", pages.ExpenseFormValuesFrom(nil))
-	page := layouts.Base("Create Expense — HomeAdmin", csrfToken, email, isAdmin)
+	page := layouts.Base("Create Expense — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -180,9 +190,14 @@ func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
 	email, _ := c.Locals("email").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
 
 	component := pages.ExpenseForm(csrfToken, fmt.Sprintf("/expenses/%d/update", expenseID), "Update Expense", "", pages.ExpenseFormValuesFrom(expense))
-	page := layouts.Base("Edit Expense — HomeAdmin", csrfToken, email, isAdmin)
+	page := layouts.Base("Edit Expense — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -287,9 +302,14 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	viewerRole, _ := c.Locals("role").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
 	csrfToken, _ := c.Locals("csrfToken").(string)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
 
-	component := pages.Dashboard(summary, viewerRole)
-	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin)
+	component := pages.Dashboard(summary, viewerRole, lang)
+	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())

@@ -91,6 +91,9 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	app.Post("/register", authHandler.Register)
 	app.Post("/logout", authHandler.Logout)
 
+	// Language switch route (WU-5)
+	app.Post("/settings/lang", middleware.RequireAuth(jwtSecret), authHandler.LangSwitch)
+
 	// Root redirect — token-aware: authenticated users go to /dashboard,
 	// everyone else to /login (same handler main.go mounts).
 	app.Get("/", rootRedirect(jwtSecret))
@@ -361,11 +364,11 @@ func TestRootRedirect_Unauthenticated(t *testing.T) {
 // root handler — no DB or other routes needed.
 func TestRootRedirect_TokenAware(t *testing.T) {
 	jwtSecret := "test-secret"
-	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
+	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
-	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, -1)
+	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, -1)
 	if err != nil {
 		t.Fatalf("CreateToken(expired) error: %v", err)
 	}
@@ -527,7 +530,7 @@ func TestDashboard_WithHouseholdJWT_NoPanic(t *testing.T) {
 	app := newIntegrationApp(t, "", jwtSecret)
 
 	householdID := uint(1)
-	token, err := services.CreateToken(1, &householdID, "member", "user@example.com", false, jwtSecret, 24)
+	token, err := services.CreateToken(1, &householdID, "member", "user@example.com", "", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
@@ -562,7 +565,7 @@ func TestDashboard_NoHousehold_RedirectsToHousehold(t *testing.T) {
 	jwtSecret := "test-secret"
 	app := newIntegrationApp(t, "", jwtSecret)
 
-	token, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
+	token, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
@@ -591,11 +594,11 @@ func TestRootRedirect_Integration(t *testing.T) {
 	jwtSecret := "test-secret"
 	app := newIntegrationApp(t, "", jwtSecret)
 
-	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
+	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
-	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, -1)
+	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, -1)
 	if err != nil {
 		t.Fatalf("CreateToken(expired) error: %v", err)
 	}
@@ -711,8 +714,8 @@ func TestAuthNavE2E_EmailInProtectedPage(t *testing.T) {
 	if claims.Email != email {
 		t.Errorf("claims.Email = %q, want %q", claims.Email, email)
 	}
-	if claims.IsAdmin {
-		t.Error("claims.IsAdmin = true, want false for a fresh registration")
+	if !claims.IsAdmin {
+		t.Error("claims.IsAdmin = false, want true for the first registered user (first-user admin)")
 	}
 
 	// The protected page must render the logged-in nav with the user's email
@@ -1355,6 +1358,25 @@ func TestCSRFBlocksLogoutPost(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusForbidden {
 		t.Errorf("status code = %d, want %d (CSRF should block POST /logout without token)", resp.StatusCode, fiber.StatusForbidden)
+	}
+}
+
+// TestLangSwitch_CSRFLessPostForbidden verifies POST /settings/lang without a CSRF
+// token is rejected with 403 (threat matrix: state-mutating POST requires CSRF).
+func TestLangSwitch_CSRFLessPostForbidden(t *testing.T) {
+	app := newIntegrationApp(t, "test-csrf-key", "test-secret")
+
+	form := "lang=es"
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("app.Test() error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("status = %d, want %d (CSRF must block token-less POST to /settings/lang)", resp.StatusCode, fiber.StatusForbidden)
 	}
 }
 

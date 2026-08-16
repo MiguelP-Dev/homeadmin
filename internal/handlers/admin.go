@@ -24,20 +24,25 @@ func NewAdminHandler(service *services.SiteAdminService) *AdminHandler {
 func (h *AdminHandler) Show(c *fiber.Ctx) error {
 	users, err := h.service.ListUsers()
 	if err != nil {
-		return middleware.Internal("failed to load users")
+		return middleware.Keyed(500, "admin.load_failed")
 	}
 
 	households, err := h.service.ListHouseholds()
 	if err != nil {
-		return middleware.Internal("failed to load households")
+		return middleware.Keyed(500, "admin.load_failed")
 	}
 
 	email, _ := c.Locals("email").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
 	csrfToken, _ := c.Locals("csrfToken").(string)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
 
 	component := pages.Admin(users, households)
-	page := layouts.Base("Admin — HomeAdmin", csrfToken, email, isAdmin)
+	page := layouts.Base("Admin — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())

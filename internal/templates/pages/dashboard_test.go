@@ -13,9 +13,9 @@ import (
 	"github.com/homeadmin/internal/templates/pages"
 )
 
-func mustRenderDashboard(s *services.DashboardSummary, viewerRole string) string {
+func mustRenderDashboard(s *services.DashboardSummary, viewerRole string, lang string) string {
 	buf := &bytes.Buffer{}
-	err := pages.Dashboard(s, viewerRole).Render(context.Background(), buf)
+	err := pages.Dashboard(s, viewerRole, lang).Render(context.Background(), buf)
 	if err != nil {
 		panic(err)
 	}
@@ -28,7 +28,7 @@ func TestDashboard_ShowsMonthYearHeading(t *testing.T) {
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	currentMonth := time.Now().Format("January 2006")
 	if !strings.Contains(output, currentMonth) {
 		t.Errorf("expected month/year '%s' in dashboard heading", currentMonth)
@@ -41,7 +41,7 @@ func TestDashboard_ShowsMonthlyTotal(t *testing.T) {
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "1,250.75") && !strings.Contains(output, "1250.75") {
 		t.Error("expected monthly total 1250.75 in dashboard output")
 	}
@@ -53,7 +53,7 @@ func TestDashboard_ZeroMonthlyTotal(t *testing.T) {
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "0.00") {
 		t.Error("expected 0.00 for zero monthly total")
 	}
@@ -63,17 +63,17 @@ func TestDashboard_ShowsCategoryBreakdown(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal: 350.00,
 		CategoryTotals: []repositories.CategoryTotal{
-			{Category: "Groceries", Total: 200.00},
-			{Category: "Rent", Total: 150.00},
+			{Category: "groceries", Total: 200.00},
+			{Category: "rent", Total: 150.00},
 		},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "Groceries") {
-		t.Error("expected category 'Groceries' in breakdown table")
+		t.Error("expected category 'Groceries' (translated) in breakdown table")
 	}
 	if !strings.Contains(output, "Rent") {
-		t.Error("expected category 'Rent' in breakdown table")
+		t.Error("expected category 'Rent' (translated) in breakdown table")
 	}
 }
 
@@ -83,7 +83,7 @@ func TestDashboard_ShowsEmptyCategoryState(t *testing.T) {
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "No expenses this month") {
 		t.Error("expected 'No expenses this month' empty state when no categories")
 	}
@@ -100,7 +100,7 @@ func TestDashboard_ShowsRecentExpenses(t *testing.T) {
 			{ID: 2, Description: "Dinner", Amount: 25.00, Category: "food", Date: time.Date(2026, 7, 26, 0, 0, 0, 0, time.UTC)},
 		},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "Lunch") {
 		t.Error("expected 'Lunch' in recent expenses")
 	}
@@ -117,7 +117,7 @@ func TestDashboard_ShowsEmptyRecentExpenses(t *testing.T) {
 		},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "No recent expenses") {
 		t.Error("expected 'No recent expenses' empty state when no recent expenses")
 	}
@@ -129,7 +129,7 @@ func TestDashboard_HasLinkToExpenses(t *testing.T) {
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "/expenses") {
 		t.Error("expected link back to /expenses in dashboard")
 	}
@@ -141,7 +141,7 @@ func TestDashboard_HasAddExpenseCTA(t *testing.T) {
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, `href="/expenses/new"`) {
 		t.Error("expected Add Expense CTA linking to /expenses/new in dashboard")
 	}
@@ -155,7 +155,7 @@ func TestDashboard_ShowsCategoryTotalAmount(t *testing.T) {
 		},
 		RecentExpenses: []database.Expense{},
 	}
-	output := mustRenderDashboard(s, "member")
+	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "180.00") {
 		t.Error("expected 180.00 in category total for utilities")
 	}
@@ -166,8 +166,8 @@ func TestDashboard_ShowsCategoryTotalAmount(t *testing.T) {
 func TestDashboard_Triangulation_DifferentMonthlyTotals(t *testing.T) {
 	s1 := &services.DashboardSummary{MonthlyTotal: 100.00, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
 	s2 := &services.DashboardSummary{MonthlyTotal: 9999.99, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
-	out1 := mustRenderDashboard(s1, "member")
-	out2 := mustRenderDashboard(s2, "member")
+	out1 := mustRenderDashboard(s1, "member", "en")
+	out2 := mustRenderDashboard(s2, "member", "en")
 	if !strings.Contains(out1, "100.00") {
 		t.Error("expected 100.00 in first dashboard")
 	}
@@ -183,7 +183,7 @@ func TestDashboard_Triangulation_DifferentCategories(t *testing.T) {
 	s1 := &services.DashboardSummary{
 		MonthlyTotal: 100.00,
 		CategoryTotals: []repositories.CategoryTotal{
-			{Category: "food", Total: 100.00},
+			{Category: "groceries", Total: 100.00},
 		},
 		RecentExpenses: []database.Expense{},
 	}
@@ -194,19 +194,19 @@ func TestDashboard_Triangulation_DifferentCategories(t *testing.T) {
 		},
 		RecentExpenses: []database.Expense{},
 	}
-	out1 := mustRenderDashboard(s1, "member")
-	out2 := mustRenderDashboard(s2, "member")
-	if !strings.Contains(out1, "food") {
-		t.Error("first dashboard should show 'food' category")
+	out1 := mustRenderDashboard(s1, "member", "en")
+	out2 := mustRenderDashboard(s2, "member", "en")
+	if !strings.Contains(out1, "Groceries") {
+		t.Error("first dashboard should show 'Groceries' category (translated)")
 	}
-	if !strings.Contains(out2, "rent") {
-		t.Error("second dashboard should show 'rent' category")
+	if !strings.Contains(out2, "Rent") {
+		t.Error("second dashboard should show 'Rent' category (translated)")
 	}
 }
 
 func TestDashboard_InviteCTA_VisibleForOwner(t *testing.T) {
 	s := &services.DashboardSummary{MonthlyTotal: 0, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
-	output := mustRenderDashboard(s, database.RoleOwner)
+	output := mustRenderDashboard(s, database.RoleOwner, "en")
 	if !strings.Contains(output, `/household`) {
 		t.Error("expected Invite CTA for owner")
 	}
@@ -214,7 +214,7 @@ func TestDashboard_InviteCTA_VisibleForOwner(t *testing.T) {
 
 func TestDashboard_InviteCTA_VisibleForAdmin(t *testing.T) {
 	s := &services.DashboardSummary{MonthlyTotal: 0, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
-	output := mustRenderDashboard(s, database.RoleAdmin)
+	output := mustRenderDashboard(s, database.RoleAdmin, "en")
 	if !strings.Contains(output, `/household`) {
 		t.Error("expected Invite CTA for admin")
 	}
@@ -222,7 +222,7 @@ func TestDashboard_InviteCTA_VisibleForAdmin(t *testing.T) {
 
 func TestDashboard_InviteCTA_HiddenForMember(t *testing.T) {
 	s := &services.DashboardSummary{MonthlyTotal: 0, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
-	output := mustRenderDashboard(s, database.RoleMember)
+	output := mustRenderDashboard(s, database.RoleMember, "en")
 	if strings.Contains(output, `Invite member`) {
 		t.Error("member should NOT see Invite CTA")
 	}

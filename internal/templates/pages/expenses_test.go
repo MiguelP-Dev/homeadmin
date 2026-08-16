@@ -11,9 +11,9 @@ import (
 	"github.com/homeadmin/internal/templates/pages"
 )
 
-func mustRenderExpenses(expenses []database.Expense) string {
+func mustRenderExpenses(expenses []database.Expense, lang string) string {
 	buf := &bytes.Buffer{}
-	err := pages.Expenses(expenses).Render(context.Background(), buf)
+	err := pages.Expenses(expenses, lang).Render(context.Background(), buf)
 	if err != nil {
 		panic(err)
 	}
@@ -23,7 +23,7 @@ func mustRenderExpenses(expenses []database.Expense) string {
 func TestExpenses_ShowsTitle(t *testing.T) {
 	output := mustRenderExpenses([]database.Expense{
 		{ID: 1, Description: "Rent", Amount: 1500, Category: "rent", Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
-	})
+	}, "en")
 	if !strings.Contains(output, "Expenses") {
 		t.Error("expected 'Expenses' title in expenses page output")
 	}
@@ -32,7 +32,7 @@ func TestExpenses_ShowsTitle(t *testing.T) {
 func TestExpenses_ShowsExpenseDescription(t *testing.T) {
 	output := mustRenderExpenses([]database.Expense{
 		{ID: 1, Description: "Groceries", Amount: 85.50, Category: "food", Date: time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)},
-	})
+	}, "en")
 	if !strings.Contains(output, "Groceries") {
 		t.Error("expected expense description 'Groceries' in output")
 	}
@@ -43,7 +43,7 @@ func TestExpenses_ShowsMultipleExpenses(t *testing.T) {
 		{ID: 1, Description: "Rent", Amount: 1500, Category: "rent", Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
 		{ID: 2, Description: "Internet", Amount: 80, Category: "utilities", Date: time.Date(2026, 7, 5, 0, 0, 0, 0, time.UTC)},
 		{ID: 3, Description: "Gas", Amount: 45, Category: "transport", Date: time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)},
-	})
+	}, "en")
 	if !strings.Contains(output, "Rent") {
 		t.Error("expected 'Rent' in list")
 	}
@@ -56,7 +56,7 @@ func TestExpenses_ShowsMultipleExpenses(t *testing.T) {
 }
 
 func TestExpenses_ShowsEmptyState(t *testing.T) {
-	output := mustRenderExpenses([]database.Expense{})
+	output := mustRenderExpenses([]database.Expense{}, "en")
 	if !strings.Contains(output, "No expenses yet") {
 		t.Error("expected 'No expenses yet' empty state when no expenses")
 	}
@@ -65,7 +65,7 @@ func TestExpenses_ShowsEmptyState(t *testing.T) {
 func TestExpenses_HasCreateLink(t *testing.T) {
 	output := mustRenderExpenses([]database.Expense{
 		{ID: 1, Description: "Test", Amount: 10, Category: "other", Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
-	})
+	}, "en")
 	if !strings.Contains(output, "Create Expense") {
 		t.Error("expected 'Create Expense' link/button in expenses page")
 	}
@@ -74,10 +74,10 @@ func TestExpenses_HasCreateLink(t *testing.T) {
 // Triangulation: multiple expenses show correctly
 
 func TestExpenses_Triangulation_NoExpensesVsSome(t *testing.T) {
-	emptyOutput := mustRenderExpenses([]database.Expense{})
+	emptyOutput := mustRenderExpenses([]database.Expense{}, "en")
 	fullOutput := mustRenderExpenses([]database.Expense{
 		{ID: 1, Description: "Rent", Amount: 1500, Category: "rent", Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
-	})
+	}, "en")
 
 	if !strings.Contains(emptyOutput, "No expenses yet") {
 		t.Error("empty list should show 'No expenses yet'")
@@ -93,10 +93,10 @@ func TestExpenses_Triangulation_NoExpensesVsSome(t *testing.T) {
 func TestExpenses_Triangulation_DifferentExpenses(t *testing.T) {
 	list1 := mustRenderExpenses([]database.Expense{
 		{ID: 1, Description: "Item A", Amount: 10, Category: "food", Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
-	})
+	}, "en")
 	list2 := mustRenderExpenses([]database.Expense{
 		{ID: 2, Description: "Item B", Amount: 20, Category: "rent", Date: time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC)},
-	})
+	}, "en")
 
 	if !strings.Contains(list1, "Item A") {
 		t.Error("first list should contain 'Item A'")
