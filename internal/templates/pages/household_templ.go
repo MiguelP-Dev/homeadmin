@@ -19,7 +19,7 @@ import (
 // invite form (owner and admin). Only the owner sees per-member role-change
 // forms. inviteCode is optional: when non-empty it displays the generated
 // invite code after an invite action.
-func HouseholdShow(household *database.Household, members []database.User, viewerRole string, csrfToken string, inviteCode string) templ.Component {
+func HouseholdShow(household *database.Household, members []database.User, viewerRole string, csrfToken string, inviteCode string, lang string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

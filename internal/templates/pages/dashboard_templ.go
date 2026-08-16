@@ -13,13 +13,14 @@ import (
 	"time"
 
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/i18n"
 	"github.com/homeadmin/internal/services"
 	"github.com/homeadmin/internal/templates/components"
 )
 
 // Dashboard renders the monthly expense summary page.
 // viewerRole determines whether the Invite CTA is shown (owner/admin only).
-func Dashboard(summary *services.DashboardSummary, viewerRole string) templ.Component {
+func Dashboard(summary *services.DashboardSummary, viewerRole string, lang string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -45,9 +46,9 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string) templ.Comp
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%s %d", time.Now().Format("January"), time.Now().Year()))
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%s %d", i18n.MonthName(lang, time.Now()), time.Now().Year()))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 17, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 18, Col: 137}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -68,9 +69,9 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string) templ.Comp
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", summary.MonthlyTotal))
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.FormatCurrency(lang, summary.MonthlyTotal))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 25, Col: 113}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 26, Col: 118}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -92,9 +93,9 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string) templ.Comp
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(ct.Category)
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.CategoryLabel(lang, ct.Category))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 43, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 44, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -105,9 +106,9 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string) templ.Comp
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var5 string
-				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", ct.Total))
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.FormatCurrency(lang, ct.Total))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 44, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/dashboard.templ`, Line: 45, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -134,7 +135,7 @@ func Dashboard(summary *services.DashboardSummary, viewerRole string) templ.Comp
 				return templ_7745c5c3_Err
 			}
 			for _, e := range summary.RecentExpenses {
-				templ_7745c5c3_Err = components.ExpenseCard(e).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = components.ExpenseCard(e, lang).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

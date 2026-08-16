@@ -136,7 +136,7 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.Expenses(expenses)
+	component := pages.Expenses(expenses, lang)
 	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
@@ -308,7 +308,7 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.Dashboard(summary, viewerRole)
+	component := pages.Dashboard(summary, viewerRole, lang)
 	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)

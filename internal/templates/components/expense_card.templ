@@ -1,23 +1,24 @@
 package components
 
 import (
-	"fmt"
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/i18n"
 )
 
 // ExpenseCard renders a single expense as a styled card.
 // Used in both the dashboard recent list and the expenses list page.
-templ ExpenseCard(e database.Expense) {
+// lang controls locale formatting for currency, dates, categories, and visibility.
+templ ExpenseCard(e database.Expense, lang string) {
 	<div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
 		<div class="flex-1">
 			<div class="font-medium text-gray-900">{ e.Description }</div>
 			<div class="text-sm text-gray-500">
-				{ e.Category } &middot; { e.Date.Format("Jan 2, 2006") }
+				{ i18n.CategoryLabel(lang, e.Category) } &middot; { i18n.FormatDate(lang, e.Date) }
 			</div>
 		</div>
 		<div class="text-right">
-			<div class="font-semibold text-gray-900">{ fmt.Sprintf("$%.2f", e.Amount) }</div>
-			<span class={ "text-xs px-2 py-0.5 rounded-full " + visibilityBadgeClass(e.Visibility) }>{ string(e.Visibility) }</span>
+			<div class="font-semibold text-gray-900">{ i18n.FormatCurrency(lang, e.Amount) }</div>
+			<span class={ "text-xs px-2 py-0.5 rounded-full " + visibilityBadgeClass(e.Visibility) }>{ i18n.VisibilityLabel(lang, e.Visibility) }</span>
 		</div>
 	</div>
 }

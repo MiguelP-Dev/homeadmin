@@ -11,7 +11,7 @@ import (
 // invite form (owner and admin). Only the owner sees per-member role-change
 // forms. inviteCode is optional: when non-empty it displays the generated
 // invite code after an invite action.
-templ HouseholdShow(household *database.Household, members []database.User, viewerRole string, csrfToken string, inviteCode string) {
+templ HouseholdShow(household *database.Household, members []database.User, viewerRole string, csrfToken string, inviteCode string, lang string) {
 	<div class="max-w-4xl mx-auto p-6">
 		<div class="flex items-center justify-between mb-2">
 			<h1 class="text-3xl font-bold text-gray-900">{ household.Name }</h1>
