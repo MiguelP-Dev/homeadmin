@@ -34,6 +34,7 @@ type ExpenseUpdateFields struct {
 	Amount      *float64
 	Description *string
 	Category    *string
+	Type        *string
 	Date        *time.Time
 	Visibility  *database.VisibilityType
 	IsFixed     *bool
@@ -66,7 +67,7 @@ func (s *ExpenseService) viewerRole(userID uint) (string, error) {
 }
 
 // Create validates and persists a new expense.
-func (s *ExpenseService) Create(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error {
+func (s *ExpenseService) Create(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool, txType string) error {
 	if description == "" {
 		return ErrValidation
 	}
@@ -76,11 +77,18 @@ func (s *ExpenseService) Create(userID, householdID uint, amount float64, descri
 	if !database.IsValidCategory(category) {
 		return ErrValidation
 	}
+	if txType == "" {
+		txType = database.TransactionTypeExpense
+	}
+	if txType != database.TransactionTypeIncome && txType != database.TransactionTypeExpense {
+		return ErrValidation
+	}
 
 	expense := &database.Expense{
 		Amount:      amount,
 		Description: description,
 		Category:    category,
+		Type:        txType,
 		HouseholdID: householdID,
 		CreatedByID: userID,
 		Visibility:  visibility,
@@ -131,6 +139,12 @@ func (s *ExpenseService) Update(userID, expenseID uint, fields ExpenseUpdateFiel
 	}
 	if fields.IsFixed != nil {
 		expense.IsFixed = *fields.IsFixed
+	}
+	if fields.Type != nil {
+		if *fields.Type != database.TransactionTypeIncome && *fields.Type != database.TransactionTypeExpense {
+			return ErrValidation
+		}
+		expense.Type = *fields.Type
 	}
 
 	return s.repo.Update(expense)
@@ -217,6 +231,9 @@ func canViewExpense(role string, expense *database.Expense) bool {
 // DashboardSummary aggregates monthly totals, category breakdown, and recent expenses.
 type DashboardSummary struct {
 	MonthlyTotal   float64
+	TotalIncome    float64
+	TotalExpenses  float64
+	Balance        float64
 	CategoryTotals []repositories.CategoryTotal
 	RecentExpenses []database.Expense
 }
@@ -245,8 +262,36 @@ func (s *ExpenseService) GetDashboardSummary(userID, householdID uint) (*Dashboa
 		return nil, err
 	}
 
+	// Compute income/expenses/balance from all transactions
+	var totalIncome, totalExpenses float64
+	for _, e := range recent {
+		if e.Type == database.TransactionTypeIncome {
+			totalIncome += e.Amount
+		} else {
+			totalExpenses += e.Amount
+		}
+	}
+	// If we have more than 5 transactions, compute totals from all
+	if len(recent) == 5 {
+		allExpenses, err := s.repo.FindByHousehold(userID, householdID, role, database.ExpenseFilters{})
+		if err == nil {
+			totalIncome = 0
+			totalExpenses = 0
+			for _, e := range allExpenses {
+				if e.Type == database.TransactionTypeIncome {
+					totalIncome += e.Amount
+				} else {
+					totalExpenses += e.Amount
+				}
+			}
+		}
+	}
+
 	return &DashboardSummary{
 		MonthlyTotal:   total,
+		TotalIncome:    totalIncome,
+		TotalExpenses:  totalExpenses,
+		Balance:        totalIncome - totalExpenses,
 		CategoryTotals: categories,
 		RecentExpenses: recent,
 	}, nil

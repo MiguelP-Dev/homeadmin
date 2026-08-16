@@ -69,6 +69,11 @@ templ Nav(email string, isAdmin bool, lang string, activePath string, csrfToken 
 					} else {
 						<li><a href="/expenses" class="hover:text-gray-300">{ i18n.T(lang, "nav.expenses") }</a></li>
 					}
+					if activePath == "/savings" {
+						<li><a href="/savings" class="hover:text-gray-300 font-semibold" aria-current="page">{ i18n.T(lang, "nav.savings") }</a></li>
+					} else {
+						<li><a href="/savings" class="hover:text-gray-300">{ i18n.T(lang, "nav.savings") }</a></li>
+					}
 					if activePath == "/household" {
 						<li><a href="/household" class="hover:text-gray-300 font-semibold" aria-current="page">{ i18n.T(lang, "nav.household") }</a></li>
 					} else {

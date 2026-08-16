@@ -12,7 +12,7 @@ import (
 
 func mustRenderExpenseForm(csrfToken, formAction, submitLabel, errorMsg string, values pages.ExpenseFormValues) string {
 	buf := &bytes.Buffer{}
-	err := pages.ExpenseForm(csrfToken, formAction, submitLabel, errorMsg, values).Render(context.Background(), buf)
+	err := pages.ExpenseForm(csrfToken, formAction, submitLabel, errorMsg, values, "en").Render(context.Background(), buf)
 	if err != nil {
 		panic(err)
 	}

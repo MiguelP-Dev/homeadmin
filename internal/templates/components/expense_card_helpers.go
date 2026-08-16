@@ -13,3 +13,13 @@ func visibilityBadgeClass(visibility database.VisibilityType) string {
 		return "bg-green-100 text-green-700"
 	}
 }
+
+// TypeBadgeClass returns Tailwind CSS classes for the transaction type badge.
+func TypeBadgeClass(txType string) string {
+	switch txType {
+	case database.TransactionTypeIncome:
+		return "bg-green-100 text-green-700"
+	default:
+		return "bg-red-100 text-red-700"
+	}
+}

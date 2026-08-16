@@ -1,0 +1,30 @@
+package pages
+
+import "github.com/homeadmin/internal/i18n"
+
+// SavingsForm renders the create savings form.
+templ SavingsForm(csrfToken string, formAction string, submitLabel string, errorMsg string, lang string) {
+	<div class="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
+		<h1 class="text-2xl font-bold mb-4">{ submitLabel }</h1>
+		if errorMsg != "" {
+			<p class="text-red-500 mb-4">{ errorMsg }</p>
+		}
+		<form method="POST" action={ formAction }>
+			<input type="hidden" name="csrf" value={ csrfToken }/>
+			<div class="mb-4">
+				<label for="description" class="block text-sm font-medium text-gray-700">{ i18n.T(lang, "savings.description") }:</label>
+				<input type="text" id="description" name="description" required class="w-full border rounded p-2"/>
+			</div>
+			<div class="mb-4">
+				<label for="amount" class="block text-sm font-medium text-gray-700">{ i18n.T(lang, "savings.amount") }:</label>
+				<input type="number" step="0.01" min="0" id="amount" name="amount" required class="w-full border rounded p-2"/>
+			</div>
+			<div class="mb-4">
+				<label for="target" class="block text-sm font-medium text-gray-700">{ i18n.T(lang, "savings.target") }:</label>
+				<input type="number" step="0.01" min="0" id="target" name="target" class="w-full border rounded p-2" value="0"/>
+			</div>
+			<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">{ submitLabel }</button>
+		</form>
+		<p class="mt-4 text-sm"><a href="/savings" class="text-blue-500">&larr; Back to Savings</a></p>
+	</div>
+}

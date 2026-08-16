@@ -16,7 +16,7 @@ import (
 
 // expenseServiceInterface defines the expense service methods needed by the handler.
 type expenseServiceInterface interface {
-	Create(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error
+	Create(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool, txType string) error
 	FindByID(userID, householdID, expenseID uint) (*database.Expense, error)
 	FindByHousehold(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
 	Update(userID, expenseID uint, fields services.ExpenseUpdateFields) error
@@ -53,6 +53,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 
 	description := c.FormValue("description")
 	category := c.FormValue("category")
+	txType := c.FormValue("type")
 
 	// Validate inputs before touching the service layer.
 	if err := middleware.Validate(
@@ -60,7 +61,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 		middleware.ValidateMaxLength(description, "description", 255),
 		middleware.ValidatePositive(amount, "amount"),
 		middleware.ValidateRequired(category, "category"),
-		middleware.ValidateIn(category, "category", database.ExpenseCategories),
+		middleware.ValidateIn(category, "category", database.AllCategories(txType)),
 	); err != nil {
 		return middleware.Unprocessable(err.Error())
 	}
@@ -86,7 +87,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 
 	isFixed := isFixedStr == "true" || isFixedStr == "1"
 
-	if err := h.Service.Create(userID, hhID, amount, description, category, date, visibility, isFixed); err != nil {
+	if err := h.Service.Create(userID, hhID, amount, description, category, date, visibility, isFixed, txType); err != nil {
 		if err == services.ErrPermission {
 			return middleware.Forbidden(err.Error())
 		}
@@ -136,7 +137,7 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.Expenses(expenses, lang)
+	component := pages.Expenses(expenses, lang, csrfToken)
 	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
@@ -154,7 +155,7 @@ func (h *ExpenseHandler) ShowNew(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.ExpenseForm(csrfToken, "/expenses", "Create Expense", "", pages.ExpenseFormValuesFrom(nil))
+	component := pages.ExpenseForm(csrfToken, "/expenses", "Create Expense", "", pages.ExpenseFormValuesFrom(nil), lang)
 	page := layouts.Base("Create Expense — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
@@ -196,7 +197,7 @@ func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.ExpenseForm(csrfToken, fmt.Sprintf("/expenses/%d/update", expenseID), "Update Expense", "", pages.ExpenseFormValuesFrom(expense))
+	component := pages.ExpenseForm(csrfToken, fmt.Sprintf("/expenses/%d/update", expenseID), "Update Expense", "", pages.ExpenseFormValuesFrom(expense), lang)
 	page := layouts.Base("Edit Expense — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
@@ -243,6 +244,9 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	if v := c.FormValue("isFixed"); v != "" {
 		isFixed := v == "true" || v == "1"
 		fields.IsFixed = &isFixed
+	}
+	if v := c.FormValue("type"); v != "" {
+		fields.Type = &v
 	}
 
 	if err := h.Service.Update(userID, uint(expenseID), fields); err != nil {
@@ -308,7 +312,7 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.Dashboard(summary, viewerRole, lang)
+	component := pages.Dashboard(summary, viewerRole, lang, csrfToken)
 	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)

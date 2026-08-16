@@ -13,6 +13,7 @@ type ExpenseFormValues struct {
 	Amount      string
 	Description string
 	Category    string
+	Type        string
 	Date        string
 	Visibility  database.VisibilityType
 	IsFixed     bool
@@ -21,13 +22,20 @@ type ExpenseFormValues struct {
 // ExpenseFormValuesFrom converts an existing expense into form values; a nil
 // expense yields the empty create-form defaults.
 func ExpenseFormValuesFrom(expense *database.Expense) ExpenseFormValues {
-	values := ExpenseFormValues{Visibility: database.VisibleEditable}
+	values := ExpenseFormValues{
+		Visibility: database.VisibleEditable,
+		Type:       database.TransactionTypeExpense,
+	}
 	if expense == nil {
 		return values
 	}
 	values.Amount = fmt.Sprintf("%.2f", expense.Amount)
 	values.Description = expense.Description
 	values.Category = expense.Category
+	values.Type = expense.Type
+	if values.Type == "" {
+		values.Type = database.TransactionTypeExpense
+	}
 	values.Date = expense.Date.Format("2006-01-02")
 	values.Visibility = expense.Visibility
 	values.IsFixed = expense.IsFixed

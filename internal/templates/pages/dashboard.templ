@@ -12,7 +12,7 @@ import (
 
 // Dashboard renders the monthly expense summary page.
 // viewerRole determines whether the Invite CTA is shown (owner/admin only).
-templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang string) {
+templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang string, csrfToken string) {
 	<div class="max-w-4xl mx-auto p-6">
 		<div class="flex items-center justify-between mb-2">
 			<h1 class="text-3xl font-bold text-gray-900">Dashboard — { fmt.Sprintf("%s %d", i18n.MonthName(lang, time.Now()), time.Now().Year()) }</h1>
@@ -23,8 +23,59 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 				<a href="/household" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Invite member</a>
 			</div>
 		}
-		<div class="text-2xl font-bold text-green-700 mb-6">Monthly Total: { i18n.FormatCurrency(lang, summary.MonthlyTotal) }</div>
 
+		<!-- Summary Cards -->
+		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+			<div class="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+				<div class="text-sm text-gray-500">{ i18n.T(lang, "total_income") }</div>
+				<div class="text-2xl font-bold text-green-600">{ i18n.FormatCurrency(lang, summary.TotalIncome) }</div>
+			</div>
+			<div class="bg-white p-4 rounded-lg shadow border-l-4 border-red-500">
+				<div class="text-sm text-gray-500">{ i18n.T(lang, "total_expenses") }</div>
+				<div class="text-2xl font-bold text-red-600">{ i18n.FormatCurrency(lang, summary.TotalExpenses) }</div>
+			</div>
+			<div class="bg-white p-4 rounded-lg shadow border-l-4 border-blue-500">
+				<div class="text-sm text-gray-500">{ i18n.T(lang, "balance") }</div>
+				if summary.Balance >= 0 {
+					<div class="text-2xl font-bold text-green-600">{ i18n.FormatCurrency(lang, summary.Balance) }</div>
+				} else {
+					<div class="text-2xl font-bold text-red-600">{ i18n.FormatCurrency(lang, summary.Balance) }</div>
+				}
+			</div>
+		</div>
+
+		<!-- Last 5 Transactions -->
+		<h2 class="text-xl font-semibold text-gray-800 mb-3">{ i18n.T(lang, "last_transactions") }</h2>
+		if len(summary.RecentExpenses) == 0 {
+			<p class="text-gray-500 italic">No recent expenses</p>
+		} else {
+			<table class="w-full border-collapse mb-8">
+				<thead>
+					<tr class="bg-gray-100">
+						<th class="text-left p-3 border-b">{ i18n.T(lang, "date") }</th>
+						<th class="text-left p-3 border-b">{ i18n.T(lang, "description") }</th>
+						<th class="text-left p-3 border-b">{ i18n.T(lang, "category") }</th>
+						<th class="text-left p-3 border-b">{ i18n.T(lang, "type") }</th>
+						<th class="text-right p-3 border-b">{ i18n.T(lang, "amount") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, e := range summary.RecentExpenses {
+						<tr>
+							<td class="p-3 border-b">{ i18n.FormatDate(lang, e.Date) }</td>
+							<td class="p-3 border-b">{ e.Description }</td>
+							<td class="p-3 border-b">{ i18n.CategoryLabel(lang, e.Category) }</td>
+							<td class="p-3 border-b">
+								<span class={ "text-xs px-2 py-0.5 rounded-full " + components.TypeBadgeClass(e.Type) }>{ i18n.TypeLabel(lang, e.Type) }</span>
+							</td>
+							<td class="p-3 border-b text-right font-semibold">{ i18n.FormatCurrency(lang, e.Amount) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+
+		<!-- Category Breakdown -->
 		<h2 class="text-xl font-semibold text-gray-800 mb-3">Category Breakdown</h2>
 		<table class="w-full border-collapse mb-8">
 			<thead>
@@ -48,17 +99,6 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 				}
 			</tbody>
 		</table>
-
-		<h2 class="text-xl font-semibold text-gray-800 mb-3">Recent Expenses</h2>
-		if len(summary.RecentExpenses) == 0 {
-			<p class="text-gray-500 italic">No recent expenses</p>
-		} else {
-			<div class="space-y-3">
-				for _, e := range summary.RecentExpenses {
-					@components.ExpenseCard(e, lang)
-				}
-			</div>
-		}
 
 		<p class="mt-6">
 			<a href="/expenses" class="text-blue-600 hover:text-blue-800">&larr; Back to Expenses</a>

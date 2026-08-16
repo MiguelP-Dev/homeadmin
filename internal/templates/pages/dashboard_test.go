@@ -15,7 +15,7 @@ import (
 
 func mustRenderDashboard(s *services.DashboardSummary, viewerRole string, lang string) string {
 	buf := &bytes.Buffer{}
-	err := pages.Dashboard(s, viewerRole, lang).Render(context.Background(), buf)
+	err := pages.Dashboard(s, viewerRole, lang, "test-csrf").Render(context.Background(), buf)
 	if err != nil {
 		panic(err)
 	}
@@ -38,30 +38,51 @@ func TestDashboard_ShowsMonthYearHeading(t *testing.T) {
 func TestDashboard_ShowsMonthlyTotal(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal:   1250.75,
+		TotalIncome:    2000.00,
+		TotalExpenses:  749.25,
+		Balance:        1250.75,
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
 	output := mustRenderDashboard(s, "member", "en")
-	if !strings.Contains(output, "1,250.75") && !strings.Contains(output, "1250.75") {
-		t.Error("expected monthly total 1250.75 in dashboard output")
+	if !strings.Contains(output, "Total Income") {
+		t.Error("expected 'Total Income' label in dashboard")
+	}
+	if !strings.Contains(output, "Total Expenses") {
+		t.Error("expected 'Total Expenses' label in dashboard")
+	}
+	if !strings.Contains(output, "Balance") {
+		t.Error("expected 'Balance' label in dashboard")
+	}
+	if !strings.Contains(output, "2,000.00") {
+		t.Error("expected income total 2000.00 in dashboard output")
+	}
+	if !strings.Contains(output, "749.25") {
+		t.Error("expected expense total 749.25 in dashboard output")
 	}
 }
 
 func TestDashboard_ZeroMonthlyTotal(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal:   0,
+		TotalIncome:    0,
+		TotalExpenses:  0,
+		Balance:        0,
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
 	output := mustRenderDashboard(s, "member", "en")
 	if !strings.Contains(output, "0.00") {
-		t.Error("expected 0.00 for zero monthly total")
+		t.Error("expected 0.00 for zero totals")
 	}
 }
 
 func TestDashboard_ShowsCategoryBreakdown(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal: 350.00,
+		TotalIncome:  500.00,
+		TotalExpenses: 150.00,
+		Balance:      350.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "groceries", Total: 200.00},
 			{Category: "rent", Total: 150.00},
@@ -80,6 +101,9 @@ func TestDashboard_ShowsCategoryBreakdown(t *testing.T) {
 func TestDashboard_ShowsEmptyCategoryState(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal:   0,
+		TotalIncome:    0,
+		TotalExpenses:  0,
+		Balance:        0,
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
@@ -92,6 +116,9 @@ func TestDashboard_ShowsEmptyCategoryState(t *testing.T) {
 func TestDashboard_ShowsRecentExpenses(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal: 50.00,
+		TotalIncome:  100.00,
+		TotalExpenses: 50.00,
+		Balance:      50.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "food", Total: 50.00},
 		},
@@ -111,7 +138,10 @@ func TestDashboard_ShowsRecentExpenses(t *testing.T) {
 
 func TestDashboard_ShowsEmptyRecentExpenses(t *testing.T) {
 	s := &services.DashboardSummary{
-		MonthlyTotal: 0,
+		MonthlyTotal:   0,
+		TotalIncome:    0,
+		TotalExpenses:  0,
+		Balance:        0,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "food", Total: 0},
 		},
@@ -126,6 +156,9 @@ func TestDashboard_ShowsEmptyRecentExpenses(t *testing.T) {
 func TestDashboard_HasLinkToExpenses(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal:   0,
+		TotalIncome:    0,
+		TotalExpenses:  0,
+		Balance:        0,
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
@@ -138,6 +171,9 @@ func TestDashboard_HasLinkToExpenses(t *testing.T) {
 func TestDashboard_HasAddExpenseCTA(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal:   0,
+		TotalIncome:    0,
+		TotalExpenses:  0,
+		Balance:        0,
 		CategoryTotals: []repositories.CategoryTotal{},
 		RecentExpenses: []database.Expense{},
 	}
@@ -150,6 +186,9 @@ func TestDashboard_HasAddExpenseCTA(t *testing.T) {
 func TestDashboard_ShowsCategoryTotalAmount(t *testing.T) {
 	s := &services.DashboardSummary{
 		MonthlyTotal: 500.00,
+		TotalIncome:  680.00,
+		TotalExpenses: 180.00,
+		Balance:      500.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "utilities", Total: 180.00},
 		},
@@ -164,17 +203,17 @@ func TestDashboard_ShowsCategoryTotalAmount(t *testing.T) {
 // Triangulation: different totals produce different output
 
 func TestDashboard_Triangulation_DifferentMonthlyTotals(t *testing.T) {
-	s1 := &services.DashboardSummary{MonthlyTotal: 100.00, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
-	s2 := &services.DashboardSummary{MonthlyTotal: 9999.99, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
+	s1 := &services.DashboardSummary{MonthlyTotal: 100.00, TotalIncome: 500.00, TotalExpenses: 400.00, Balance: 100.00, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
+	s2 := &services.DashboardSummary{MonthlyTotal: 9999.99, TotalIncome: 20000.00, TotalExpenses: 10000.01, Balance: 9999.99, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
 	out1 := mustRenderDashboard(s1, "member", "en")
 	out2 := mustRenderDashboard(s2, "member", "en")
-	if !strings.Contains(out1, "100.00") {
-		t.Error("expected 100.00 in first dashboard")
+	if !strings.Contains(out1, "500.00") {
+		t.Error("expected 500.00 income in first dashboard")
 	}
-	if !strings.Contains(out2, "9,999.99") && !strings.Contains(out2, "9999.99") {
-		t.Error("expected 9999.99 in second dashboard")
+	if !strings.Contains(out2, "20,000.00") && !strings.Contains(out2, "20000.00") {
+		t.Error("expected 20000.00 income in second dashboard")
 	}
-	if strings.Contains(out1, "9999") {
+	if strings.Contains(out1, "20,000") && strings.Contains(out1, "20000") {
 		t.Error("first dashboard should not contain second dashboard's total")
 	}
 }
@@ -182,6 +221,9 @@ func TestDashboard_Triangulation_DifferentMonthlyTotals(t *testing.T) {
 func TestDashboard_Triangulation_DifferentCategories(t *testing.T) {
 	s1 := &services.DashboardSummary{
 		MonthlyTotal: 100.00,
+		TotalIncome:  200.00,
+		TotalExpenses: 100.00,
+		Balance:      100.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "groceries", Total: 100.00},
 		},
@@ -189,6 +231,9 @@ func TestDashboard_Triangulation_DifferentCategories(t *testing.T) {
 	}
 	s2 := &services.DashboardSummary{
 		MonthlyTotal: 200.00,
+		TotalIncome:  400.00,
+		TotalExpenses: 200.00,
+		Balance:      200.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "rent", Total: 200.00},
 		},

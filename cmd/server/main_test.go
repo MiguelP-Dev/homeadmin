@@ -554,7 +554,7 @@ func TestDashboard_WithHouseholdJWT_NoPanic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read response body: %v", err)
 	}
-	if !strings.Contains(string(body), "Monthly Total:") {
+	if !strings.Contains(string(body), "Total Income") {
 		t.Errorf("response body does not contain the dashboard summary")
 	}
 }

@@ -52,6 +52,10 @@ func main() {
 	siteAdminService := services.NewSiteAdminService(userRepo, householdRepo)
 	adminHandler := handlers.NewAdminHandler(siteAdminService)
 
+	savingsRepo := repositories.NewSavingsRepository(dbConn)
+	savingsService := services.NewSavingsService(savingsRepo, userRepo)
+	savingsHandler := handlers.NewSavingsHandler(savingsService)
+
 	// 5. Create Fiber app with centralized error handler
 	app := fiber.New(fiber.Config{
 		ErrorHandler: middleware.ErrorHandler,
@@ -119,6 +123,12 @@ func main() {
 
 	// Site-admin routes
 	app.Get("/admin", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireSiteAdmin(cfg.JWTSecret), adminHandler.Show)
+
+	// Savings routes
+	app.Get("/savings", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), savingsHandler.List)
+	app.Post("/savings", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), savingsHandler.Create)
+	app.Get("/savings/new", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), savingsHandler.ShowNew)
+	app.Post("/savings/:id/delete", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireHousehold(), savingsHandler.Delete)
 
 	// 9. Start server
 	log.Printf("server starting on :%s (env: %s)", cfg.Port, cfg.Env)

@@ -20,7 +20,7 @@ import (
 // --- Mock ExpenseService ---
 
 type mockExpenseService struct {
-	createFn              func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error
+	createFn              func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool, txType string) error
 	findByIDFn            func(userID, householdID, expenseID uint) (*database.Expense, error)
 	findByHouseholdFn     func(userID, householdID uint, filters database.ExpenseFilters) ([]database.Expense, error)
 	updateFn              func(userID, expenseID uint, fields services.ExpenseUpdateFields) error
@@ -28,9 +28,9 @@ type mockExpenseService struct {
 	getDashboardSummaryFn func(userID, householdID uint) (*services.DashboardSummary, error)
 }
 
-func (m *mockExpenseService) Create(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error {
+func (m *mockExpenseService) Create(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool, txType string) error {
 	if m.createFn != nil {
-		return m.createFn(userID, householdID, amount, description, category, date, visibility, isFixed)
+		return m.createFn(userID, householdID, amount, description, category, date, visibility, isFixed, txType)
 	}
 	return nil
 }
@@ -115,7 +115,7 @@ func setupExpenseAppWithHousehold(svc expenseServiceInterface, householdID *uint
 
 func TestCreateHandler_ValidationError(t *testing.T) {
 	svc := &mockExpenseService{
-		createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error {
+		createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool, txType string) error {
 			return services.ErrValidation
 		},
 	}
@@ -150,7 +150,7 @@ func TestCreateHandler_ValidationError(t *testing.T) {
 
 func TestCreateHandler_PermissionDenied(t *testing.T) {
 	svc := &mockExpenseService{
-		createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error {
+		createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool, txType string) error {
 			return services.ErrPermission
 		},
 	}
@@ -209,7 +209,7 @@ func TestCreateHandler_InvalidAmount(t *testing.T) {
 func TestCreateHandler_Success(t *testing.T) {
 	var savedDesc string
 	svc := &mockExpenseService{
-		createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error {
+		createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool, txType string) error {
 			savedDesc = description
 			return nil
 		},
@@ -713,6 +713,9 @@ func TestDashboardHandler_Success(t *testing.T) {
 		getDashboardSummaryFn: func(userID, householdID uint) (*services.DashboardSummary, error) {
 			return &services.DashboardSummary{
 				MonthlyTotal: 350.50,
+				TotalIncome:  500.00,
+				TotalExpenses: 149.50,
+				Balance:      350.50,
 				CategoryTotals: []repositories.CategoryTotal{
 					{Category: "Groceries", Total: 200.00},
 					{Category: "Rent", Total: 150.50},
@@ -742,7 +745,13 @@ func TestDashboardHandler_Success(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	if !strings.Contains(bodyStr, "350.50") {
-		t.Error("expected monthly total 350.50 in HTML")
+		t.Error("expected balance 350.50 in HTML")
+	}
+	if !strings.Contains(bodyStr, "500.00") {
+		t.Error("expected income total 500.00 in HTML")
+	}
+	if !strings.Contains(bodyStr, "149.50") {
+		t.Error("expected expense total 149.50 in HTML")
 	}
 	if !strings.Contains(bodyStr, "Groceries") {
 		t.Error("expected 'Groceries' in category breakdown")
@@ -760,6 +769,9 @@ func TestDashboardHandler_Empty(t *testing.T) {
 		getDashboardSummaryFn: func(userID, householdID uint) (*services.DashboardSummary, error) {
 			return &services.DashboardSummary{
 				MonthlyTotal:   0,
+				TotalIncome:    0,
+				TotalExpenses:  0,
+				Balance:        0,
 				CategoryTotals: []repositories.CategoryTotal{},
 				RecentExpenses: []database.Expense{},
 			}, nil
@@ -781,7 +793,7 @@ func TestDashboardHandler_Empty(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	bodyStr := string(body)
 	if !strings.Contains(bodyStr, "0.00") {
-		t.Error("expected 0.00 for empty monthly total")
+		t.Error("expected 0.00 for empty totals")
 	}
 	if !strings.Contains(bodyStr, "No expenses this month") {
 		t.Error("expected 'No expenses this month' empty state")
@@ -881,7 +893,7 @@ func TestExpenseHandlers_NonNilHouseholdLocals_Succeed(t *testing.T) {
 	t.Run("Create", func(t *testing.T) {
 		var gotHouseholdID uint
 		svc := &mockExpenseService{
-			createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool) error {
+			createFn: func(userID, householdID uint, amount float64, description, category string, date time.Time, visibility database.VisibilityType, isFixed bool, txType string) error {
 				gotHouseholdID = householdID
 				return nil
 			},
@@ -942,6 +954,9 @@ func TestExpenseHandlers_NonNilHouseholdLocals_Succeed(t *testing.T) {
 				gotHouseholdID = householdID
 				return &services.DashboardSummary{
 					MonthlyTotal:   350.50,
+					TotalIncome:    500.00,
+					TotalExpenses:  149.50,
+					Balance:        350.50,
 					CategoryTotals: []repositories.CategoryTotal{},
 					RecentExpenses: []database.Expense{},
 				}, nil
@@ -965,7 +980,7 @@ func TestExpenseHandlers_NonNilHouseholdLocals_Succeed(t *testing.T) {
 
 		body, _ := io.ReadAll(resp.Body)
 		if !strings.Contains(string(body), "350.50") {
-			t.Errorf("expected monthly total 350.50 in HTML, got: %s", string(body))
+			t.Errorf("expected balance 350.50 in HTML, got: %s", string(body))
 		}
 	})
 }

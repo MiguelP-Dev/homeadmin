@@ -88,3 +88,12 @@ func VisibilityLabel(lang string, v database.VisibilityType) string {
 	}
 	return string(v)
 }
+
+// TypeLabel translates a transaction type (income/expense) for display.
+func TypeLabel(lang, txType string) string {
+	key := "expense." + txType
+	if got := T(lang, key); got != key {
+		return got
+	}
+	return txType
+}

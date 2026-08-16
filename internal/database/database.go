@@ -51,7 +51,7 @@ func ConnectWithDriver(dsn string, driver string) (*gorm.DB, error) {
 // Migrate runs AutoMigrate for all application models, then applies data
 // migrations (migrateLegacyRoles).
 func Migrate(db *gorm.DB) error {
-	if err := db.AutoMigrate(&Household{}, &User{}, &Expense{}, &InviteCode{}); err != nil {
+	if err := db.AutoMigrate(&Household{}, &User{}, &Expense{}, &InviteCode{}, &Savings{}); err != nil {
 		return err
 	}
 	return migrateLegacyRoles(db)

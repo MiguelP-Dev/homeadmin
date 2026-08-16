@@ -20,6 +20,15 @@ func mustRenderExpenseCard(e database.Expense, lang string) string {
 	return buf.String()
 }
 
+func mustRenderExpenseCardWithCSRF(e database.Expense, lang string, csrfToken string) string {
+	buf := &bytes.Buffer{}
+	err := components.ExpenseCardWithCSRF(e, lang, csrfToken).Render(context.Background(), buf)
+	if err != nil {
+		panic(err)
+	}
+	return buf.String()
+}
+
 func TestExpenseCard_ShowsDescription(t *testing.T) {
 	e := database.Expense{ID: 1, Description: "Groceries", Amount: 50.00, Category: "food", Date: time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC)}
 	output := mustRenderExpenseCard(e, "en")

@@ -63,12 +63,22 @@ const (
 	HiddenPrivate   VisibilityType = "hidden_private"
 )
 
+// Transaction type constants for Expense.Type.
+const (
+	TransactionTypeIncome  = "income"
+	TransactionTypeExpense = "expense"
+)
+
+// TransactionTypes is the allowed list for form validation.
+var TransactionTypes = []string{TransactionTypeIncome, TransactionTypeExpense}
+
 // Expense tracks fixed and variable payments
 type Expense struct {
 	ID          uint           `gorm:"primaryKey"`
 	Amount      float64        `gorm:"type:decimal(10,2);not null"`
 	Description string         `gorm:"size:255;not null"`
 	Category    string         `gorm:"size:50;not null"`
+	Type        string         `gorm:"size:10;default:'expense';not null"`
 	HouseholdID uint           `gorm:"not null"`
 	Household   Household      `gorm:"foreignKey:HouseholdID"`
 	CreatedByID uint           `gorm:"not null"`
@@ -86,4 +96,19 @@ type ExpenseFilters struct {
 	Category string
 	Limit    int
 	Offset   int
+}
+
+// Savings tracks savings goals for a household.
+type Savings struct {
+	ID          uint      `gorm:"primaryKey"`
+	Description string    `gorm:"size:255;not null"`
+	Amount      float64   `gorm:"type:decimal(10,2);not null"`
+	Target      float64   `gorm:"type:decimal(10,2);default:0"`
+	HouseholdID uint      `gorm:"not null"`
+	Household   Household `gorm:"foreignKey:HouseholdID"`
+	CreatedByID uint      `gorm:"not null"`
+	CreatedBy   User      `gorm:"foreignKey:CreatedByID"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   gorm.DeletedAt `gorm:"index"`
 }

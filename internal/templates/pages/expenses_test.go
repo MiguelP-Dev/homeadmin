@@ -13,7 +13,7 @@ import (
 
 func mustRenderExpenses(expenses []database.Expense, lang string) string {
 	buf := &bytes.Buffer{}
-	err := pages.Expenses(expenses, lang).Render(context.Background(), buf)
+	err := pages.Expenses(expenses, lang, "test-csrf").Render(context.Background(), buf)
 	if err != nil {
 		panic(err)
 	}

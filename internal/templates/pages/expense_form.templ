@@ -2,13 +2,14 @@ package pages
 
 import (
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/i18n"
 )
 
 // ExpenseForm renders the create or edit expense form. formAction is the POST
 // target (/expenses for create, /expenses/:id/update for edit), submitLabel is
 // the heading and button text, and errorMsg is shown above the form when
 // non-empty.
-templ ExpenseForm(csrfToken string, formAction string, submitLabel string, errorMsg string, values ExpenseFormValues) {
+templ ExpenseForm(csrfToken string, formAction string, submitLabel string, errorMsg string, values ExpenseFormValues, lang string) {
 	<div class="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
 		<h1 class="text-2xl font-bold mb-4">{ submitLabel }</h1>
 		if errorMsg != "" {
@@ -16,6 +17,19 @@ templ ExpenseForm(csrfToken string, formAction string, submitLabel string, error
 		}
 		<form method="POST" action={ formAction }>
 			<input type="hidden" name="csrf" value={ csrfToken }/>
+			<div class="mb-4">
+				<label class="block text-sm font-medium text-gray-700 mb-2">Type:</label>
+				<div class="flex gap-4">
+					<label class="flex items-center">
+						<input type="radio" name="type" value="expense" checked={ values.Type == "expense" || values.Type == "" } class="mr-1"/>
+						<span class="text-sm text-gray-700">{ i18n.T(lang, "expense") }</span>
+					</label>
+					<label class="flex items-center">
+						<input type="radio" name="type" value="income" checked={ values.Type == "income" } class="mr-1"/>
+						<span class="text-sm text-gray-700">{ i18n.T(lang, "income") }</span>
+					</label>
+				</div>
+			</div>
 			<div class="mb-4">
 				<label for="description" class="block text-sm font-medium text-gray-700">Description:</label>
 				<input type="text" id="description" name="description" required class="w-full border rounded p-2" value={ values.Description }/>
@@ -28,7 +42,10 @@ templ ExpenseForm(csrfToken string, formAction string, submitLabel string, error
 				<label for="category" class="block text-sm font-medium text-gray-700">Category:</label>
 				<select id="category" name="category" required class="w-full border rounded p-2">
 					for _, cat := range database.ExpenseCategories {
-						<option value={ cat } selected={ values.Category == cat }>{ cat }</option>
+						<option value={ cat } data-type="expense" class="cat-option" selected={ values.Category == cat }>{ cat }</option>
+					}
+					for _, cat := range database.IncomeCategories {
+						<option value={ cat } data-type="income" class="cat-option" style="display:none" selected={ values.Category == cat }>{ cat }</option>
 					}
 				</select>
 			</div>
@@ -53,5 +70,34 @@ templ ExpenseForm(csrfToken string, formAction string, submitLabel string, error
 			<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">{ submitLabel }</button>
 		</form>
 		<p class="mt-4 text-sm"><a href="/expenses" class="text-blue-500">&larr; Back to Expenses</a></p>
+		<script>
+			(function() {
+				var radios = document.querySelectorAll('input[name="type"]');
+				var opts = document.querySelectorAll('.cat-option');
+				var sel = document.getElementById('category');
+				function updateCats() {
+					var type = document.querySelector('input[name="type"]:checked').value;
+					var prev = sel.value;
+					var found = false;
+					for (var i = 0; i < opts.length; i++) {
+						if (opts[i].dataset.type === type) {
+							opts[i].style.display = '';
+							if (opts[i].value === prev) found = true;
+						} else {
+							opts[i].style.display = 'none';
+						}
+					}
+					if (!found) {
+						for (var i = 0; i < opts.length; i++) {
+							if (opts[i].dataset.type === type) { sel.value = opts[i].value; break; }
+						}
+					}
+				}
+				for (var i = 0; i < radios.length; i++) {
+					radios[i].addEventListener('change', updateCats);
+				}
+				updateCats();
+			})();
+		</script>
 	</div>
 }

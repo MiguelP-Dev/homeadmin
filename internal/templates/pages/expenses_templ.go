@@ -15,7 +15,7 @@ import (
 
 // Expenses renders the expense list page content.
 // It receives a slice of expenses to display and lang for locale formatting.
-func Expenses(expenses []database.Expense, lang string) templ.Component {
+func Expenses(expenses []database.Expense, lang string, csrfToken string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -51,7 +51,7 @@ func Expenses(expenses []database.Expense, lang string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			for _, e := range expenses {
-				templ_7745c5c3_Err = components.ExpenseCard(e, lang).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = components.ExpenseCardWithCSRF(e, lang, csrfToken).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

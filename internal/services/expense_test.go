@@ -108,7 +108,7 @@ func TestCreate_EmptyDescription(t *testing.T) {
 	}
 	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
-	err := svc.Create(1, 1, 100.0, "", "Rent", fixedDate(), database.VisibleEditable, false)
+	err := svc.Create(1, 1, 100.0, "", "Rent", fixedDate(), database.VisibleEditable, false, database.TransactionTypeExpense)
 	if err == nil {
 		t.Fatal("expected error for empty description")
 	}
@@ -126,7 +126,7 @@ func TestCreate_NegativeAmount(t *testing.T) {
 	}
 	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
-	err := svc.Create(1, 1, -50.0, "Groceries", "Groceries", fixedDate(), database.VisibleEditable, false)
+	err := svc.Create(1, 1, -50.0, "Groceries", "Groceries", fixedDate(), database.VisibleEditable, false, database.TransactionTypeExpense)
 	if err == nil {
 		t.Fatal("expected error for negative amount")
 	}
@@ -144,7 +144,7 @@ func TestCreate_InvalidCategory(t *testing.T) {
 	}
 	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
-	err := svc.Create(1, 1, 100.0, "Rent", "CatCosts", fixedDate(), database.VisibleEditable, false)
+	err := svc.Create(1, 1, 100.0, "Rent", "CatCosts", fixedDate(), database.VisibleEditable, false, database.TransactionTypeExpense)
 	if err == nil {
 		t.Fatal("expected error for invalid category")
 	}
@@ -161,7 +161,7 @@ func TestCreate_RepoError(t *testing.T) {
 	}
 	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
-	err := svc.Create(1, 1, 100.0, "Groceries", "Groceries", fixedDate(), database.VisibleEditable, false)
+	err := svc.Create(1, 1, 100.0, "Groceries", "Groceries", fixedDate(), database.VisibleEditable, false, database.TransactionTypeExpense)
 	if err == nil {
 		t.Fatal("expected error when repo.Create fails")
 	}
@@ -180,7 +180,7 @@ func TestCreate_Success(t *testing.T) {
 	}
 	svc := NewExpenseService(repo, testUserRepo(database.RoleMember))
 
-	err := svc.Create(1, 1, 1500.0, "Monthly Rent", "Rent", fixedDate(), database.VisibleEditable, true)
+	err := svc.Create(1, 1, 1500.0, "Monthly Rent", "Rent", fixedDate(), database.VisibleEditable, true, database.TransactionTypeExpense)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
