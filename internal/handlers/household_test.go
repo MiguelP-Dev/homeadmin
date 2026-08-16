@@ -22,6 +22,7 @@ type mockHouseholdService struct {
 	joinFn           func(userID uint, code string) (*database.Household, error)
 	showFn           func(userID uint) (*services.HouseholdView, error)
 	setMemberRoleFn  func(ownerID, targetID uint, role string) error
+	removeMemberFn   func(ownerID, targetID uint) error
 }
 
 func (m *mockHouseholdService) Create(userID uint, name string) (*database.Household, error) {
@@ -59,6 +60,13 @@ func (m *mockHouseholdService) SetMemberRole(ownerID, targetID uint, role string
 	return nil
 }
 
+func (m *mockHouseholdService) RemoveMember(ownerID, targetID uint) error {
+	if m.removeMemberFn != nil {
+		return m.removeMemberFn(ownerID, targetID)
+	}
+	return nil
+}
+
 // Verify interface compliance at compile time.
 var _ householdServiceInterface = (*mockHouseholdService)(nil)
 
@@ -85,6 +93,7 @@ func setupHouseholdApp(svc householdServiceInterface) *fiber.App {
 	app.Get("/household", handler.Show)
 	app.Post("/household", handler.Create)
 	app.Post("/household/members/:id/role", handler.SetMemberRole)
+	app.Post("/household/members/:id/remove", handler.RemoveMember)
 
 	return app
 }
@@ -828,4 +837,120 @@ func TestHouseholdHandler_SetMemberRole(t *testing.T) {
 			}
 		})
 	}
+}
+
+// --- RemoveMember tests (WU-7.3) ---
+
+func TestHouseholdHandler_RemoveMember(t *testing.T) {
+	tests := []struct {
+		name       string
+		targetID   int
+		removeErr  error
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "owner removes member",
+			targetID:   2,
+			wantStatus: fiber.StatusFound,
+		},
+		{
+			name:       "self-removal rejected",
+			targetID:   1,
+			removeErr:  services.ErrSelfRemoval,
+			wantStatus: fiber.StatusBadRequest,
+		},
+		{
+			name:       "owner immutable",
+			targetID:   4,
+			removeErr:  services.ErrOwnerImmutable,
+			wantStatus: fiber.StatusForbidden,
+		},
+		{
+			name:       "non-owner forbidden",
+			targetID:   2,
+			removeErr:  services.ErrNotOwner,
+			wantStatus: fiber.StatusForbidden,
+		},
+		{
+			name:       "not member",
+			targetID:   3,
+			removeErr:  services.ErrNotMember,
+			wantStatus: fiber.StatusNotFound,
+		},
+		{
+			name:       "invalid target ID",
+			targetID:   0,
+			wantStatus: fiber.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotOwner, gotTarget uint
+			svc := &mockHouseholdService{
+				removeMemberFn: func(ownerID, targetID uint) error {
+					gotOwner, gotTarget = ownerID, targetID
+					return tt.removeErr
+				},
+			}
+			app := setupHouseholdApp(svc)
+
+			path := "/household/members/" + itoa(tt.targetID) + "/remove"
+			req := httptest.NewRequest(http.MethodPost, path, nil)
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("app.Test failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, resp.StatusCode)
+			}
+
+			// For valid target IDs (non-zero), verify the service was called with correct IDs
+			if tt.targetID > 0 && tt.wantStatus != fiber.StatusBadRequest {
+				if gotOwner != 1 {
+					t.Errorf("RemoveMember called with ownerID %d, want 1", gotOwner)
+				}
+				if gotTarget != uint(tt.targetID) {
+					t.Errorf("RemoveMember called with targetID %d, want %d", gotTarget, tt.targetID)
+				}
+			}
+
+			// Successful removal redirects to /household
+			if tt.wantStatus == fiber.StatusFound {
+				if location := resp.Header.Get("Location"); location != "/household" {
+					t.Errorf("expected redirect to /household, got %q", location)
+				}
+			}
+
+			// Error responses contain translated error messages
+			if tt.wantStatus >= 400 {
+				body, _ := io.ReadAll(resp.Body)
+				html := string(body)
+				if tt.wantBody != "" && !strings.Contains(html, tt.wantBody) {
+					t.Errorf("expected error message %q in body, got: %s", tt.wantBody, html)
+				}
+			}
+		})
+	}
+}
+
+// itoa is a simple int-to-string helper for building test URLs.
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	if n < 0 {
+		return "-" + itoa(-n)
+	}
+	digits := []byte{}
+	for n > 0 {
+		digits = append([]byte{byte('0' + n%10)}, digits...)
+		n /= 10
+	}
+	return string(digits)
 }

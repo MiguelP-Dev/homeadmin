@@ -18,6 +18,7 @@ type mockHouseholdRepo struct {
 	createInviteCodeFn func(invite *database.InviteCode) error
 	getMembersFn       func(householdID uint) ([]database.User, error)
 	addMemberFn        func(householdID, userID uint, role string) error
+	removeMemberFn     func(householdID, userID uint) error
 }
 
 func (m *mockHouseholdRepo) Create(household *database.Household) error {
@@ -58,6 +59,13 @@ func (m *mockHouseholdRepo) GetMembers(householdID uint) ([]database.User, error
 func (m *mockHouseholdRepo) AddMember(householdID, userID uint, role string) error {
 	if m.addMemberFn != nil {
 		return m.addMemberFn(householdID, userID, role)
+	}
+	return nil
+}
+
+func (m *mockHouseholdRepo) RemoveMember(householdID, userID uint) error {
+	if m.removeMemberFn != nil {
+		return m.removeMemberFn(householdID, userID)
 	}
 	return nil
 }
@@ -665,6 +673,100 @@ func TestSetMemberRole(t *testing.T) {
 			}
 			if tt.wantErr != nil && updated {
 				t.Error("SetMemberRole() persisted a role change on a rejected request")
+			}
+		})
+	}
+}
+
+// --- RemoveMember tests ---
+
+func TestRemoveMember(t *testing.T) {
+	hhID := uint(7)
+	owner := &database.User{ID: 1, HouseholdID: ptr(hhID), Role: database.RoleOwner}
+	member := &database.User{ID: 2, HouseholdID: ptr(hhID), Role: database.RoleMember}
+	admin := &database.User{ID: 3, HouseholdID: ptr(hhID), Role: database.RoleAdmin}
+	otherOwner := &database.User{ID: 4, HouseholdID: ptr(hhID), Role: database.RoleOwner}
+	otherHousehold := &database.User{ID: 5, HouseholdID: ptr(uint(99)), Role: database.RoleMember}
+
+	tests := []struct {
+		name         string
+		owner        *database.User
+		target       *database.User
+		wantErr      error
+		wantRemove   bool
+	}{
+		{
+			name:       "owner removes member",
+			owner:      owner,
+			target:     member,
+			wantRemove: true,
+		},
+		{
+			name:       "owner removes admin",
+			owner:      owner,
+			target:     admin,
+			wantRemove: true,
+		},
+		{
+			name:    "self-removal rejected",
+			owner:   owner,
+			target:  owner,
+			wantErr: ErrSelfRemoval,
+		},
+		{
+			name:    "other owner immutable",
+			owner:   owner,
+			target:  otherOwner,
+			wantErr: ErrOwnerImmutable,
+		},
+		{
+			name:    "non-owner cannot remove",
+			owner:   &database.User{ID: 6, HouseholdID: ptr(hhID), Role: database.RoleMember},
+			target:  member,
+			wantErr: ErrNotOwner,
+		},
+		{
+			name:    "cross-household target rejected",
+			owner:   owner,
+			target:  otherHousehold,
+			wantErr: ErrNotMember,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			removed := false
+			hhRepo := &mockHouseholdRepo{
+				removeMemberFn: func(householdID, userID uint) error {
+					removed = true
+					if householdID != hhID {
+						t.Errorf("RemoveMember called with householdID %d, want %d", householdID, hhID)
+					}
+					if userID != tt.target.ID {
+						t.Errorf("RemoveMember called with userID %d, want %d", userID, tt.target.ID)
+					}
+					return nil
+				},
+			}
+			usrRepo := &mockUserRepo{
+				findByIDFn: func(id uint) (*database.User, error) {
+					if id == tt.owner.ID {
+						return tt.owner, nil
+					}
+					return tt.target, nil
+				},
+			}
+			svc := NewHouseholdService(hhRepo, usrRepo, &mockInviteRepo{})
+
+			err := svc.RemoveMember(tt.owner.ID, tt.target.ID)
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("RemoveMember() error = %v, want %v", err, tt.wantErr)
+			}
+			if tt.wantRemove && !removed {
+				t.Error("RemoveMember() did not persist the removal")
+			}
+			if tt.wantErr != nil && removed {
+				t.Error("RemoveMember() persisted a removal on a rejected request")
 			}
 		})
 	}

@@ -115,6 +115,7 @@ func main() {
 	app.Post("/household/invite", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Invite)
 	app.Post("/household/join", middleware.RequireAuth(cfg.JWTSecret), householdHandler.Join)
 	app.Post("/household/members/:id/role", middleware.RequireAuth(cfg.JWTSecret), householdHandler.SetMemberRole)
+	app.Post("/household/members/:id/remove", middleware.RequireAuth(cfg.JWTSecret), householdHandler.RemoveMember)
 
 	// Site-admin routes
 	app.Get("/admin", middleware.RequireAuth(cfg.JWTSecret), middleware.RequireSiteAdmin(cfg.JWTSecret), adminHandler.Show)

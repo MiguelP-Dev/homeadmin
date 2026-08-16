@@ -20,6 +20,7 @@ type householdServiceInterface interface {
 	Join(userID uint, code string) (*database.Household, error)
 	Show(userID uint) (*services.HouseholdView, error)
 	SetMemberRole(ownerID, targetID uint, role string) error
+	RemoveMember(ownerID, targetID uint) error
 }
 
 // HouseholdHandler handles household management HTTP routes.
@@ -207,4 +208,30 @@ func (h *HouseholdHandler) Join(c *fiber.Ctx) error {
 	SetJWTCookie(c, token)
 
 	return c.Status(fiber.StatusFound).Redirect("/dashboard")
+}
+
+// RemoveMember handles POST /household/members/:id/remove — owner-only member
+// removal. The target member is removed from the household (HouseholdID cleared).
+func (h *HouseholdHandler) RemoveMember(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(uint)
+
+	targetID, err := c.ParamsInt("id")
+	if err != nil || targetID <= 0 {
+		return middleware.Keyed(400, "household.member_not_found")
+	}
+
+	if err := h.service.RemoveMember(userID, uint(targetID)); err != nil {
+		switch {
+		case errors.Is(err, services.ErrSelfRemoval):
+			return middleware.Keyed(400, "household.self_removal")
+		case errors.Is(err, services.ErrNotOwner), errors.Is(err, services.ErrOwnerImmutable):
+			return middleware.Keyed(403, "household.role_forbidden")
+		case errors.Is(err, services.ErrNotMember):
+			return middleware.Keyed(404, "household.member_not_found")
+		default:
+			return middleware.Keyed(500, "error.internal_server")
+		}
+	}
+
+	return c.Status(fiber.StatusFound).Redirect("/household")
 }

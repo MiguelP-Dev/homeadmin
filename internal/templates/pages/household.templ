@@ -49,6 +49,10 @@ templ HouseholdShow(household *database.Household, members []database.User, view
 							</select>
 							<button type="submit" class="text-sm bg-blue-600 text-white px-2 py-1 rounded">Change role</button>
 						</form>
+						<form method="POST" action={ fmt.Sprintf("/household/members/%d/remove", m.ID) } class="inline">
+							<input type="hidden" name="csrf" value={ csrfToken }/>
+							<button type="submit" class="text-sm bg-red-600 text-white px-2 py-1 rounded" onclick="return confirm('Remove this member?')">Remove</button>
+						</form>
 					}
 				</li>
 			}
