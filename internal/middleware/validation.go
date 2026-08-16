@@ -9,6 +9,8 @@ import (
 type ValidationError struct {
 	Field   string
 	Message string
+	Key     string
+	Args    []any
 }
 
 // ValidateRequired checks that a string or interface{} value is non-empty and non-whitespace.
@@ -20,12 +22,16 @@ func ValidateRequired(value interface{}, fieldName string) *ValidationError {
 			return &ValidationError{
 				Field:   fieldName,
 				Message: fmt.Sprintf("%s is required", fieldName),
+				Key:     "validation.required",
+				Args:    []any{fieldName},
 			}
 		}
 	case nil:
 		return &ValidationError{
 			Field:   fieldName,
 			Message: fmt.Sprintf("%s is required", fieldName),
+			Key:     "validation.required",
+			Args:    []any{fieldName},
 		}
 	}
 	return nil
@@ -37,6 +43,8 @@ func ValidateMinLength(value, fieldName string, min int) *ValidationError {
 		return &ValidationError{
 			Field:   fieldName,
 			Message: fmt.Sprintf("%s must be at least %d characters", fieldName, min),
+			Key:     "validation.min_length",
+			Args:    []any{fieldName},
 		}
 	}
 	return nil
@@ -48,6 +56,8 @@ func ValidateMaxLength(value, fieldName string, max int) *ValidationError {
 		return &ValidationError{
 			Field:   fieldName,
 			Message: fmt.Sprintf("%s must be at most %d characters", fieldName, max),
+			Key:     "validation.max_length",
+			Args:    []any{fieldName},
 		}
 	}
 	return nil
@@ -62,6 +72,8 @@ func ValidatePositive(value interface{}, fieldName string) *ValidationError {
 			return &ValidationError{
 				Field:   fieldName,
 				Message: fmt.Sprintf("%s must be positive", fieldName),
+				Key:     "validation.positive",
+				Args:    []any{fieldName},
 			}
 		}
 	case int64:
@@ -69,6 +81,8 @@ func ValidatePositive(value interface{}, fieldName string) *ValidationError {
 			return &ValidationError{
 				Field:   fieldName,
 				Message: fmt.Sprintf("%s must be positive", fieldName),
+				Key:     "validation.positive",
+				Args:    []any{fieldName},
 			}
 		}
 	case float64:
@@ -76,6 +90,8 @@ func ValidatePositive(value interface{}, fieldName string) *ValidationError {
 			return &ValidationError{
 				Field:   fieldName,
 				Message: fmt.Sprintf("%s must be positive", fieldName),
+				Key:     "validation.positive",
+				Args:    []any{fieldName},
 			}
 		}
 	}
@@ -88,6 +104,8 @@ func ValidateEmailFormat(value, fieldName string) *ValidationError {
 		return &ValidationError{
 			Field:   fieldName,
 			Message: fmt.Sprintf("%s must be a valid email address", fieldName),
+			Key:     "validation.email",
+			Args:    []any{fieldName},
 		}
 	}
 	return nil
@@ -103,12 +121,14 @@ func ValidateIn(value, fieldName string, set []string) *ValidationError {
 	return &ValidationError{
 		Field:   fieldName,
 		Message: fmt.Sprintf("%s must be one of: %s", fieldName, strings.Join(set, ", ")),
+		Key:     "validation.in",
+		Args:    []any{fieldName},
 	}
 }
 
 // Validate collects validation results and returns a combined error if any failed.
 // Returns nil if all validators returned nil, or an AppError with status 400
-// containing all field errors joined by semicolons.
+// containing the expense.validation_failed key for i18n and raw messages for backward compat.
 func Validate(rules ...*ValidationError) error {
 	var messages []string
 	for _, v := range rules {
@@ -121,6 +141,7 @@ func Validate(rules ...*ValidationError) error {
 	}
 	return &AppError{
 		Status:  400,
+		Key:     "expense.validation_failed",
 		Message: strings.Join(messages, "; "),
 	}
 }
