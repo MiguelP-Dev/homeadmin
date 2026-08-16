@@ -47,8 +47,9 @@ type User struct {
 	// Additive AutoMigrate column; defaults to false so registration never
 	// grants site-admin.
 	IsAdmin     bool `gorm:"default:false"`
-	HouseholdID *uint          `gorm:"default:null"`
-	Household   *Household     `gorm:"foreignKey:HouseholdID"`
+	Lang        string          `gorm:"size:5;default:'en';not null"`
+	HouseholdID *uint           `gorm:"default:null"`
+	Household   *Household      `gorm:"foreignKey:HouseholdID"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
