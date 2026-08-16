@@ -361,11 +361,11 @@ func TestRootRedirect_Unauthenticated(t *testing.T) {
 // root handler — no DB or other routes needed.
 func TestRootRedirect_TokenAware(t *testing.T) {
 	jwtSecret := "test-secret"
-	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
+	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
-	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, -1)
+	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, -1)
 	if err != nil {
 		t.Fatalf("CreateToken(expired) error: %v", err)
 	}
@@ -527,7 +527,7 @@ func TestDashboard_WithHouseholdJWT_NoPanic(t *testing.T) {
 	app := newIntegrationApp(t, "", jwtSecret)
 
 	householdID := uint(1)
-	token, err := services.CreateToken(1, &householdID, "member", "user@example.com", false, jwtSecret, 24)
+	token, err := services.CreateToken(1, &householdID, "member", "user@example.com", "", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
@@ -562,7 +562,7 @@ func TestDashboard_NoHousehold_RedirectsToHousehold(t *testing.T) {
 	jwtSecret := "test-secret"
 	app := newIntegrationApp(t, "", jwtSecret)
 
-	token, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
+	token, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
@@ -591,11 +591,11 @@ func TestRootRedirect_Integration(t *testing.T) {
 	jwtSecret := "test-secret"
 	app := newIntegrationApp(t, "", jwtSecret)
 
-	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, 24)
+	validToken, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, 24)
 	if err != nil {
 		t.Fatalf("CreateToken error: %v", err)
 	}
-	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", false, jwtSecret, -1)
+	expiredToken, err := services.CreateToken(1, nil, "member", "user@example.com", "", false, jwtSecret, -1)
 	if err != nil {
 		t.Fatalf("CreateToken(expired) error: %v", err)
 	}
