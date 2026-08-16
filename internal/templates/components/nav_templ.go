@@ -8,10 +8,15 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/homeadmin/internal/i18n"
+
 // Nav renders the navigation bar.
 // email is empty for unauthenticated users, non-empty for logged-in users.
 // isAdmin controls whether the /admin link is shown.
-func Nav(email string, isAdmin bool) templ.Component {
+// lang is the locale code ("en", "es") for i18n labels.
+// activePath is the current request path for active link highlighting.
+// csrfToken is the CSRF token for the logout form.
+func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -32,7 +37,7 @@ func Nav(email string, isAdmin bool) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<nav class=\"bg-gray-800 text-white sticky top-0 z-40\"><div class=\"container mx-auto flex items-center justify-between p-4\"><a href=\"/\" class=\"text-lg font-bold\">HomeAdmin</a> <button id=\"theme-toggle\" class=\"text-white mr-4 focus:outline-none\" aria-label=\"Toggle dark mode\"><svg id=\"theme-icon-sun\" class=\"w-5 h-5 hidden\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z\"></path></svg> <svg id=\"theme-icon-moon\" class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z\"></path></svg></button> <button id=\"nav-menu-button\" class=\"md:hidden text-white focus:outline-none\" aria-label=\"Toggle menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button><ul id=\"nav-menu\" class=\"hidden md:flex md:space-x-4 space-x-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!-- Scrim overlay for mobile drawer --><div id=\"nav-scrim\" class=\"fixed inset-0 bg-black/50 z-30 hidden\"></div><nav class=\"bg-gray-800 text-white sticky top-0 z-40\"><div class=\"container mx-auto flex items-center justify-between p-4\"><a href=\"/\" class=\"text-lg font-bold\">HomeAdmin</a> <button id=\"theme-toggle\" class=\"text-white mr-4 focus:outline-none\" aria-label=\"Toggle dark mode\"><svg id=\"theme-icon-sun\" class=\"w-5 h-5 hidden\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z\"></path></svg> <svg id=\"theme-icon-moon\" class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z\"></path></svg></button> <button id=\"nav-menu-button\" class=\"md:hidden text-white focus:outline-none\" aria-label=\"Toggle menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button><ul id=\"nav-menu\" class=\"hidden md:flex md:space-x-4 space-x-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -44,7 +49,7 @@ func Nav(email string, isAdmin bool) templ.Component {
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(email)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 27, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 32, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -55,22 +60,204 @@ func Nav(email string, isAdmin bool) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if isAdmin {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<li><a href=\"/admin\" class=\"hover:text-gray-300\">Admin</a></li>")
+				if activePath == "/admin" {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<li><a href=\"/admin\" class=\"hover:text-gray-300 font-semibold\" aria-current=\"page\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var3 string
+					templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.admin"))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 35, Col: 117}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</a></li>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<li><a href=\"/admin\" class=\"hover:text-gray-300\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var4 string
+					templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.admin"))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 37, Col: 83}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</a></li>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if activePath == "/dashboard" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<li><a href=\"/dashboard\" class=\"hover:text-gray-300 font-semibold\" aria-current=\"page\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var5 string
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.dashboard"))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 41, Col: 124}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</a></li>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<li><a href=\"/dashboard\" class=\"hover:text-gray-300\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var6 string
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.dashboard"))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 43, Col: 90}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</a></li>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, " <li><a href=\"/dashboard\" class=\"hover:text-gray-300\">Dashboard</a></li><li><a href=\"/expenses\" class=\"hover:text-gray-300\">Expenses</a></li><li><a href=\"/household\" class=\"hover:text-gray-300\">Household</a></li><li><form method=\"POST\" action=\"/logout\" class=\"inline\"><button type=\"submit\" class=\"hover:text-gray-300\">Logout</button></form></li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if activePath == "/expenses" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<li><a href=\"/expenses\" class=\"hover:text-gray-300 font-semibold\" aria-current=\"page\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var7 string
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.expenses"))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 46, Col: 122}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</a></li>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<li><a href=\"/expenses\" class=\"hover:text-gray-300\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var8 string
+				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.expenses"))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 48, Col: 88}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</a></li>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if activePath == "/household" {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<li><a href=\"/household\" class=\"hover:text-gray-300 font-semibold\" aria-current=\"page\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var9 string
+				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.household"))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 51, Col: 124}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</a></li>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			} else {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<li><a href=\"/household\" class=\"hover:text-gray-300\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var10 string
+				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.household"))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 53, Col: 90}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</a></li>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, " <li><form method=\"POST\" action=\"/logout\" class=\"inline\"><input type=\"hidden\" name=\"csrf\" value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var11 string
+			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 57, Col: 57}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\"> <button type=\"submit\" class=\"hover:text-gray-300\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var12 string
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.logout"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 58, Col: 85}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</button></form></li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<li><a href=\"/login\" class=\"hover:text-gray-300\">Login</a></li><li><a href=\"/register\" class=\"hover:text-gray-300\">Register</a></li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<li><a href=\"/login\" class=\"hover:text-gray-300\">Login</a></li><li><a href=\"/register\" class=\"hover:text-gray-300\">Register</a></li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</ul></div></nav><script>\n\t\t(function() {\n\t\t\tvar btn = document.getElementById('nav-menu-button');\n\t\t\tvar menu = document.getElementById('nav-menu');\n\t\t\tif (btn && menu) {\n\t\t\t\tbtn.addEventListener('click', function() {\n\t\t\t\t\tmenu.classList.toggle('hidden');\n\t\t\t\t});\n\t\t\t}\n\t\t\tvar themeBtn = document.getElementById('theme-toggle');\n\t\t\tvar sunIcon = document.getElementById('theme-icon-sun');\n\t\t\tvar moonIcon = document.getElementById('theme-icon-moon');\n\t\t\tif (themeBtn && sunIcon && moonIcon) {\n\t\t\t\tthemeBtn.addEventListener('click', function() {\n\t\t\t\t\tvar html = document.documentElement;\n\t\t\t\t\tif (html.classList.contains('dark')) {\n\t\t\t\t\t\thtml.classList.remove('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'light');\n\t\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t\t} else {\n\t\t\t\t\t\thtml.classList.add('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'dark');\n\t\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tif (document.documentElement.classList.contains('dark')) {\n\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t} else {\n\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t}\n\t\t\t}\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</ul></div></nav><script>\n\t\t(function() {\n\t\t\tvar btn = document.getElementById('nav-menu-button');\n\t\t\tvar menu = document.getElementById('nav-menu');\n\t\t\tvar scrim = document.getElementById('nav-scrim');\n\t\t\tfunction openDrawer() {\n\t\t\t\tmenu.classList.remove('hidden');\n\t\t\t\tscrim.classList.remove('hidden');\n\t\t\t}\n\t\t\tfunction closeDrawer() {\n\t\t\t\tmenu.classList.add('hidden');\n\t\t\t\tscrim.classList.add('hidden');\n\t\t\t}\n\t\t\tif (btn && menu && scrim) {\n\t\t\t\tbtn.addEventListener('click', function() {\n\t\t\t\t\tif (menu.classList.contains('hidden')) {\n\t\t\t\t\t\topenDrawer();\n\t\t\t\t\t} else {\n\t\t\t\t\t\tcloseDrawer();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tscrim.addEventListener('click', closeDrawer);\n\t\t\t\tdocument.addEventListener('keydown', function(e) {\n\t\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\t\tcloseDrawer();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\t// Close drawer when a nav link is clicked (mobile)\n\t\t\t\tvar links = menu.querySelectorAll('a');\n\t\t\t\tfor (var i = 0; i < links.length; i++) {\n\t\t\t\t\tlinks[i].addEventListener('click', closeDrawer);\n\t\t\t\t}\n\t\t\t}\n\t\t\tvar themeBtn = document.getElementById('theme-toggle');\n\t\t\tvar sunIcon = document.getElementById('theme-icon-sun');\n\t\t\tvar moonIcon = document.getElementById('theme-icon-moon');\n\t\t\tif (themeBtn && sunIcon && moonIcon) {\n\t\t\t\tthemeBtn.addEventListener('click', function() {\n\t\t\t\t\tvar html = document.documentElement;\n\t\t\t\t\tif (html.classList.contains('dark')) {\n\t\t\t\t\t\thtml.classList.remove('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'light');\n\t\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t\t} else {\n\t\t\t\t\t\thtml.classList.add('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'dark');\n\t\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tif (document.documentElement.classList.contains('dark')) {\n\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t} else {\n\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t}\n\t\t\t}\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
