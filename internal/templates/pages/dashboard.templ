@@ -47,28 +47,28 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 		<!-- Last 5 Transactions -->
 		<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">{ i18n.T(lang, "last_transactions") }</h2>
 		if len(summary.RecentExpenses) == 0 {
-			<p class="text-gray-500 italic">No recent expenses</p>
+			<p class="text-gray-600 dark:text-gray-400 italic">No recent expenses</p>
 		} else {
 			<table class="w-full border-collapse mb-8">
 				<thead>
 					<tr class="bg-gray-100 dark:bg-gray-700">
-						<th class="text-left p-3 border-b dark:text-gray-200">{ i18n.T(lang, "date") }</th>
-						<th class="text-left p-3 border-b dark:text-gray-200">{ i18n.T(lang, "description") }</th>
-						<th class="text-left p-3 border-b dark:text-gray-200">{ i18n.T(lang, "category") }</th>
-						<th class="text-left p-3 border-b dark:text-gray-200">{ i18n.T(lang, "type") }</th>
-						<th class="text-right p-3 border-b dark:text-gray-200">{ i18n.T(lang, "amount") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "date") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "description") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "category") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "type") }</th>
+						<th class="text-right p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "amount") }</th>
 					</tr>
 				</thead>
 				<tbody>
 					for _, e := range summary.RecentExpenses {
-						<tr>
-							<td class="p-3 border-b">{ i18n.FormatDate(lang, e.Date) }</td>
-							<td class="p-3 border-b">{ e.Description }</td>
-							<td class="p-3 border-b">{ i18n.CategoryLabel(lang, e.Category) }</td>
-							<td class="p-3 border-b">
+						<tr class="border-b dark:border-gray-700">
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ i18n.FormatDate(lang, e.Date) }</td>
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ e.Description }</td>
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ i18n.CategoryLabel(lang, e.Category) }</td>
+							<td class="p-3">
 								<span class={ "text-xs px-2 py-0.5 rounded-full " + components.TypeBadgeClass(e.Type) }>{ i18n.TypeLabel(lang, e.Type) }</span>
 							</td>
-							<td class="p-3 border-b text-right font-semibold">{ i18n.FormatCurrency(lang, e.Amount) }</td>
+							<td class="p-3 text-right font-semibold text-gray-900 dark:text-gray-100">{ i18n.FormatCurrency(lang, e.Amount) }</td>
 						</tr>
 					}
 				</tbody>
@@ -80,20 +80,20 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 		<table class="w-full border-collapse mb-8">
 			<thead>
 				<tr class="bg-gray-100 dark:bg-gray-700">
-					<th class="text-left p-3 border-b dark:text-gray-200">Category</th>
-					<th class="text-left p-3 border-b dark:text-gray-200">Total</th>
+					<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">Category</th>
+					<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">Total</th>
 				</tr>
 			</thead>
 			<tbody>
 				if len(summary.CategoryTotals) == 0 {
 					<tr>
-						<td colspan="2" class="p-3 text-gray-500 italic">No expenses this month</td>
+						<td colspan="2" class="p-3 text-gray-600 dark:text-gray-400 italic">No expenses this month</td>
 					</tr>
 				} else {
 					for _, ct := range summary.CategoryTotals {
-						<tr>
-							<td class="p-3 border-b">{ i18n.CategoryLabel(lang, ct.Category) }</td>
-							<td class="p-3 border-b">{ i18n.FormatCurrency(lang, ct.Total) }</td>
+						<tr class="border-b dark:border-gray-700">
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ i18n.CategoryLabel(lang, ct.Category) }</td>
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ i18n.FormatCurrency(lang, ct.Total) }</td>
 						</tr>
 					}
 				}
