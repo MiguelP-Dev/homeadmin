@@ -143,14 +143,14 @@ func HouseholdShow(household *database.Household, members []database.User, viewe
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p><p class=\"mt-2 text-2xl font-mono font-bold text-green-800 dark:text-green-300\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p><p id=\"invite-code\" class=\"mt-2 text-2xl font-mono font-bold text-green-800 dark:text-green-300\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(inviteCode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 34, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 34, Col: 113}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {

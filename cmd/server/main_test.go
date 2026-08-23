@@ -754,9 +754,23 @@ func TestAuthNavE2E_EmailInProtectedPage(t *testing.T) {
 	}
 }
 
-// inviteCodeRe matches the 8-char [0-9A-Z] invite code rendered on the
-// household page after an invite (internal/services/household.go charset).
-var inviteCodeRe = regexp.MustCompile(`[0-9A-Z]{8}`)
+// inviteCodeRe extracts the 8-char [0-9A-Z] invite code rendered inside the
+// element marked id="invite-code" on the household page after an invite
+// (internal/services/household.go charset). Anchoring on the stable element id
+// keeps extraction deterministic: an unanchored [0-9A-Z]{8} scan could match
+// digit windows from the CSRF UUIDv4 hidden input rendered above the code.
+var inviteCodeRe = regexp.MustCompile(`id="invite-code"[^>]*>([0-9A-Z]{8})`)
+
+// extractInviteCode pulls the invite code out of a rendered household page,
+// failing the test loudly when the anchor or the code is missing.
+func extractInviteCode(t *testing.T, body []byte) string {
+	t.Helper()
+	m := inviteCodeRe.FindStringSubmatch(string(body))
+	if m == nil || m[1] == "" {
+		t.Fatalf("household page has no id=\"invite-code\" 8-char code; body: %s", body)
+	}
+	return m[1]
+}
 
 // TestHouseholdE2EFlow drives the full household onboarding journey through the
 // real app: register → create household → invite → join, then asserts the
@@ -850,10 +864,7 @@ func TestHouseholdE2EFlow(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("invite: status %d, want 200", resp.StatusCode)
 	}
-	code := inviteCodeRe.FindString(string(inviteBody))
-	if len(code) != 8 {
-		t.Fatalf("invite response does not contain an 8-char code; body: %s", inviteBody)
-	}
+	code := extractInviteCode(t, inviteBody)
 
 	// B registers and joins with the code → member.
 	cookieB, userB := register("User B", "b@example.com", "password123")
@@ -898,10 +909,7 @@ func TestHouseholdE2EFlow(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("second invite: status %d, want 200", resp.StatusCode)
 	}
-	code2 := inviteCodeRe.FindString(string(freshBody))
-	if len(code2) != 8 {
-		t.Fatalf("second invite response does not contain an 8-char code")
-	}
+	code2 := extractInviteCode(t, freshBody)
 	resp = post("/household/join", "code="+code2, cookieC)
 	expectRedirect(resp, "/household/join", "/dashboard")
 	cookieC = getCookieValue(resp, "jwt")
@@ -977,10 +985,7 @@ func TestHouseholdRole_E2E(t *testing.T) {
 		t.Fatalf("read invite response: %v", err)
 	}
 	resp.Body.Close()
-	code := inviteCodeRe.FindString(string(inviteBody))
-	if len(code) != 8 {
-		t.Fatalf("invite response does not contain an 8-char code; body: %s", inviteBody)
-	}
+	code := extractInviteCode(t, inviteBody)
 	resp = post("/household/join", "code="+code, cookieB)
 	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
 		t.Fatalf("join: status %d Location %q, want 302 /dashboard",
@@ -1116,10 +1121,7 @@ func TestExpenseVisibility_E2E(t *testing.T) {
 		t.Fatalf("read invite response: %v", err)
 	}
 	resp.Body.Close()
-	code := inviteCodeRe.FindString(string(inviteBody))
-	if len(code) != 8 {
-		t.Fatalf("invite response does not contain an 8-char code; body: %s", inviteBody)
-	}
+	code := extractInviteCode(t, inviteBody)
 	resp = post("/household/join", "code="+code, cookieB)
 	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
 		t.Fatalf("join: status %d Location %q, want 302 /dashboard",
@@ -1385,6 +1387,225 @@ func TestLangSwitch_CSRFLessPostForbidden(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusForbidden {
 		t.Errorf("status = %d, want %d (CSRF must block token-less POST to /settings/lang)", resp.StatusCode, fiber.StatusForbidden)
+	}
+}
+
+// TestHousehold_CSRF_Handshake extends the anonymous CSRF handshake pattern to
+// the household POST flows (create / invite / join): each token-less POST must
+// be rejected with 403 and persist nothing, while the identical flow succeeds
+// once the token collected by the GET handshake is submitted alongside the
+// session cookie.
+func TestHousehold_CSRF_Handshake(t *testing.T) {
+	const jwtSecret = "test-secret"
+	app, db := newIntegrationAppWithDB(t, "test-csrf-key", jwtSecret)
+
+	cookiePair, token := csrfHandshake(t, app, "/login")
+
+	// post sends a form POST optionally carrying extra cookies (e.g. jwt).
+	post := func(path, form, cookies string) *http.Response {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if cookies != "" {
+			req.Header.Set("Cookie", cookies)
+		}
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("POST %s: %v", path, err)
+		}
+		return resp
+	}
+
+	// register drives the real registration flow using the handshake token and
+	// returns the fresh user's JWT cookie value.
+	register := func(email string) string {
+		t.Helper()
+		form := "name=CSRF+User&email=" + email + "&password=password123&csrf=" + token
+		resp := post("/register", form, cookiePair)
+		defer resp.Body.Close()
+		if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/household" {
+			t.Fatalf("register %s: status %d Location %q, want 302 /household",
+				email, resp.StatusCode, resp.Header.Get("Location"))
+		}
+		jwt := getCookieValue(resp, "jwt")
+		if jwt == "" {
+			t.Fatalf("register %s: no jwt cookie issued", email)
+		}
+		return jwt
+	}
+
+	countHouseholds := func() int64 {
+		t.Helper()
+		var count int64
+		if err := db.Model(&database.Household{}).Count(&count).Error; err != nil {
+			t.Fatalf("count households: %v", err)
+		}
+		return count
+	}
+
+	// authCookies pairs the session JWT with the CSRF double-submit cookie.
+	authCookies := func(jwt string) string { return "jwt=" + jwt + "; " + cookiePair }
+
+	// --- POST /household (create) ---
+	jwtA := register("csrf-a@example.com")
+
+	resp := post("/household", "name=No+Token+Family", "jwt="+jwtA)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("create without CSRF token: status %d, want 403", resp.StatusCode)
+	}
+	resp.Body.Close()
+	if got := countHouseholds(); got != 0 {
+		t.Errorf("households after blocked create = %d, want 0 (no mutation without CSRF)", got)
+	}
+
+	resp = post("/household", "name=CSRF+Family&csrf="+token, authCookies(jwtA))
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Errorf("create with CSRF token: status %d Location %q, want 302 /dashboard",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+	var household database.Household
+	if err := db.Where("name = ?", "CSRF Family").First(&household).Error; err != nil {
+		t.Fatalf("household not persisted after valid create: %v", err)
+	}
+
+	// --- POST /household/invite ---
+	resp = post("/household/invite", "", "jwt="+jwtA)
+	inviteBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read token-less invite response: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("invite without CSRF token: status %d, want 403", resp.StatusCode)
+	}
+
+	resp = post("/household/invite", "csrf="+token, authCookies(jwtA))
+	inviteBody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read valid invite response: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("invite with CSRF token: status %d, want 200", resp.StatusCode)
+	}
+	code := extractInviteCode(t, inviteBody)
+
+	// --- POST /household/join ---
+	jwtB := register("csrf-b@example.com")
+
+	resp = post("/household/join", "code="+code, "jwt="+jwtB)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Errorf("join without CSRF token: status %d, want 403", resp.StatusCode)
+	}
+	resp.Body.Close()
+	var joiner database.User
+	if err := db.Where("email = ?", "csrf-b@example.com").First(&joiner).Error; err != nil {
+		t.Fatalf("load joiner: %v", err)
+	}
+	if joiner.HouseholdID != nil {
+		t.Errorf("joiner HouseholdID = %v, want nil (no mutation without CSRF)", joiner.HouseholdID)
+	}
+
+	resp = post("/household/join", "code="+code+"&csrf="+token, authCookies(jwtB))
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Errorf("join with CSRF token: status %d Location %q, want 302 /dashboard",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	resp.Body.Close()
+	if err := db.First(&joiner, joiner.ID).Error; err != nil {
+		t.Fatalf("reload joiner: %v", err)
+	}
+	if joiner.HouseholdID == nil || *joiner.HouseholdID != household.ID {
+		t.Errorf("joiner HouseholdID = %v, want %d after valid join", joiner.HouseholdID, household.ID)
+	}
+}
+
+// TestHouseholdJoin_JWTClaims verifies the observable claims on the JWT
+// re-issued after a successful join: the joining user's token must carry
+// IsAdmin=false plus the household claim of the joined household.
+func TestHouseholdJoin_JWTClaims(t *testing.T) {
+	const jwtSecret = "test-secret"
+	app, db := newIntegrationAppWithDB(t, "", jwtSecret)
+
+	// post sends a form POST with the given jwt cookie and returns the response.
+	post := func(path, form, cookie string) *http.Response {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Cookie", "jwt="+cookie)
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("POST %s: %v", path, err)
+		}
+		return resp
+	}
+
+	register := func(name, email string) string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/register",
+			strings.NewReader("name="+name+"&email="+email+"&password=password123"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		resp, err := app.Test(req, 5000)
+		if err != nil {
+			t.Fatalf("register %s: %v", email, err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/household" {
+			t.Fatalf("register %s: status %d Location %q, want 302 /household",
+				email, resp.StatusCode, resp.Header.Get("Location"))
+		}
+		return getCookieValue(resp, "jwt")
+	}
+
+	// A registers first (bootstraps as site admin), creates the household,
+	// and invites. B joins — the joining user under test.
+	cookieA := register("Owner A", "claims-owner@example.com")
+	resp := post("/household", "name=Claims+Family", cookieA)
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Fatalf("create household: status %d Location %q, want 302 /dashboard",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	cookieA = getCookieValue(resp, "jwt")
+	resp.Body.Close()
+
+	resp = post("/household/invite", "", cookieA)
+	inviteBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read invite response: %v", err)
+	}
+	resp.Body.Close()
+	code := extractInviteCode(t, inviteBody)
+
+	cookieB := register("Member B", "claims-joiner@example.com")
+	resp = post("/household/join", "code="+code, cookieB)
+	if resp.StatusCode != fiber.StatusFound || resp.Header.Get("Location") != "/dashboard" {
+		t.Fatalf("join: status %d Location %q, want 302 /dashboard",
+			resp.StatusCode, resp.Header.Get("Location"))
+	}
+	reissued := getCookieValue(resp, "jwt")
+	resp.Body.Close()
+	if reissued == "" {
+		t.Fatal("no re-issued jwt cookie after join")
+	}
+
+	claims, err := services.ValidateToken(reissued, jwtSecret)
+	if err != nil {
+		t.Fatalf("validate re-issued join token: %v", err)
+	}
+
+	var household database.Household
+	if err := db.Where("name = ?", "Claims Family").First(&household).Error; err != nil {
+		t.Fatalf("load household: %v", err)
+	}
+	if claims.IsAdmin {
+		t.Error("expected IsAdmin=false claim for the joining user")
+	}
+	if claims.Role != database.RoleMember {
+		t.Errorf("expected Role=member claim for the joining user, got %q", claims.Role)
+	}
+	if claims.HouseholdID == nil || *claims.HouseholdID != household.ID {
+		t.Errorf("expected household claim %d for the joined household, got %v", household.ID, claims.HouseholdID)
 	}
 }
 
@@ -1791,12 +2012,12 @@ func TestCORSOriginMatchingPrecision(t *testing.T) {
 				t.Errorf("status code = %d, want %d", resp.StatusCode, fiber.StatusOK)
 			}
 
-		buf := make([]byte, 1024)
-		n, _ := resp.Body.Read(buf)
-		body := strings.TrimSpace(string(buf[:n]))
-		if body != "ok" {
-			t.Errorf("response body = %q, want %q", body, "ok")
-		}
+			buf := make([]byte, 1024)
+			n, _ := resp.Body.Read(buf)
+			body := strings.TrimSpace(string(buf[:n]))
+			if body != "ok" {
+				t.Errorf("response body = %q, want %q", body, "ok")
+			}
 		})
 	}
 }
