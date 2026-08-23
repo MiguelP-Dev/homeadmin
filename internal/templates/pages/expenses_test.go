@@ -108,3 +108,23 @@ func TestExpenses_Triangulation_DifferentExpenses(t *testing.T) {
 		t.Error("first list should not contain 'Item B'")
 	}
 }
+
+func TestExpenses_TranslatedStrings(t *testing.T) {
+	tests := []struct {
+		lang string
+		want []string
+	}{
+		{"en", []string{"Expenses", "Create Expense", "No expenses yet"}},
+		{"es", []string{"Gastos", "Crear gasto", "Aún no hay gastos"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.lang, func(t *testing.T) {
+			output := mustRenderExpenses([]database.Expense{}, tt.lang)
+			for _, want := range tt.want {
+				if !strings.Contains(output, want) {
+					t.Errorf("lang %q: expected %q in expenses output", tt.lang, want)
+				}
+			}
+		})
+	}
+}

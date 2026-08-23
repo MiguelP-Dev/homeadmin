@@ -25,6 +25,6 @@ templ SavingsForm(csrfToken string, formAction string, submitLabel string, error
 			</div>
 			<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">{ submitLabel }</button>
 		</form>
-		<p class="mt-4 text-sm"><a href="/savings" class="text-blue-500">&larr; Back to Savings</a></p>
+		<p class="mt-4 text-sm"><a href="/savings" class="text-blue-500">&larr; { i18n.T(lang, "common.back_to_savings") }</a></p>
 	</div>
 }

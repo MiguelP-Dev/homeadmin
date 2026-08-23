@@ -272,3 +272,50 @@ func TestDashboard_InviteCTA_HiddenForMember(t *testing.T) {
 		t.Error("member should NOT see Invite CTA")
 	}
 }
+
+func TestDashboard_TranslatedStrings(t *testing.T) {
+	tests := []struct {
+		lang string
+		want []string
+	}{
+		{"en", []string{
+			"Add Expense", "Invite member", "No recent expenses",
+			"Category Breakdown", "No expenses this month",
+			"Back to Expenses", "Dashboard",
+		}},
+		{"es", []string{
+			"Agregar gasto", "Invitar miembro", "Sin gastos recientes",
+			"Desglose por categoría", "Sin gastos este mes",
+			"Volver a gastos", "Panel",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.lang, func(t *testing.T) {
+			s := &services.DashboardSummary{MonthlyTotal: 0, CategoryTotals: []repositories.CategoryTotal{}, RecentExpenses: []database.Expense{}}
+			output := mustRenderDashboard(s, database.RoleOwner, tt.lang)
+			for _, want := range tt.want {
+				if !strings.Contains(output, want) {
+					t.Errorf("lang %q: expected %q in dashboard output", tt.lang, want)
+				}
+			}
+		})
+	}
+}
+
+func TestDashboard_TranslatedBreakdownHeaders(t *testing.T) {
+	s := &services.DashboardSummary{
+		MonthlyTotal: 200.00,
+		CategoryTotals: []repositories.CategoryTotal{
+			{Category: "groceries", Total: 200.00},
+		},
+		RecentExpenses: []database.Expense{},
+	}
+	enOutput := mustRenderDashboard(s, database.RoleOwner, "en")
+	esOutput := mustRenderDashboard(s, database.RoleOwner, "es")
+	if !strings.Contains(enOutput, ">Category</th>") || !strings.Contains(enOutput, ">Total</th>") {
+		t.Error("expected 'Category' and 'Total' breakdown headers in en output")
+	}
+	if !strings.Contains(esOutput, ">Categoría</th>") || !strings.Contains(esOutput, ">Total</th>") {
+		t.Error("expected 'Categoría' and 'Total' breakdown headers in es output")
+	}
+}

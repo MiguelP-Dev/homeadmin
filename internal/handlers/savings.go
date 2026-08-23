@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
+	"github.com/homeadmin/internal/i18n"
 	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/services"
 	"github.com/homeadmin/internal/templates/layouts"
@@ -99,8 +101,8 @@ func (h *SavingsHandler) ShowNew(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.SavingsForm(csrfToken, "/savings", "Create Savings", "", lang)
-	page := layouts.Base("Create Savings — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	component := pages.SavingsForm(csrfToken, "/savings", i18n.T(lang, "savings.create"), "", lang)
+	page := layouts.Base(fmt.Sprintf("%s — HomeAdmin", i18n.T(lang, "savings.create")), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())

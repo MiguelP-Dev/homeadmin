@@ -271,6 +271,24 @@ func TestHouseholdShow_TranslatedStrings(t *testing.T) {
 	}
 }
 
+func TestHouseholdShow_RemoveConfirmRendersRealOnclick(t *testing.T) {
+	hh := &database.Household{Name: "My Family"}
+	members := []database.User{
+		{ID: 2, Email: "member@example.com", Role: database.RoleMember},
+	}
+	enOutput := mustRenderHouseholdShow(hh, members, database.RoleOwner, "csrf-token", "", "en")
+	esOutput := mustRenderHouseholdShow(hh, members, database.RoleOwner, "csrf-token", "", "es")
+	if !strings.Contains(enOutput, `onclick="return confirm(`) || !strings.Contains(enOutput, "Remove this member?") {
+		t.Error("expected real translated onclick confirm in en household output")
+	}
+	if !strings.Contains(esOutput, `onclick="return confirm(`) || !strings.Contains(esOutput, "¿Eliminar este miembro?") {
+		t.Error("expected real translated onclick confirm in es household output")
+	}
+	if strings.Contains(enOutput, `attributes="map[`) || strings.Contains(esOutput, `attributes="map[`) {
+		t.Error("expected no stringified attributes map in household output")
+	}
+}
+
 func TestHouseholdSetup_TranslatedStrings(t *testing.T) {
 	tests := []struct {
 		lang string

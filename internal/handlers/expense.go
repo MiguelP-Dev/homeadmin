@@ -8,6 +8,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/i18n"
 	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/services"
 	"github.com/homeadmin/internal/templates/layouts"
@@ -192,8 +193,8 @@ func (h *ExpenseHandler) ShowNew(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.ExpenseForm(csrfToken, "/expenses", "Create Expense", "", pages.ExpenseFormValuesFrom(nil), lang)
-	page := layouts.Base("Create Expense — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	component := pages.ExpenseForm(csrfToken, "/expenses", i18n.T(lang, "expenses.create"), "", pages.ExpenseFormValuesFrom(nil), lang)
+	page := layouts.Base(fmt.Sprintf("%s — HomeAdmin", i18n.T(lang, "expenses.create")), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -234,8 +235,8 @@ func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.ExpenseForm(csrfToken, fmt.Sprintf("/expenses/%d/update", expenseID), "Update Expense", "", pages.ExpenseFormValuesFrom(expense), lang)
-	page := layouts.Base("Edit Expense — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	component := pages.ExpenseForm(csrfToken, fmt.Sprintf("/expenses/%d/update", expenseID), i18n.T(lang, "expenses.update"), "", pages.ExpenseFormValuesFrom(expense), lang)
+	page := layouts.Base(fmt.Sprintf("%s — HomeAdmin", i18n.T(lang, "expenses.edit")), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
