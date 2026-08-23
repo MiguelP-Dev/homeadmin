@@ -11,9 +11,9 @@ import (
 // Used in both the dashboard recent list and the expenses list page.
 // lang controls locale formatting for currency, dates, categories, and visibility.
 templ ExpenseCard(e database.Expense, lang string) {
-	<div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+	<div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
 		<div class="flex-1">
-			<div class="font-medium text-gray-900">{ e.Description }</div>
+			<div class="font-medium text-gray-900 dark:text-gray-100">{ e.Description }</div>
 			<div class="text-sm text-gray-500">
 				{ i18n.CategoryLabel(lang, e.Category) } &middot; { i18n.FormatDate(lang, e.Date) }
 			</div>
@@ -21,12 +21,12 @@ templ ExpenseCard(e database.Expense, lang string) {
 		<div class="flex items-center gap-2">
 			<span class={ "text-xs px-2 py-0.5 rounded-full " + TypeBadgeClass(e.Type) }>{ i18n.TypeLabel(lang, e.Type) }</span>
 			<div class="text-right">
-				<div class="font-semibold text-gray-900">{ i18n.FormatCurrency(lang, e.Amount) }</div>
+				<div class="font-semibold text-gray-900 dark:text-gray-100">{ i18n.FormatCurrency(lang, e.Amount) }</div>
 				<span class={ "text-xs px-2 py-0.5 rounded-full " + visibilityBadgeClass(e.Visibility) }>{ i18n.VisibilityLabel(lang, e.Visibility) }</span>
 			</div>
 			<form method="POST" action={ fmt.Sprintf("/expenses/%d/delete", e.ID) } class="inline" onclick="return confirm('Are you sure?')">
 				<input type="hidden" name="csrf" value=""/>
-				<button type="submit" class="ml-2 text-red-500 hover:text-red-700" aria-label="Delete">
+				<button type="submit" class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" aria-label="Delete">
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
 					</svg>
@@ -37,9 +37,9 @@ templ ExpenseCard(e database.Expense, lang string) {
 }
 
 templ ExpenseCardWithCSRF(e database.Expense, lang string, csrfToken string) {
-	<div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+	<div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
 		<div class="flex-1">
-			<div class="font-medium text-gray-900">{ e.Description }</div>
+			<div class="font-medium text-gray-900 dark:text-gray-100">{ e.Description }</div>
 			<div class="text-sm text-gray-500">
 				{ i18n.CategoryLabel(lang, e.Category) } &middot; { i18n.FormatDate(lang, e.Date) }
 			</div>
@@ -47,12 +47,12 @@ templ ExpenseCardWithCSRF(e database.Expense, lang string, csrfToken string) {
 		<div class="flex items-center gap-2">
 			<span class={ "text-xs px-2 py-0.5 rounded-full " + TypeBadgeClass(e.Type) }>{ i18n.TypeLabel(lang, e.Type) }</span>
 			<div class="text-right">
-				<div class="font-semibold text-gray-900">{ i18n.FormatCurrency(lang, e.Amount) }</div>
+				<div class="font-semibold text-gray-900 dark:text-gray-100">{ i18n.FormatCurrency(lang, e.Amount) }</div>
 				<span class={ "text-xs px-2 py-0.5 rounded-full " + visibilityBadgeClass(e.Visibility) }>{ i18n.VisibilityLabel(lang, e.Visibility) }</span>
 			</div>
 			<form method="POST" action={ fmt.Sprintf("/expenses/%d/delete", e.ID) } class="inline" onclick="return confirm('Are you sure?')">
 				<input type="hidden" name="csrf" value={ csrfToken }/>
-				<button type="submit" class="ml-2 text-red-500 hover:text-red-700" aria-label="Delete">
+				<button type="submit" class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" aria-label="Delete">
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
 					</svg>

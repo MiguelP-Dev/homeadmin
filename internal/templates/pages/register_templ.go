@@ -32,19 +32,19 @@ func Register(csrfToken string, errorMsg string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-md mx-auto mt-10 p-6 bg-white rounded shadow\"><h1 class=\"text-2xl font-bold mb-4\">Register</h1>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-md mx-auto mt-10 p-6 bg-white rounded shadow dark:bg-gray-800\"><h1 class=\"text-2xl font-bold mb-4\">Register</h1>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if errorMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"text-red-500 mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"text-red-500 dark:text-red-400 mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/register.templ`, Line: 10, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/register.templ`, Line: 10, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -68,7 +68,7 @@ func Register(csrfToken string, errorMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><div class=\"mb-4\"><label for=\"name\" class=\"block text-sm font-medium text-gray-700\">Name:</label> <input type=\"text\" id=\"name\" name=\"name\" required class=\"w-full border rounded p-2\"></div><div class=\"mb-4\"><label for=\"email\" class=\"block text-sm font-medium text-gray-700\">Email:</label> <input type=\"email\" id=\"email\" name=\"email\" required class=\"w-full border rounded p-2\"></div><div class=\"mb-4\"><label for=\"password\" class=\"block text-sm font-medium text-gray-700\">Password:</label> <input type=\"password\" id=\"password\" name=\"password\" required minlength=\"8\" class=\"w-full border rounded p-2\"></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">Register</button></form><p class=\"mt-4 text-sm\"><a href=\"/login\" class=\"text-blue-500\">Already have an account? Login</a></p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"><div class=\"mb-4\"><label for=\"name\" class=\"block text-sm font-medium text-gray-700 dark:text-gray-300\">Name:</label> <input type=\"text\" id=\"name\" name=\"name\" required class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\"></div><div class=\"mb-4\"><label for=\"email\" class=\"block text-sm font-medium text-gray-700 dark:text-gray-300\">Email:</label> <input type=\"email\" id=\"email\" name=\"email\" required class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\"></div><div class=\"mb-4\"><label for=\"password\" class=\"block text-sm font-medium text-gray-700 dark:text-gray-300\">Password:</label> <input type=\"password\" id=\"password\" name=\"password\" required minlength=\"8\" class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\"></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">Register</button></form><p class=\"mt-4 text-sm\"><a href=\"/login\" class=\"text-blue-500\">Already have an account? Login</a></p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

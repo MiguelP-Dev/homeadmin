@@ -39,14 +39,14 @@ func Admin(users []database.User, summary *services.AdminSummary, lang string) t
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><h1 class=\"text-3xl font-bold text-gray-900 mb-6\">Admin</h1><!-- Site Summary --><h2 class=\"text-xl font-semibold text-gray-800 mb-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><h1 class=\"text-3xl font-bold text-gray-900 dark:text-white mb-6\">Admin</h1><!-- Site Summary --><h2 class=\"text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "admin.summary"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 18, Col: 86}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 18, Col: 104}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -117,14 +117,14 @@ func Admin(users []database.User, summary *services.AdminSummary, lang string) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div><div class=\"text-2xl font-bold text-blue-600\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div><div class=\"text-2xl font-bold text-blue-600 dark:text-blue-400\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", summary.Transactions))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 30, Col: 91}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 30, Col: 110}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
@@ -143,14 +143,14 @@ func Admin(users []database.User, summary *services.AdminSummary, lang string) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div class=\"text-2xl font-bold text-green-600\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div><div class=\"text-2xl font-bold text-green-600 dark:text-green-400\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.FormatCurrency(lang, summary.TotalIncome))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 34, Col: 99}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 34, Col: 119}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -169,20 +169,20 @@ func Admin(users []database.User, summary *services.AdminSummary, lang string) t
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><div class=\"text-2xl font-bold text-emerald-600\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><div class=\"text-2xl font-bold text-emerald-600 dark:text-emerald-400\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.FormatCurrency(lang, summary.TotalSavings))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 38, Col: 102}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 38, Col: 124}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div></div><h2 class=\"text-xl font-semibold text-gray-800 mb-3\">Users</h2><table class=\"w-full border-collapse mb-8\"><thead><tr class=\"bg-gray-100\"><th class=\"text-left p-3 border-b\">Email</th><th class=\"text-left p-3 border-b\">Role</th><th class=\"text-left p-3 border-b\">Is Admin</th><th class=\"text-left p-3 border-b\">Household</th></tr></thead> <tbody>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div></div><h2 class=\"text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3\">Users</h2><table class=\"w-full border-collapse mb-8\"><thead><tr class=\"bg-gray-100 dark:bg-gray-700\"><th class=\"text-left p-3 border-b\">Email</th><th class=\"text-left p-3 border-b\">Role</th><th class=\"text-left p-3 border-b\">Is Admin</th><th class=\"text-left p-3 border-b\">Household</th></tr></thead> <tbody>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -224,7 +224,7 @@ func Admin(users []database.User, summary *services.AdminSummary, lang string) t
 					return templ_7745c5c3_Err
 				}
 				if u.IsAdmin {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span class=\"text-green-700\">Yes</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span class=\"text-green-700 dark:text-green-400\">Yes</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -260,20 +260,20 @@ func Admin(users []database.User, summary *services.AdminSummary, lang string) t
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</tbody></table><h2 class=\"text-xl font-semibold text-gray-800 mb-3\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</tbody></table><h2 class=\"text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "admin.count_households"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 82, Col: 95}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 82, Col: 114}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</h2><table class=\"w-full border-collapse mb-8\"><thead><tr class=\"bg-gray-100\"><th class=\"text-left p-3 border-b\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "</h2><table class=\"w-full border-collapse mb-8\"><thead><tr class=\"bg-gray-100 dark:bg-gray-700\"><th class=\"text-left p-3 border-b\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -410,40 +410,40 @@ func Admin(users []database.User, summary *services.AdminSummary, lang string) t
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</td><td class=\"p-3 border-b space-x-3 whitespace-nowrap\"><a href=\"/dashboard\" class=\"text-blue-600 hover:text-blue-800\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</td><td class=\"p-3 border-b space-x-3 whitespace-nowrap\"><a href=\"/dashboard\" class=\"text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.dashboard"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 104, Col: 102}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 104, Col: 146}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</a> <a href=\"/expenses\" class=\"text-blue-600 hover:text-blue-800\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</a> <a href=\"/expenses\" class=\"text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.expenses"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 105, Col: 100}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 105, Col: 144}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</a> <a href=\"/savings\" class=\"text-blue-600 hover:text-blue-800\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</a> <a href=\"/savings\" class=\"text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.savings"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 106, Col: 98}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/admin.templ`, Line: 106, Col: 142}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -455,7 +455,7 @@ func Admin(users []database.User, summary *services.AdminSummary, lang string) t
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</tbody></table><p class=\"mt-6\"><a href=\"/dashboard\" class=\"text-blue-600 hover:text-blue-800\">&larr; Back to Dashboard</a></p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</tbody></table><p class=\"mt-6\"><a href=\"/dashboard\" class=\"text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300\">&larr; Back to Dashboard</a></p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

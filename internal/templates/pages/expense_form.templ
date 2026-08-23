@@ -13,7 +13,7 @@ templ ExpenseForm(csrfToken string, formAction string, submitLabel string, error
 	<div class="max-w-md mx-auto mt-10 p-6 bg-white dark:bg-gray-800 rounded shadow">
 		<h1 class="text-2xl font-bold mb-4">{ submitLabel }</h1>
 		if errorMsg != "" {
-			<p class="text-red-500 mb-4">{ errorMsg }</p>
+			<p class="text-red-500 dark:text-red-400 mb-4">{ errorMsg }</p>
 		}
 		<form method="POST" action={ formAction }>
 			<input type="hidden" name="csrf" value={ csrfToken }/>

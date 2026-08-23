@@ -15,7 +15,7 @@ import (
 templ HouseholdShow(household *database.Household, members []database.User, viewerRole string, csrfToken string, inviteCode string, lang string) {
 	<div class="max-w-4xl mx-auto p-6">
 		<div class="flex items-center justify-between mb-2">
-			<h1 class="text-3xl font-bold text-gray-900">{ household.Name }</h1>
+			<h1 class="text-3xl font-bold text-gray-900 dark:text-white">{ household.Name }</h1>
 			<a href="/expenses/new" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Add Expense</a>
 		</div>
 
@@ -29,19 +29,19 @@ templ HouseholdShow(household *database.Household, members []database.User, view
 		}
 
 		if inviteCode != "" {
-			<div class="mb-6 p-4 bg-green-50 border border-green-200 rounded">
-				<p class="text-sm text-gray-700">Share this invite code to let someone join your household:</p>
-				<p class="mt-2 text-2xl font-mono font-bold text-green-800">{ inviteCode }</p>
+			<div class="mb-6 p-4 bg-green-50 border border-green-200 rounded dark:bg-green-900 dark:border-green-700">
+				<p class="text-sm text-gray-700 dark:text-gray-300">Share this invite code to let someone join your household:</p>
+				<p class="mt-2 text-2xl font-mono font-bold text-green-800 dark:text-green-300">{ inviteCode }</p>
 			</div>
 		}
 
-		<h2 class="text-xl font-semibold text-gray-800 mb-3">Members</h2>
-		<ul class="divide-y">
+		<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Members</h2>
+		<ul class="divide-y divide-gray-200 dark:divide-gray-700">
 			for _, m := range members {
 				<li class="flex justify-between items-center py-3">
-					<span class="text-gray-900">{ m.Email }</span>
+					<span class="text-gray-900 dark:text-white">{ m.Email }</span>
 					<div class="flex items-center gap-2">
-						<span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{ i18n.T(lang, "household.role."+m.Role) }</span>
+						<span class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-200">{ i18n.T(lang, "household.role."+m.Role) }</span>
 						if viewerRole == database.RoleOwner && m.Role == database.RoleMember {
 							<form method="POST" action={ fmt.Sprintf("/household/members/%d/role", m.ID) } class="inline">
 								<input type="hidden" name="csrf" value={ csrfToken }/>
@@ -75,32 +75,32 @@ templ HouseholdShow(household *database.Household, members []database.User, view
 // errorMsg is an optional error message displayed above the create form.
 templ HouseholdSetup(csrfToken string, errorMsg string) {
 	<div class="max-w-4xl mx-auto p-6">
-		<h1 class="text-3xl font-bold text-gray-900 mb-2">Household</h1>
-		<p class="text-gray-600 mb-6">You are not part of a household yet. Create one or join an existing one.</p>
+		<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Household</h1>
+		<p class="text-gray-600 dark:text-gray-400 mb-6">You are not part of a household yet. Create one or join an existing one.</p>
 
 		<div class="grid md:grid-cols-2 gap-6">
-			<div class="p-6 bg-white rounded shadow">
+			<div class="p-6 bg-white rounded shadow dark:bg-gray-800">
 				<h2 class="text-xl font-semibold mb-4">Create a household</h2>
 				if errorMsg != "" {
-					<p class="text-red-500 mb-4">{ errorMsg }</p>
+					<p class="text-red-500 dark:text-red-400 mb-4">{ errorMsg }</p>
 				}
 				<form method="POST" action="/household">
 					<input type="hidden" name="csrf" value={ csrfToken }/>
 					<div class="mb-4">
-						<label for="name" class="block text-sm font-medium text-gray-700">Household name:</label>
-						<input type="text" id="name" name="name" required class="w-full border rounded p-2"/>
+						<label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Household name:</label>
+						<input type="text" id="name" name="name" required class="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
 					</div>
 					<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Create household</button>
 				</form>
 			</div>
 
-			<div class="p-6 bg-white rounded shadow">
+			<div class="p-6 bg-white rounded shadow dark:bg-gray-800">
 				<h2 class="text-xl font-semibold mb-4">Join with an invite code</h2>
 				<form method="POST" action="/household/join">
 					<input type="hidden" name="csrf" value={ csrfToken }/>
 					<div class="mb-4">
-						<label for="code" class="block text-sm font-medium text-gray-700">Invite code:</label>
-						<input type="text" id="code" name="code" required maxlength="8" class="w-full border rounded p-2"/>
+						<label for="code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Invite code:</label>
+						<input type="text" id="code" name="code" required maxlength="8" class="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white"/>
 					</div>
 					<button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Join household</button>
 				</form>

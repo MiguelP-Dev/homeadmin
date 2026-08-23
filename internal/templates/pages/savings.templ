@@ -16,7 +16,7 @@ templ Savings(savings []database.Savings, total float64, lang string, csrfToken 
 		<!-- Total Saved -->
 		<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6 border-l-4 border-green-500">
 			<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "savings.total") }</div>
-			<div class="text-2xl font-bold text-green-600">{ i18n.FormatCurrency(lang, total) }</div>
+			<div class="text-2xl font-bold text-green-600 dark:text-green-400">{ i18n.FormatCurrency(lang, total) }</div>
 		</div>
 
 		if len(savings) == 0 {
@@ -24,7 +24,7 @@ templ Savings(savings []database.Savings, total float64, lang string, csrfToken 
 		} else {
 			<div class="space-y-3">
 				for _, s := range savings {
-				<div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+				<div class="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">
 					<div class="flex-1">
 						<div class="font-medium text-gray-900 dark:text-white">{ s.Description }</div>
 						if s.Target > 0 {
@@ -39,7 +39,7 @@ templ Savings(savings []database.Savings, total float64, lang string, csrfToken 
 							</div>
 							<form method="POST" action={ "/savings/" + uintToString(s.ID) + "/delete" } class="inline" onclick="return confirm('Are you sure?')">
 								<input type="hidden" name="csrf" value={ csrfToken }/>
-								<button type="submit" class="ml-2 text-red-500 hover:text-red-700" aria-label="Delete">
+								<button type="submit" class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" aria-label="Delete">
 									<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
 									</svg>

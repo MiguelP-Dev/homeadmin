@@ -28,18 +28,18 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
 			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-green-500">
 				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "total_income") }</div>
-				<div class="text-2xl font-bold text-green-600">{ i18n.FormatCurrency(lang, summary.TotalIncome) }</div>
+				<div class="text-2xl font-bold text-green-600 dark:text-green-400">{ i18n.FormatCurrency(lang, summary.TotalIncome) }</div>
 			</div>
 			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-red-500">
 				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "total_expenses") }</div>
-				<div class="text-2xl font-bold text-red-600">{ i18n.FormatCurrency(lang, summary.TotalExpenses) }</div>
+				<div class="text-2xl font-bold text-red-600 dark:text-red-400">{ i18n.FormatCurrency(lang, summary.TotalExpenses) }</div>
 			</div>
 			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-blue-500">
 				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "balance") }</div>
 				if summary.Balance >= 0 {
-					<div class="text-2xl font-bold text-green-600">{ i18n.FormatCurrency(lang, summary.Balance) }</div>
+					<div class="text-2xl font-bold text-green-600 dark:text-green-400">{ i18n.FormatCurrency(lang, summary.Balance) }</div>
 				} else {
-					<div class="text-2xl font-bold text-red-600">{ i18n.FormatCurrency(lang, summary.Balance) }</div>
+					<div class="text-2xl font-bold text-red-600 dark:text-red-400">{ i18n.FormatCurrency(lang, summary.Balance) }</div>
 				}
 			</div>
 		</div>
@@ -101,7 +101,7 @@ templ Dashboard(summary *services.DashboardSummary, viewerRole string, lang stri
 		</table>
 
 		<p class="mt-6">
-			<a href="/expenses" class="text-blue-600 hover:text-blue-800">&larr; Back to Expenses</a>
+			<a href="/expenses" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">&larr; Back to Expenses</a>
 		</p>
 	</div>
 }

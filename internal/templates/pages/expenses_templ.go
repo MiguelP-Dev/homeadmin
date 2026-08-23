@@ -36,7 +36,7 @@ func Expenses(expenses []database.Expense, lang string, csrfToken string) templ.
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><div class=\"flex items-center justify-between mb-6\"><h1 class=\"text-3xl font-bold text-gray-900\">Expenses</h1><a href=\"/expenses/new\" class=\"bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700\">Create Expense</a></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><div class=\"flex items-center justify-between mb-6\"><h1 class=\"text-3xl font-bold text-gray-900 dark:text-white\">Expenses</h1><a href=\"/expenses/new\" class=\"bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700\">Create Expense</a></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

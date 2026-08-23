@@ -41,14 +41,14 @@ func HouseholdShow(household *database.Household, members []database.User, viewe
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><div class=\"flex items-center justify-between mb-2\"><h1 class=\"text-3xl font-bold text-gray-900\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"max-w-4xl mx-auto p-6\"><div class=\"flex items-center justify-between mb-2\"><h1 class=\"text-3xl font-bold text-gray-900 dark:text-white\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(household.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 18, Col: 64}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 18, Col: 80}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -91,14 +91,14 @@ func HouseholdShow(household *database.Household, members []database.User, viewe
 			}
 		}
 		if inviteCode != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"mb-6 p-4 bg-green-50 border border-green-200 rounded\"><p class=\"text-sm text-gray-700\">Share this invite code to let someone join your household:</p><p class=\"mt-2 text-2xl font-mono font-bold text-green-800\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"mb-6 p-4 bg-green-50 border border-green-200 rounded dark:bg-green-900 dark:border-green-700\"><p class=\"text-sm text-gray-700 dark:text-gray-300\">Share this invite code to let someone join your household:</p><p class=\"mt-2 text-2xl font-mono font-bold text-green-800 dark:text-green-300\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(inviteCode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 34, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 34, Col: 96}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -109,32 +109,32 @@ func HouseholdShow(household *database.Household, members []database.User, viewe
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2 class=\"text-xl font-semibold text-gray-800 mb-3\">Members</h2><ul class=\"divide-y\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<h2 class=\"text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3\">Members</h2><ul class=\"divide-y divide-gray-200 dark:divide-gray-700\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, m := range members {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<li class=\"flex justify-between items-center py-3\"><span class=\"text-gray-900\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<li class=\"flex justify-between items-center py-3\"><span class=\"text-gray-900 dark:text-white\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(m.Email)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 42, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 42, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span><div class=\"flex items-center gap-2\"><span class=\"text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span><div class=\"flex items-center gap-2\"><span class=\"text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-200\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "household.role."+m.Role))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 44, Col: 131}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 44, Col: 167}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -304,19 +304,19 @@ func HouseholdSetup(csrfToken string, errorMsg string) templ.Component {
 			templ_7745c5c3_Var16 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"max-w-4xl mx-auto p-6\"><h1 class=\"text-3xl font-bold text-gray-900 mb-2\">Household</h1><p class=\"text-gray-600 mb-6\">You are not part of a household yet. Create one or join an existing one.</p><div class=\"grid md:grid-cols-2 gap-6\"><div class=\"p-6 bg-white rounded shadow\"><h2 class=\"text-xl font-semibold mb-4\">Create a household</h2>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<div class=\"max-w-4xl mx-auto p-6\"><h1 class=\"text-3xl font-bold text-gray-900 dark:text-white mb-2\">Household</h1><p class=\"text-gray-600 dark:text-gray-400 mb-6\">You are not part of a household yet. Create one or join an existing one.</p><div class=\"grid md:grid-cols-2 gap-6\"><div class=\"p-6 bg-white rounded shadow dark:bg-gray-800\"><h2 class=\"text-xl font-semibold mb-4\">Create a household</h2>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if errorMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<p class=\"text-red-500 mb-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<p class=\"text-red-500 dark:text-red-400 mb-4\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(errorMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 85, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages/household.templ`, Line: 85, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -340,7 +340,7 @@ func HouseholdSetup(csrfToken string, errorMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\"><div class=\"mb-4\"><label for=\"name\" class=\"block text-sm font-medium text-gray-700\">Household name:</label> <input type=\"text\" id=\"name\" name=\"name\" required class=\"w-full border rounded p-2\"></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">Create household</button></form></div><div class=\"p-6 bg-white rounded shadow\"><h2 class=\"text-xl font-semibold mb-4\">Join with an invite code</h2><form method=\"POST\" action=\"/household/join\"><input type=\"hidden\" name=\"csrf\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\"><div class=\"mb-4\"><label for=\"name\" class=\"block text-sm font-medium text-gray-700 dark:text-gray-300\">Household name:</label> <input type=\"text\" id=\"name\" name=\"name\" required class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\"></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">Create household</button></form></div><div class=\"p-6 bg-white rounded shadow dark:bg-gray-800\"><h2 class=\"text-xl font-semibold mb-4\">Join with an invite code</h2><form method=\"POST\" action=\"/household/join\"><input type=\"hidden\" name=\"csrf\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -353,7 +353,7 @@ func HouseholdSetup(csrfToken string, errorMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\"><div class=\"mb-4\"><label for=\"code\" class=\"block text-sm font-medium text-gray-700\">Invite code:</label> <input type=\"text\" id=\"code\" name=\"code\" required maxlength=\"8\" class=\"w-full border rounded p-2\"></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">Join household</button></form></div></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\"><div class=\"mb-4\"><label for=\"code\" class=\"block text-sm font-medium text-gray-700 dark:text-gray-300\">Invite code:</label> <input type=\"text\" id=\"code\" name=\"code\" required maxlength=\"8\" class=\"w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 dark:text-white\"></div><button type=\"submit\" class=\"w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600\">Join household</button></form></div></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
