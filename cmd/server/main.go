@@ -3,13 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 
+	assets "github.com/homeadmin"
 	"github.com/homeadmin/internal/config"
 	"github.com/homeadmin/internal/database"
 	"github.com/homeadmin/internal/handlers"
@@ -70,10 +73,13 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Position 3: Static file serving (spec §6.8)
-	app.Static("/static", "./static", fiber.Static{
-		MaxAge: 31536000, // 1 year cache — files are versioned by the build process
-	})
+	// Position 3: Static file serving (spec §6.8). Assets are embedded in the
+	// binary so /static/* works no matter which directory the server runs from.
+	app.Use("/static", filesystem.New(filesystem.Config{
+		Root:   http.FS(assets.FS()),
+		MaxAge: 31536000, // 1 year cache — URLs are versioned via assets.Version
+		Browse: false,
+	}))
 
 	// Position 4: CSRF protection (spec §2.1)
 	csrfKey := cfg.CSRFKey
