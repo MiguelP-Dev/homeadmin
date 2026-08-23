@@ -43,7 +43,7 @@ templ HouseholdTransactionsSection(block services.HouseholdBlock, lang string) {
 
 		<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{ i18n.T(lang, "nav.expenses") }</h3>
 		if len(block.Expenses) == 0 {
-			<p class="text-gray-500 italic mb-6">No expenses yet</p>
+			<p class="text-gray-500 italic mb-6">{ i18n.T(lang, "expenses.no_expenses") }</p>
 		} else {
 			<table class="w-full border-collapse mb-6">
 				<thead>

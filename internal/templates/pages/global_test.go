@@ -139,3 +139,39 @@ func TestAdmin_EmptySiteShowsEmptyState(t *testing.T) {
 		t.Error("expected households empty state in admin output")
 	}
 }
+
+func TestAdmin_TranslatedStrings(t *testing.T) {
+	summary := &services.AdminSummary{}
+	render := func(users []database.User, lang string) string {
+		buf := &bytes.Buffer{}
+		if err := pages.Admin(users, summary, lang).Render(context.Background(), buf); err != nil {
+			panic(err)
+		}
+		return buf.String()
+	}
+	tests := []struct {
+		name string
+		lang string
+		want []string
+	}{
+		{"english", "en", []string{"Email", "Is Admin", "No users"}},
+		{"spanish", "es", []string{"Correo", "¿Es administrador?", "No hay usuarios"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := render(nil, tt.lang)
+			for _, want := range tt.want {
+				if !strings.Contains(output, want) {
+					t.Errorf("lang %q: expected %q in admin output", tt.lang, want)
+				}
+			}
+		})
+	}
+
+	withUser := render([]database.User{{ID: 1, Email: "u@x.com", Role: "owner", IsAdmin: true}}, "es")
+	for _, want := range []string{"Propietario", "Sí"} {
+		if !strings.Contains(withUser, want) {
+			t.Errorf("expected %q in spanish admin output", want)
+		}
+	}
+}

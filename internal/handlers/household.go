@@ -62,7 +62,7 @@ func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 	c.Type("html")
 
 	if view == nil {
-		component := pages.HouseholdSetup(csrfToken, "")
+		component := pages.HouseholdSetup(csrfToken, "", lang)
 		page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 		ctx := templ.WithChildren(c.Context(), component)
 		return page.Render(ctx, c.Response().BodyWriter())

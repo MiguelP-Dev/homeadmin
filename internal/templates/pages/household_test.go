@@ -19,9 +19,9 @@ func mustRenderHouseholdShow(hh *database.Household, members []database.User, vi
 	return buf.String()
 }
 
-func mustRenderHouseholdSetup(csrfToken, errorMsg string) string {
+func mustRenderHouseholdSetup(csrfToken, errorMsg, lang string) string {
 	buf := &bytes.Buffer{}
-	err := pages.HouseholdSetup(csrfToken, errorMsg).Render(context.Background(), buf)
+	err := pages.HouseholdSetup(csrfToken, errorMsg, lang).Render(context.Background(), buf)
 	if err != nil {
 		panic(err)
 	}
@@ -187,7 +187,7 @@ func TestHouseholdShow_RendersViewerRole(t *testing.T) {
 // --- HouseholdSetup: create form, join form, csrf ---
 
 func TestHouseholdSetup_RendersCreateHouseholdForm(t *testing.T) {
-	output := mustRenderHouseholdSetup("csrf-token", "")
+	output := mustRenderHouseholdSetup("csrf-token", "", "en")
 	if !strings.Contains(output, "Create a household") {
 		t.Error("expected 'Create a household' heading")
 	}
@@ -200,7 +200,7 @@ func TestHouseholdSetup_RendersCreateHouseholdForm(t *testing.T) {
 }
 
 func TestHouseholdSetup_RendersJoinForm(t *testing.T) {
-	output := mustRenderHouseholdSetup("csrf-token", "")
+	output := mustRenderHouseholdSetup("csrf-token", "", "en")
 	if !strings.Contains(output, `action="/household/join"`) {
 		t.Error("expected join form posting to /household/join")
 	}
@@ -210,7 +210,7 @@ func TestHouseholdSetup_RendersJoinForm(t *testing.T) {
 }
 
 func TestHouseholdSetup_RendersCsrfHiddenInput(t *testing.T) {
-	output := mustRenderHouseholdSetup("csrf-token-value", "")
+	output := mustRenderHouseholdSetup("csrf-token-value", "", "en")
 	if !strings.Contains(output, `name="csrf"`) {
 		t.Error("expected hidden csrf inputs in setup forms")
 	}
@@ -222,15 +222,79 @@ func TestHouseholdSetup_RendersCsrfHiddenInput(t *testing.T) {
 // --- HouseholdSetup: error message (triangulation) ---
 
 func TestHouseholdSetup_RendersErrorMessageWhenPresent(t *testing.T) {
-	output := mustRenderHouseholdSetup("csrf-token", "Household name is required")
+	output := mustRenderHouseholdSetup("csrf-token", "Household name is required", "en")
 	if !strings.Contains(output, "Household name is required") {
 		t.Error("expected error message to be rendered when present")
 	}
 }
 
 func TestHouseholdSetup_OmitsErrorMessageWhenEmpty(t *testing.T) {
-	output := mustRenderHouseholdSetup("csrf-token", "")
+	output := mustRenderHouseholdSetup("csrf-token", "", "en")
 	if strings.Contains(output, "Household name is required") {
 		t.Error("error message must not be rendered when empty")
+	}
+}
+
+// --- Translated output (i18n): previously-hardcoded strings ---
+
+func TestHouseholdShow_TranslatedStrings(t *testing.T) {
+	hh := &database.Household{Name: "My Family"}
+	members := []database.User{
+		{ID: 1, Email: "owner@example.com", Role: database.RoleOwner},
+		{ID: 2, Email: "admin@example.com", Role: database.RoleAdmin},
+		{ID: 3, Email: "member@example.com", Role: database.RoleMember},
+	}
+	tests := []struct {
+		lang string
+		want []string
+	}{
+		{"en", []string{
+			"Add Expense", "Your role:", "Invite member",
+			"Share this invite code to let someone join your household:",
+			"Members", "Promote", "Demote", "Remove this member?",
+		}},
+		{"es", []string{
+			"Agregar gasto", "Tu rol:", "Invitar miembro",
+			"Comparte este código de invitación para que alguien se una a tu hogar:",
+			"Miembros", "Promover", "Degradar", "¿Eliminar este miembro?",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.lang, func(t *testing.T) {
+			output := mustRenderHouseholdShow(hh, members, database.RoleOwner, "csrf-token", "ABC12345", tt.lang)
+			for _, want := range tt.want {
+				if !strings.Contains(output, want) {
+					t.Errorf("lang %q: expected %q in household show output", tt.lang, want)
+				}
+			}
+		})
+	}
+}
+
+func TestHouseholdSetup_TranslatedStrings(t *testing.T) {
+	tests := []struct {
+		lang string
+		want []string
+	}{
+		{"en", []string{
+			"You are not part of a household yet. Create one or join an existing one.",
+			"Create a household", "Household name:", "Create household",
+			"Join with an invite code", "Invite code:", "Join household",
+		}},
+		{"es", []string{
+			"Todavía no formas parte de un hogar. Crea uno o únete a uno existente.",
+			"Crear un hogar", "Nombre del hogar:", "Crear hogar",
+			"Unirse con un código de invitación", "Código de invitación:", "Unirse al hogar",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.lang, func(t *testing.T) {
+			output := mustRenderHouseholdSetup("csrf-token", "", tt.lang)
+			for _, want := range tt.want {
+				if !strings.Contains(output, want) {
+					t.Errorf("lang %q: expected %q in household setup output", tt.lang, want)
+				}
+			}
+		})
 	}
 }

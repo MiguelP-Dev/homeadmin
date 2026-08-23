@@ -12,7 +12,7 @@ import (
 // table, and per-household overview rows linking to the global views.
 templ Admin(users []database.User, summary *services.AdminSummary, lang string) {
 	<div class="max-w-4xl mx-auto p-6">
-	<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Admin</h1>
+	<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">{ i18n.T(lang, "nav.admin") }</h1>
 
 	<!-- Site Summary -->
 	<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">{ i18n.T(lang, "admin.summary") }</h2>
@@ -39,31 +39,31 @@ templ Admin(users []database.User, summary *services.AdminSummary, lang string) 
 			</div>
 		</div>
 
-		<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">Users</h2>
+		<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">{ i18n.T(lang, "admin.count_users") }</h2>
 		<table class="w-full border-collapse mb-8">
 			<thead>
 				<tr class="bg-gray-100 dark:bg-gray-700">
-					<th class="text-left p-3 border-b">Email</th>
-					<th class="text-left p-3 border-b">Role</th>
-					<th class="text-left p-3 border-b">Is Admin</th>
-					<th class="text-left p-3 border-b">Household</th>
+					<th class="text-left p-3 border-b">{ i18n.T(lang, "table.email") }</th>
+					<th class="text-left p-3 border-b">{ i18n.T(lang, "table.role") }</th>
+					<th class="text-left p-3 border-b">{ i18n.T(lang, "table.is_admin") }</th>
+					<th class="text-left p-3 border-b">{ i18n.T(lang, "admin.household") }</th>
 				</tr>
 			</thead>
 			<tbody>
 				if len(users) == 0 {
 					<tr>
-						<td colspan="4" class="p-3 text-gray-500 italic">No users</td>
+						<td colspan="4" class="p-3 text-gray-500 italic">{ i18n.T(lang, "admin.no_users") }</td>
 					</tr>
 				} else {
 					for _, u := range users {
 						<tr>
 							<td class="p-3 border-b">{ u.Email }</td>
-							<td class="p-3 border-b">{ u.Role }</td>
+							<td class="p-3 border-b">{ i18n.T(lang, "household.role."+u.Role) }</td>
 							<td class="p-3 border-b">
 								if u.IsAdmin {
-									<span class="text-green-700 dark:text-green-400">Yes</span>
+									<span class="text-green-700 dark:text-green-400">{ i18n.T(lang, "common.yes") }</span>
 								} else {
-									<span class="text-gray-500">No</span>
+									<span class="text-gray-500">{ i18n.T(lang, "common.no") }</span>
 								}
 							</td>
 							<td class="p-3 border-b">
@@ -112,7 +112,7 @@ templ Admin(users []database.User, summary *services.AdminSummary, lang string) 
 		</table>
 
 		<p class="mt-6">
-			<a href="/dashboard" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">&larr; Back to Dashboard</a>
+			<a href="/dashboard" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">&larr; { i18n.T(lang, "admin.back_to_dashboard") }</a>
 		</p>
 	</div>
 }
