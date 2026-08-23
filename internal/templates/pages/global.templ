@@ -1,0 +1,40 @@
+package pages
+
+import (
+	"github.com/homeadmin/internal/i18n"
+	"github.com/homeadmin/internal/services"
+	"github.com/homeadmin/internal/templates/components"
+)
+
+// DashboardGlobal renders the site-admin dashboard variant: every household's
+// operations grouped by household. Shown instead of the per-household summary
+// when the viewer holds the IsAdmin claim.
+templ DashboardGlobal(blocks []services.HouseholdBlock, lang string) {
+	@globalBlocksView(i18n.T(lang, "nav.dashboard"), blocks, lang)
+}
+
+// ExpensesGlobal renders the site-admin expenses variant with all households'
+// transactions grouped by household.
+templ ExpensesGlobal(blocks []services.HouseholdBlock, lang string) {
+	@globalBlocksView(i18n.T(lang, "nav.expenses"), blocks, lang)
+}
+
+// SavingsGlobal renders the site-admin savings variant with all households'
+// savings grouped by household.
+templ SavingsGlobal(blocks []services.HouseholdBlock, lang string) {
+	@globalBlocksView(i18n.T(lang, "nav.savings"), blocks, lang)
+}
+
+// globalBlocksView is the shared shell for the three site-admin global views.
+templ globalBlocksView(title string, blocks []services.HouseholdBlock, lang string) {
+	<div class="max-w-4xl mx-auto p-6">
+		<h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">{ title } — { i18n.T(lang, "admin.all_households") }</h1>
+		if len(blocks) == 0 {
+			<p class="text-gray-500 italic">{ i18n.T(lang, "admin.no_households") }</p>
+		} else {
+			for _, b := range blocks {
+				@components.HouseholdTransactionsSection(b, lang)
+			}
+		}
+	</div>
+}

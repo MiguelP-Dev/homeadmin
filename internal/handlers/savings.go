@@ -14,6 +14,9 @@ import (
 // SavingsHandler holds dependencies for savings HTTP handlers.
 type SavingsHandler struct {
 	Service *services.SavingsService
+	// SiteAdmin is optional; when set, site admins (IsAdmin claim) get
+	// cross-household global views instead of the household-scoped list.
+	SiteAdmin siteOverviewService
 }
 
 // NewSavingsHandler creates a new SavingsHandler.
@@ -21,8 +24,13 @@ func NewSavingsHandler(svc *services.SavingsService) *SavingsHandler {
 	return &SavingsHandler{Service: svc}
 }
 
-// List handles GET /savings — returns all savings for the household.
+// List handles GET /savings — site admins get the global cross-household
+// view; everyone else gets all savings for their household.
 func (h *SavingsHandler) List(c *fiber.Ctx) error {
+	if isAdmin, _ := c.Locals("isAdmin").(bool); isAdmin {
+		return h.listGlobal(c)
+	}
+
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
 		return middleware.BadRequest("household required")
@@ -55,6 +63,31 @@ func (h *SavingsHandler) List(c *fiber.Ctx) error {
 	return page.Render(ctx, c.Response().BodyWriter())
 }
 
+// listGlobal renders the site-admin view: every household's savings grouped
+// by household with owner emails. Reachable even when the admin has no
+// household (RequireHousehold bypass).
+func (h *SavingsHandler) listGlobal(c *fiber.Ctx) error {
+	blocks, err := fetchSiteOverview(h.SiteAdmin)
+	if err != nil {
+		return middleware.Internal("failed to load site-wide savings")
+	}
+
+	csrfToken, _ := c.Locals("csrfToken").(string)
+	email, _ := c.Locals("email").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
+
+	component := pages.SavingsGlobal(blocks, lang)
+	page := layouts.Base("Savings — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	c.Type("html")
+	ctx := templ.WithChildren(c.Context(), component)
+	return page.Render(ctx, c.Response().BodyWriter())
+}
+
 // ShowNew handles GET /savings/new — renders the create-savings form.
 func (h *SavingsHandler) ShowNew(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
@@ -74,6 +107,10 @@ func (h *SavingsHandler) ShowNew(c *fiber.Ctx) error {
 }
 
 // Create handles POST /savings — creates a new savings entry.
+//
+// Writes stay household-scoped even for site admins: RequireHousehold lets
+// admins through to browse the global views, but an admin without a household
+// keeps hitting the BadRequest below until they create or join a household.
 func (h *SavingsHandler) Create(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)

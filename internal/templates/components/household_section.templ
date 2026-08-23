@@ -1,0 +1,100 @@
+package components
+
+import (
+	"github.com/homeadmin/internal/i18n"
+	"github.com/homeadmin/internal/services"
+)
+
+// HouseholdTransactionsSection renders one household's block for site-admin
+// global views: household header with monthly/all-time aggregates, member
+// chips (email + role badge), and expenses/savings tables with an Owner column.
+templ HouseholdTransactionsSection(block services.HouseholdBlock, lang string) {
+	<section class="mb-10 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+		<div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+			<h2 class="text-2xl font-bold text-gray-900 dark:text-white">{ block.Household.Name }</h2>
+			<div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+				<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+					{ i18n.T(lang, "admin.monthly_income") }: { i18n.FormatCurrency(lang, block.MonthlyIncome) }
+				</span>
+				<span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+					{ i18n.T(lang, "admin.monthly_expense") }: { i18n.FormatCurrency(lang, block.MonthlyExpense) }
+				</span>
+				<span class={ "px-2 py-0.5 rounded-full " + netBadgeClass(block.AllTimeNet) }>
+					{ i18n.T(lang, "admin.net_total") }: { i18n.FormatCurrency(lang, block.AllTimeNet) }
+				</span>
+				<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+					{ i18n.T(lang, "savings.total") }: { i18n.FormatCurrency(lang, block.SavingsTotal) }
+				</span>
+			</div>
+		</div>
+
+		if len(block.Members) == 0 {
+			<p class="text-sm text-gray-500 italic mb-4">{ i18n.T(lang, "admin.no_members") }</p>
+		} else {
+			<div class="flex flex-wrap items-center gap-2 mb-4">
+				for _, m := range block.Members {
+					<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-700 dark:bg-gray-600 dark:text-gray-200">
+						{ m.Email }
+						<span class={ "px-1.5 py-0.5 rounded-full font-medium " + RoleBadgeClass(m.Role) }>{ i18n.T(lang, "household.role."+m.Role) }</span>
+					</span>
+				}
+			</div>
+		}
+
+		<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{ i18n.T(lang, "nav.expenses") }</h3>
+		if len(block.Expenses) == 0 {
+			<p class="text-gray-500 italic mb-6">No expenses yet</p>
+		} else {
+			<table class="w-full border-collapse mb-6">
+				<thead>
+					<tr class="bg-gray-100 dark:bg-gray-700">
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "table.date") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "table.description") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "table.category") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "table.owner") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "type") }</th>
+						<th class="text-right p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "table.amount") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, e := range block.Expenses {
+						<tr class="border-b dark:border-gray-700">
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ i18n.FormatDate(lang, e.Date) }</td>
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ e.Description }</td>
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ i18n.CategoryLabel(lang, e.Category) }</td>
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ e.OwnerEmail }</td>
+							<td class="p-3">
+								<span class={ "text-xs px-2 py-0.5 rounded-full " + TypeBadgeClass(e.Type) }>{ i18n.TypeLabel(lang, e.Type) }</span>
+							</td>
+							<td class="p-3 text-right font-semibold text-gray-900 dark:text-gray-100">{ i18n.FormatCurrency(lang, e.Amount) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+
+		<h3 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{ i18n.T(lang, "nav.savings") }</h3>
+		if len(block.Savings) == 0 {
+			<p class="text-gray-500 italic">{ i18n.T(lang, "savings.no_savings") }</p>
+		} else {
+			<table class="w-full border-collapse">
+				<thead>
+					<tr class="bg-gray-100 dark:bg-gray-700">
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "table.description") }</th>
+						<th class="text-left p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "table.owner") }</th>
+						<th class="text-right p-3 border-b text-gray-700 dark:text-gray-200">{ i18n.T(lang, "table.amount") }</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, s := range block.Savings {
+						<tr class="border-b dark:border-gray-700">
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ s.Description }</td>
+							<td class="p-3 text-gray-900 dark:text-gray-100">{ s.OwnerEmail }</td>
+							<td class="p-3 text-right font-semibold text-gray-900 dark:text-gray-100">{ i18n.FormatCurrency(lang, s.Amount) }</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</section>
+}

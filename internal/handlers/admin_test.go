@@ -19,7 +19,7 @@ func TestAdminHandler_Show_RendersPage(t *testing.T) {
 	households := []database.Household{
 		{ID: 1, Name: "HH1", Members: []database.User{{ID: 1, Email: "admin@example.com"}}},
 	}
-	svc := services.NewSiteAdminService(&mockUserRepoForAdminTest{users: users}, &mockHouseholdRepoForAdminTest{households: households}, nil, nil)
+	svc := services.NewSiteAdminService(&mockUserRepoForAdminTest{users: users}, &mockHouseholdRepoForAdminTest{households: households}, &mockExpenseRepoForHandlers{}, &mockSavingsRepoForHandlers{})
 	handler := NewAdminHandler(svc)
 
 	app := fiber.New()
@@ -48,7 +48,7 @@ func TestAdminHandler_Show_RendersUsersTable(t *testing.T) {
 		{ID: 1, Email: "a@example.com", Role: "owner", IsAdmin: true},
 	}
 	households := []database.Household{}
-	svc := services.NewSiteAdminService(&mockUserRepoForAdminTest{users: users}, &mockHouseholdRepoForAdminTest{households: households}, nil, nil)
+	svc := services.NewSiteAdminService(&mockUserRepoForAdminTest{users: users}, &mockHouseholdRepoForAdminTest{households: households}, &mockExpenseRepoForHandlers{}, &mockSavingsRepoForHandlers{})
 	handler := NewAdminHandler(svc)
 
 	app := fiber.New()
@@ -77,7 +77,7 @@ func TestAdminHandler_Show_RendersHouseholdsTable(t *testing.T) {
 	households := []database.Household{
 		{ID: 1, Name: "Family", Members: []database.User{}},
 	}
-	svc := services.NewSiteAdminService(&mockUserRepoForAdminTest{users: users}, &mockHouseholdRepoForAdminTest{households: households}, nil, nil)
+	svc := services.NewSiteAdminService(&mockUserRepoForAdminTest{users: users}, &mockHouseholdRepoForAdminTest{households: households}, &mockExpenseRepoForHandlers{}, &mockSavingsRepoForHandlers{})
 	handler := NewAdminHandler(svc)
 
 	app := fiber.New()

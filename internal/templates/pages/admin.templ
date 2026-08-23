@@ -4,12 +4,40 @@ import (
 	"fmt"
 
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/i18n"
+	"github.com/homeadmin/internal/services"
 )
 
-// Admin renders the read-only site-admin page with users and households tables.
-templ Admin(users []database.User, households []database.Household) {
+// Admin renders the read-only site-admin page with a site summary, users
+// table, and per-household overview rows linking to the global views.
+templ Admin(users []database.User, summary *services.AdminSummary, lang string) {
 	<div class="max-w-4xl mx-auto p-6">
 		<h1 class="text-3xl font-bold text-gray-900 mb-6">Admin</h1>
+
+		<!-- Site Summary -->
+		<h2 class="text-xl font-semibold text-gray-800 mb-3">{ i18n.T(lang, "admin.summary") }</h2>
+		<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-gray-500">
+				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "admin.count_households") }</div>
+				<div class="text-2xl font-bold text-gray-900 dark:text-white">{ fmt.Sprintf("%d", summary.Households) }</div>
+			</div>
+			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-gray-500">
+				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "admin.count_users") }</div>
+				<div class="text-2xl font-bold text-gray-900 dark:text-white">{ fmt.Sprintf("%d", summary.Users) }</div>
+			</div>
+			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-blue-500">
+				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "admin.count_transactions") }</div>
+				<div class="text-2xl font-bold text-blue-600">{ fmt.Sprintf("%d", summary.Transactions) }</div>
+			</div>
+			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-green-500">
+				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "total_income") }</div>
+				<div class="text-2xl font-bold text-green-600">{ i18n.FormatCurrency(lang, summary.TotalIncome) }</div>
+			</div>
+			<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border-l-4 border-emerald-500">
+				<div class="text-sm font-medium text-gray-700 dark:text-gray-300">{ i18n.T(lang, "savings.total") }</div>
+				<div class="text-2xl font-bold text-emerald-600">{ i18n.FormatCurrency(lang, summary.TotalSavings) }</div>
+			</div>
+		</div>
 
 		<h2 class="text-xl font-semibold text-gray-800 mb-3">Users</h2>
 		<table class="w-full border-collapse mb-8">
@@ -51,24 +79,32 @@ templ Admin(users []database.User, households []database.Household) {
 			</tbody>
 		</table>
 
-		<h2 class="text-xl font-semibold text-gray-800 mb-3">Households</h2>
+		<h2 class="text-xl font-semibold text-gray-800 mb-3">{ i18n.T(lang, "admin.count_households") }</h2>
 		<table class="w-full border-collapse mb-8">
 			<thead>
 				<tr class="bg-gray-100">
-					<th class="text-left p-3 border-b">Name</th>
-					<th class="text-left p-3 border-b">Members</th>
+					<th class="text-left p-3 border-b">{ i18n.T(lang, "admin.household") }</th>
+					<th class="text-left p-3 border-b">{ i18n.T(lang, "admin.members") }</th>
+					<th class="text-right p-3 border-b">{ i18n.T(lang, "admin.monthly_net") }</th>
+					<th class="text-left p-3 border-b">{ i18n.T(lang, "admin.open") }</th>
 				</tr>
 			</thead>
 			<tbody>
-				if len(households) == 0 {
+				if len(summary.Rows) == 0 {
 					<tr>
-						<td colspan="2" class="p-3 text-gray-500 italic">No households</td>
+						<td colspan="4" class="p-3 text-gray-500 italic">{ i18n.T(lang, "admin.no_households") }</td>
 					</tr>
 				} else {
-					for _, h := range households {
+					for _, row := range summary.Rows {
 						<tr>
-							<td class="p-3 border-b">{ h.Name }</td>
-							<td class="p-3 border-b">{ fmt.Sprintf("%d", len(h.Members)) }</td>
+							<td class="p-3 border-b font-medium">{ row.Name }</td>
+							<td class="p-3 border-b">{ fmt.Sprintf("%d", row.Members) }</td>
+							<td class={ "p-3 border-b text-right font-semibold " + monthlyNetClass(row.MonthlyNet) }>{ i18n.FormatCurrency(lang, row.MonthlyNet) }</td>
+							<td class="p-3 border-b space-x-3 whitespace-nowrap">
+								<a href="/dashboard" class="text-blue-600 hover:text-blue-800">{ i18n.T(lang, "nav.dashboard") }</a>
+								<a href="/expenses" class="text-blue-600 hover:text-blue-800">{ i18n.T(lang, "nav.expenses") }</a>
+								<a href="/savings" class="text-blue-600 hover:text-blue-800">{ i18n.T(lang, "nav.savings") }</a>
+							</td>
 						</tr>
 					}
 				}

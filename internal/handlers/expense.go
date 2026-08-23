@@ -27,6 +27,9 @@ type expenseServiceInterface interface {
 // ExpenseHandler holds dependencies for expense HTTP handlers.
 type ExpenseHandler struct {
 	Service expenseServiceInterface
+	// SiteAdmin is optional; when set, site admins (IsAdmin claim) get
+	// cross-household global views instead of the household-scoped list.
+	SiteAdmin siteOverviewService
 }
 
 // NewExpenseHandler creates a new ExpenseHandler with real service dependencies.
@@ -37,6 +40,10 @@ func NewExpenseHandler(svc expenseServiceInterface) *ExpenseHandler {
 // Create handles POST /expenses — parses form data and delegates to service.
 // Valid submissions redirect (303) to /expenses; invalid payloads re-render the
 // form with errors at 422 without persisting (RF-3).
+//
+// Writes stay household-scoped even for site admins: RequireHousehold lets
+// admins through to browse the global views, but an admin without a household
+// keeps hitting the BadRequest below until they create or join a household.
 func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
@@ -100,8 +107,13 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	return c.Redirect("/expenses", fiber.StatusSeeOther)
 }
 
-// List handles GET /expenses — returns all visible expenses for the household.
+// List handles GET /expenses — site admins get the global cross-household
+// view; everyone else gets all visible expenses for their household.
 func (h *ExpenseHandler) List(c *fiber.Ctx) error {
+	if isAdmin, _ := c.Locals("isAdmin").(bool); isAdmin {
+		return h.listGlobal(c)
+	}
+
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
@@ -138,6 +150,31 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.Expenses(expenses, lang, csrfToken)
+	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	c.Type("html")
+	ctx := templ.WithChildren(c.Context(), component)
+	return page.Render(ctx, c.Response().BodyWriter())
+}
+
+// listGlobal renders the site-admin view: every household's transactions
+// grouped by household with owner emails. Reachable even when the admin has
+// no household (RequireHousehold bypass).
+func (h *ExpenseHandler) listGlobal(c *fiber.Ctx) error {
+	blocks, err := fetchSiteOverview(h.SiteAdmin)
+	if err != nil {
+		return middleware.Internal("failed to load site-wide expenses")
+	}
+
+	csrfToken, _ := c.Locals("csrfToken").(string)
+	email, _ := c.Locals("email").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
+
+	component := pages.ExpensesGlobal(blocks, lang)
 	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
@@ -288,8 +325,13 @@ func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 	return c.Redirect("/expenses", fiber.StatusSeeOther)
 }
 
-// Dashboard handles GET /dashboard — returns an HTML page with monthly summary via templ.
+// Dashboard handles GET /dashboard — site admins get the global cross-household
+// summary; everyone else gets their household's monthly summary via templ.
 func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
+	if isAdmin, _ := c.Locals("isAdmin").(bool); isAdmin {
+		return h.dashboardGlobal(c)
+	}
+
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
@@ -313,6 +355,30 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.Dashboard(summary, viewerRole, lang, csrfToken)
+	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin, lang, activePath)
+	c.Type("html")
+	ctx := templ.WithChildren(c.Context(), component)
+	return page.Render(ctx, c.Response().BodyWriter())
+}
+
+// dashboardGlobal renders the site-admin dashboard: every household's
+// operations grouped by household with owner emails and aggregates.
+func (h *ExpenseHandler) dashboardGlobal(c *fiber.Ctx) error {
+	blocks, err := fetchSiteOverview(h.SiteAdmin)
+	if err != nil {
+		return middleware.Internal("failed to load site-wide dashboard")
+	}
+
+	username, _ := c.Locals("email").(string)
+	isAdmin, _ := c.Locals("isAdmin").(bool)
+	csrfToken, _ := c.Locals("csrfToken").(string)
+	lang, _ := c.Locals("lang").(string)
+	if lang == "" {
+		lang = "en"
+	}
+	activePath := c.Path()
+
+	component := pages.DashboardGlobal(blocks, lang)
 	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)

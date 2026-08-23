@@ -59,6 +59,11 @@ func main() {
 	siteAdminService := services.NewSiteAdminService(userRepo, householdRepo, expenseRepo, savingsRepo)
 	adminHandler := handlers.NewAdminHandler(siteAdminService)
 
+	// Site-admin global views: handlers get an optional cross-household
+	// dependency used only when the IsAdmin claim is set.
+	expenseHandler.SiteAdmin = siteAdminService
+	savingsHandler.SiteAdmin = siteAdminService
+
 	// 5. Create Fiber app with centralized error handler
 	app := fiber.New(fiber.Config{
 		ErrorHandler: middleware.ErrorHandler,

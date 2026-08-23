@@ -75,6 +75,12 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	householdService := services.NewHouseholdService(householdRepo, userRepo, householdRepo)
 	householdHandler := handlers.NewHouseholdHandler(householdService, userRepo, jwtSecret, 24)
 
+	// Mirror main.go: the first registered user bootstraps as site admin
+	// (CountAndCreate sets IsAdmin), so global views must be wired here too.
+	savingsRepo := repositories.NewSavingsRepository(db)
+	siteAdminService := services.NewSiteAdminService(userRepo, householdRepo, expenseRepo, savingsRepo)
+	expenseHandler.SiteAdmin = siteAdminService
+
 	app := fiber.New(fiber.Config{
 		ErrorHandler: middleware.ErrorHandler,
 	})

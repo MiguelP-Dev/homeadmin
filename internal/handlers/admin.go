@@ -19,18 +19,19 @@ func NewAdminHandler(service *services.SiteAdminService) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 
-// Show handles GET /admin — renders the read-only admin page with users
-// and households tables (RF-11).
+// Show handles GET /admin — renders the read-only admin page with the site
+// summary, users table, and per-household overview rows (RF-11).
 func (h *AdminHandler) Show(c *fiber.Ctx) error {
 	users, err := h.service.ListUsers()
 	if err != nil {
 		return middleware.Keyed(500, "admin.load_failed")
 	}
 
-	households, err := h.service.ListHouseholds()
+	blocks, err := h.service.SiteAdminOverview()
 	if err != nil {
 		return middleware.Keyed(500, "admin.load_failed")
 	}
+	summary := services.BuildAdminSummary(blocks)
 
 	email, _ := c.Locals("email").(string)
 	isAdmin, _ := c.Locals("isAdmin").(bool)
@@ -41,7 +42,7 @@ func (h *AdminHandler) Show(c *fiber.Ctx) error {
 	}
 	activePath := c.Path()
 
-	component := pages.Admin(users, households)
+	component := pages.Admin(users, &summary, lang)
 	page := layouts.Base("Admin — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
