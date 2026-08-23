@@ -204,6 +204,17 @@ func TestNav_ActiveLink_NonActiveNoAria(t *testing.T) {
 	}
 }
 
+// Active link: nested route keeps its section pill active
+func TestNav_ActiveLink_PrefixKeepsSectionActive(t *testing.T) {
+	output := renderNavFull("test@example.com", false, "en", "/expenses/new", "csrf-token")
+	if strings.Count(output, "aria-current=\"page\"") != 1 {
+		t.Errorf("expected exactly one aria-current=\"page\" for /expenses/new")
+	}
+	if !strings.Contains(output, "bg-blue-600") {
+		t.Error("expected active pill styling when a nested route keeps its section active")
+	}
+}
+
 // CSRF: logout form contains hidden csrf input
 func TestNav_CSRF_LogoutFormHasCsrfInput(t *testing.T) {
 	output := renderNavFull("test@example.com", false, "en", "/", "my-csrf-token")
