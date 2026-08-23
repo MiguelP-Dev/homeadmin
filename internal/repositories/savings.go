@@ -61,3 +61,17 @@ func (r *SavingsRepositoryImpl) GetTotal(householdID uint) (float64, error) {
 		Scan(&total).Error
 	return total, err
 }
+
+// ListAllWithUsers returns every non-deleted savings entry across all
+// households joined with the creating user's email, ordered by household then
+// creation date descending. Site-admin global views see every household.
+func (r *SavingsRepositoryImpl) ListAllWithUsers() ([]SavingsWithUser, error) {
+	var savings []SavingsWithUser
+	err := r.db.Model(&database.Savings{}).
+		Select("savings.*, users.email AS owner_email").
+		Joins("JOIN users ON users.id = savings.created_by_id").
+		Where("savings.deleted_at IS NULL").
+		Order("savings.household_id ASC, savings.created_at DESC").
+		Scan(&savings).Error
+	return savings, err
+}

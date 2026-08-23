@@ -41,8 +41,16 @@ func RequireAuth(jwtSecret string) fiber.Handler {
 // *uint; a nil or absent pointer means the user has no household, so the
 // request is redirected to /household (create/join). A typed-nil *uint
 // (null household_id claim) must NOT pass. Intended to run AFTER RequireAuth.
+//
+// Site admins (IsAdmin claim) are exempt: they must reach dashboard/expenses/
+// savings to see the site-wide views even without their own household.
+// Handlers keep write endpoints household-scoped, so an admin without a
+// household can browse but not create.
 func RequireHousehold() fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		if isAdmin, ok := c.Locals("isAdmin").(bool); ok && isAdmin {
+			return c.Next()
+		}
 		householdID, ok := c.Locals("householdID").(*uint)
 		if !ok || householdID == nil {
 			return c.Redirect("/household", fiber.StatusFound)

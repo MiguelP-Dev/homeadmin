@@ -147,3 +147,29 @@ func (r *ExpenseRepositoryImpl) RecentExpenses(userID, householdID uint, viewerR
 
 	return expenses, err
 }
+
+// ListAllWithUsers returns every non-deleted expense across all households
+// joined with the creating user's email, ordered by household then date
+// descending. Unlike FindByHousehold it applies no per-member visibility
+// filtering: site admins see every operation in the site.
+func (r *ExpenseRepositoryImpl) ListAllWithUsers(filters database.ExpenseFilters) ([]ExpenseWithUser, error) {
+	var expenses []ExpenseWithUser
+
+	query := r.db.Model(&database.Expense{}).
+		Select("expenses.*, users.email AS owner_email").
+		Joins("JOIN users ON users.id = expenses.created_by_id").
+		Where("expenses.deleted_at IS NULL")
+
+	if filters.Category != "" {
+		query = query.Where("expenses.category = ?", filters.Category)
+	}
+	if filters.Limit > 0 {
+		query = query.Limit(filters.Limit)
+	}
+	if filters.Offset > 0 {
+		query = query.Offset(filters.Offset)
+	}
+
+	err := query.Order("expenses.household_id ASC, expenses.date DESC").Scan(&expenses).Error
+	return expenses, err
+}

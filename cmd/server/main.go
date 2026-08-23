@@ -52,12 +52,12 @@ func main() {
 	householdService := services.NewHouseholdService(householdRepo, userRepo, householdRepo)
 	householdHandler := handlers.NewHouseholdHandler(householdService, userRepo, cfg.JWTSecret, cfg.JWTExpirationHours)
 
-	siteAdminService := services.NewSiteAdminService(userRepo, householdRepo)
-	adminHandler := handlers.NewAdminHandler(siteAdminService)
-
 	savingsRepo := repositories.NewSavingsRepository(dbConn)
 	savingsService := services.NewSavingsService(savingsRepo, userRepo)
 	savingsHandler := handlers.NewSavingsHandler(savingsService)
+
+	siteAdminService := services.NewSiteAdminService(userRepo, householdRepo, expenseRepo, savingsRepo)
+	adminHandler := handlers.NewAdminHandler(siteAdminService)
 
 	// 5. Create Fiber app with centralized error handler
 	app := fiber.New(fiber.Config{

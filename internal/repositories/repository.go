@@ -12,6 +12,20 @@ type CategoryTotal struct {
 	Total    float64
 }
 
+// ExpenseWithUser pairs an expense with the creating user's email for
+// site-admin global views.
+type ExpenseWithUser struct {
+	database.Expense
+	OwnerEmail string `gorm:"column:owner_email"`
+}
+
+// SavingsWithUser pairs a savings entry with the creating user's email for
+// site-admin global views.
+type SavingsWithUser struct {
+	database.Savings
+	OwnerEmail string `gorm:"column:owner_email"`
+}
+
 // UserRepository defines data-access operations for User entities.
 // Service layers depend on this interface, not on GORM directly.
 type UserRepository interface {
@@ -63,4 +77,9 @@ type ExpenseRepository interface {
 	MonthlyTotal(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error)
 	CategoryBreakdown(userID, householdID uint, viewerRole string, year int, month time.Month) ([]CategoryTotal, error)
 	RecentExpenses(userID, householdID uint, viewerRole string, limit int) ([]database.Expense, error)
+
+	// ListAllWithUsers returns every expense across all households joined with
+	// the creating user's email, ordered by household then date descending.
+	// Site-admin global views bypass per-member visibility rules by design.
+	ListAllWithUsers(filters database.ExpenseFilters) ([]ExpenseWithUser, error)
 }

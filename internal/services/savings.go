@@ -1,6 +1,9 @@
 package services
 
-import "github.com/homeadmin/internal/database"
+import (
+	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/repositories"
+)
 
 // SavingsRepository defines the data-access interface for savings.
 type SavingsRepository interface {
@@ -10,6 +13,10 @@ type SavingsRepository interface {
 	Update(savings *database.Savings) error
 	Delete(id uint) error
 	GetTotal(householdID uint) (float64, error)
+
+	// ListAllWithUsers returns every savings entry across all households
+	// joined with the creating user's email. Site-admin global views.
+	ListAllWithUsers() ([]repositories.SavingsWithUser, error)
 }
 
 // SavingsService provides business logic for savings.

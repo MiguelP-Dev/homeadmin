@@ -398,6 +398,104 @@ func TestRequireSiteAdmin(t *testing.T) {
 	}
 }
 
+// setupAdminBypassHouseholdApp builds a Fiber app guarded by RequireHousehold
+// whose probe handler is nil-safe, so an admin with no household can be traced
+// through the middleware without dereferencing householdID.
+func setupAdminBypassHouseholdApp(locals map[string]any) *fiber.App {
+	app := fiber.New()
+
+	app.Use(func(c *fiber.Ctx) error {
+		for k, v := range locals {
+			c.Locals(k, v)
+		}
+		return c.Next()
+	})
+
+	app.Get("/protected", RequireHousehold(), func(c *fiber.Ctx) error {
+		hhID, _ := c.Locals("householdID").(*uint)
+		if hhID == nil {
+			return c.SendString("passed-without-household")
+		}
+		return c.SendString(fmt.Sprintf("household=%d", *hhID))
+	})
+
+	return app
+}
+
+// TestRequireHousehold_AdminBypass verifies site admins pass through even
+// with a nil household (true site-admin requirement), while members without
+// a household are still redirected.
+func TestRequireHousehold_AdminBypass(t *testing.T) {
+	hhID := uint(7)
+
+	tests := []struct {
+		name         string
+		locals       map[string]any
+		wantStatus   int
+		wantLocation string
+		wantBody     string
+	}{
+		{
+			name:       "admin with nil household passes",
+			locals:     map[string]any{"householdID": (*uint)(nil), "isAdmin": true},
+			wantStatus: fiber.StatusOK,
+			wantBody:   "passed-without-household",
+		},
+		{
+			name:       "admin without householdID local passes",
+			locals:     map[string]any{"isAdmin": true},
+			wantStatus: fiber.StatusOK,
+			wantBody:   "passed-without-household",
+		},
+		{
+			name:       "admin with household passes normally",
+			locals:     map[string]any{"householdID": &hhID, "isAdmin": true},
+			wantStatus: fiber.StatusOK,
+			wantBody:   "household=7",
+		},
+		{
+			name:         "member with nil household still redirects",
+			locals:       map[string]any{"householdID": (*uint)(nil), "isAdmin": false},
+			wantStatus:   fiber.StatusFound,
+			wantLocation: "/household",
+		},
+		{
+			name:         "missing isAdmin local does not bypass",
+			locals:       map[string]any{"householdID": (*uint)(nil)},
+			wantStatus:   fiber.StatusFound,
+			wantLocation: "/household",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := setupAdminBypassHouseholdApp(tt.locals)
+
+			req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("app.Test failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, resp.StatusCode)
+			}
+			if tt.wantLocation != "" {
+				if loc := resp.Header.Get("Location"); loc != tt.wantLocation {
+					t.Errorf("expected redirect to %s, got %s", tt.wantLocation, loc)
+				}
+			}
+			if tt.wantBody != "" {
+				body, _ := io.ReadAll(resp.Body)
+				if string(body) != tt.wantBody {
+					t.Errorf("expected body %q, got %q", tt.wantBody, string(body))
+				}
+			}
+		})
+	}
+}
+
 func TestRequireHousehold(t *testing.T) {
 	hhID := uint(42)
 	zero := uint(0)
