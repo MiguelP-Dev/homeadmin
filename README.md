@@ -172,7 +172,9 @@ Site admins get:
 - **Per-user preference**: stored in database, persisted in JWT
 - **Visitors**: language choice kept in a 1-year cookie; the EN/ES switcher is always visible in the nav, including login and register. Once logged in, the account preference takes over
 - **Locale-aware display**: currency (`$1.234,56` in ES), dates (`2 de enero de 2006`), categories, and visibility labels
-- **Translated errors**: form validation, auth, and household error messages
+- **Translated errors**: form validation, auth, household, expense, and savings
+  error messages are keyed errors localized at response time (HTML error page,
+  JSON, and HTMX toasts), in the viewer's language
 
 ### Key routes
 
@@ -212,16 +214,20 @@ go test ./... -cover
 go test ./... -v
 ```
 
-Current coverage:
+Current coverage (measured with `go test ./... -cover`):
 
 | Package | Coverage |
 |---------|----------|
 | config | 100% |
-| services | 94.4% |
-| database | 90% |
-| middleware | 86.7% |
-| repositories | 85.9% |
-| handlers | 84.5% |
+| middleware | 93.2% |
+| i18n | 85.7% |
+| repositories | 80.0% |
+| database | 79.4% |
+| services | 76.8% |
+| layouts | 72.8% |
+| handlers | 82.0% |
+| pages (templates) | 69.8% |
+| components (templates) | 52.7% |
 
 ## Development phases
 
@@ -246,9 +252,6 @@ onboarding chain (PR1–PR5, merged to main 2026-08-07).
 2. **JWT claim assertion after Join (E2E)** — the integration suite checks the
     re-issued JWT is non-empty after Create but never re-reads its claims after
     Join. Handler-level unit tests already decode claims; add an E2E assert.
-3. **gofmt debt (pre-existing)** — `internal/database/models.go`,
-    `internal/repositories/expense_test.go`, `internal/services/expense_test.go`
-    were already non-gofmt-clean at the chain base commit.
 
 ## License
 
