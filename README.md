@@ -26,7 +26,7 @@ Manage shared expenses within households with fine-grained visibility controls:
 | Database | PostgreSQL (production) / SQLite (dev/test) |
 | Auth | JWT (HttpOnly cookies) + CSRF |
 | Templating | Templ + HTMX |
-| Styling | Tailwind CSS (compiled to `static/css/output.css`) |
+| Styling | Tailwind CSS (compiled to `static/css/output.css`, embedded into the binary at build time) |
 | Runtime | Docker + docker-compose |
 
 ## Project structure
@@ -84,6 +84,10 @@ cp .env.example .env
 
 # Run the app (SQLite by default, zero config)
 go run cmd/server/main.go
+
+# Or build a local binary instead (output: bin/homeadmin)
+make build
+./bin/homeadmin
 ```
 
 ### Docker (PostgreSQL)
@@ -119,6 +123,12 @@ make css
 # Watch CSS during development
 make css-watch
 
+# Build the binary (outputs bin/homeadmin, not committed)
+make build
+
+# Run the app
+make run
+
 # Build Docker image
 make docker-build
 
@@ -126,6 +136,17 @@ make docker-build
 make docker-up
 make docker-stop
 ```
+
+### Static assets and binaries
+
+- Static assets are **embedded into the binary** at build time with `go:embed`
+  (root [`assets.go`](assets.go), serving the `static/` tree under `/static`).
+  No external `./static` directory is required next to the binary at runtime —
+  but rebuild the binary after changing CSS or vendored JS so the embed picks
+  up the new files.
+- `bin/` is local build output produced by `make build` as `bin/homeadmin`.
+  It is intentionally **not committed** (gitignored); remove it with
+  `make clean`.
 
 ## Site administration
 
