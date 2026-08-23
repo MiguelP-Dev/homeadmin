@@ -1,6 +1,7 @@
 # Binaries
 /server
 /promote
+/bin/
 *.exe
 *.exe~
 *.dll
