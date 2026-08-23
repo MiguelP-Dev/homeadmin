@@ -1,12 +1,17 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
 )
+
+// minProductionJWTSecretLen is the minimum accepted JWT_SECRET length when
+// ENV=production. Shorter secrets are brute-forceable and must not boot.
+const minProductionJWTSecretLen = 16
 
 type Config struct {
 	Port               string
@@ -24,7 +29,7 @@ func Load() (*Config, error) {
 
 	expiration, _ := strconv.Atoi(getEnv("JWT_EXPIRATION_HOURS", "24"))
 
-	return &Config{
+	cfg := &Config{
 		Port:               getEnv("PORT", "8080"),
 		Env:                getEnv("ENV", "development"),
 		DatabaseURL:        os.Getenv("DATABASE_URL"),
@@ -33,7 +38,16 @@ func Load() (*Config, error) {
 		JWTExpirationHours: expiration,
 		CORSOrigins:        strings.Split(getEnv("CORS_ORIGINS", "http://localhost:8080"), ","),
 		CSRFKey:            os.Getenv("CSRF_KEY"),
-	}, nil
+	}
+
+	if cfg.Env == "production" && len(cfg.JWTSecret) < minProductionJWTSecretLen {
+		return nil, fmt.Errorf(
+			"config: JWT_SECRET must be set to at least %d characters when ENV=production (got %d characters)",
+			minProductionJWTSecretLen, len(cfg.JWTSecret),
+		)
+	}
+
+	return cfg, nil
 }
 
 func getEnv(key, fallback string) string {

@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -172,5 +173,64 @@ func TestCORSOriginsParsing(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestLoadProductionRequiresStrongJWTSecret(t *testing.T) {
+	tests := []struct {
+		name      string
+		jwtSecret string
+		wantErr   bool
+	}{
+		{name: "empty secret rejected", jwtSecret: "", wantErr: true},
+		{name: "short secret rejected", jwtSecret: "short-secret", wantErr: true},
+		{name: "15 chars rejected (boundary)", jwtSecret: "012345678901234", wantErr: true},
+		{name: "16 chars accepted (boundary)", jwtSecret: "0123456789abcdef", wantErr: false},
+		{name: "long secret accepted", jwtSecret: "a-very-long-and-random-production-secret", wantErr: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Setenv("ENV", "production")
+			os.Setenv("JWT_SECRET", tt.jwtSecret)
+			defer func() {
+				os.Unsetenv("ENV")
+				os.Unsetenv("JWT_SECRET")
+			}()
+
+			cfg, err := Load()
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("ENV=production JWT_SECRET=%q (%d chars): expected error, got nil", tt.jwtSecret, len(tt.jwtSecret))
+				}
+				if cfg != nil {
+					t.Errorf("expected nil config on error, got %+v", cfg)
+				}
+				if !strings.Contains(err.Error(), "JWT_SECRET") {
+					t.Errorf("error should mention JWT_SECRET, got: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ENV=production JWT_SECRET=%q: unexpected error: %v", tt.jwtSecret, err)
+			}
+			if cfg.JWTSecret != tt.jwtSecret {
+				t.Errorf("JWTSecret = %q, want %q", cfg.JWTSecret, tt.jwtSecret)
+			}
+		})
+	}
+}
+
+func TestLoadDevelopmentAllowsEmptyJWTSecret(t *testing.T) {
+	os.Setenv("ENV", "development")
+	os.Unsetenv("JWT_SECRET")
+	defer os.Unsetenv("ENV")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("development must keep permissive behavior, got error: %v", err)
+	}
+	if cfg.JWTSecret != "" {
+		t.Errorf("expected empty JWTSecret in development, got %q", cfg.JWTSecret)
 	}
 }
