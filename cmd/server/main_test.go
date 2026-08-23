@@ -97,8 +97,9 @@ func newIntegrationAppWithDB(t *testing.T, csrfKey, jwtSecret string) (*fiber.Ap
 	app.Post("/register", authHandler.Register)
 	app.Post("/logout", authHandler.Logout)
 
-	// Language switch route (WU-5)
-	app.Post("/settings/lang", middleware.RequireAuth(jwtSecret), authHandler.LangSwitch)
+	// Language switch route (WU-5) — public, handler branches on auth state
+	// (mirrors main.go).
+	app.Post("/settings/lang", authHandler.LangSwitch)
 
 	// Root redirect — token-aware: authenticated users go to /dashboard,
 	// everyone else to /login (same handler main.go mounts).
@@ -1369,6 +1370,7 @@ func TestCSRFBlocksLogoutPost(t *testing.T) {
 
 // TestLangSwitch_CSRFLessPostForbidden verifies POST /settings/lang without a CSRF
 // token is rejected with 403 (threat matrix: state-mutating POST requires CSRF).
+// The request is anonymous — the route is public, but CSRF still applies.
 func TestLangSwitch_CSRFLessPostForbidden(t *testing.T) {
 	app := newIntegrationApp(t, "test-csrf-key", "test-secret")
 
@@ -1383,6 +1385,175 @@ func TestLangSwitch_CSRFLessPostForbidden(t *testing.T) {
 
 	if resp.StatusCode != fiber.StatusForbidden {
 		t.Errorf("status = %d, want %d (CSRF must block token-less POST to /settings/lang)", resp.StatusCode, fiber.StatusForbidden)
+	}
+}
+
+// csrfInputRe extracts the CSRF token rendered into a form hidden input.
+var csrfInputRe = regexp.MustCompile(`name="csrf" value="([^"]+)"`)
+
+// csrfHandshake performs an anonymous GET of the given page and returns the
+// CSRF cookie pair plus the token rendered into the form hidden input,
+// mirroring how a browser collects both before any state-mutating POST.
+func csrfHandshake(t *testing.T, app *fiber.App, path string) (cookiePair, token string) {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("GET %s handshake error: %v", path, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read %s handshake body: %v", path, err)
+	}
+	csrfCookie := getCookieValue(resp, "csrf")
+	if csrfCookie == "" {
+		t.Fatalf("GET %s did not set the csrf cookie", path)
+	}
+	m := csrfInputRe.FindStringSubmatch(string(body))
+	if m == nil {
+		t.Fatalf("GET %s body has no rendered csrf token input", path)
+	}
+	return "csrf=" + csrfCookie, m[1]
+}
+
+// TestAnonLangSwitch_SetsCookieAndRerendersLogin drives the visitor language
+// flow end-to-end (auth-page switcher): GET /login issues the CSRF pair, an
+// anonymous CSRF-valid POST /settings/lang stores the choice in the "lang"
+// cookie, and a subsequent GET /login renders Spanish.
+func TestAnonLangSwitch_SetsCookieAndRerendersLogin(t *testing.T) {
+	app := newIntegrationApp(t, "test-csrf-key", "test-secret")
+
+	cookiePair, token := csrfHandshake(t, app, "/login")
+
+	form := "lang=es&csrf=" + token
+	req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Cookie", cookiePair)
+	resp, err := app.Test(req, 5000)
+	if err != nil {
+		t.Fatalf("POST /settings/lang error: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusFound {
+		t.Errorf("status = %d, want 302", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); loc != "/login" {
+		t.Errorf("Location = %q, want /login (no-Referer fallback)", loc)
+	}
+
+	var langCookie *http.Cookie
+	for _, c := range resp.Cookies() {
+		if c.Name == "lang" {
+			langCookie = c
+			break
+		}
+	}
+	if langCookie == nil {
+		t.Fatal("expected lang cookie to be set for anonymous visitor")
+	}
+	if langCookie.Value != "es" {
+		t.Errorf("lang cookie value = %q, want es", langCookie.Value)
+	}
+	if langCookie.MaxAge != 31536000 {
+		t.Errorf("lang cookie MaxAge = %d, want 31536000 (1 year)", langCookie.MaxAge)
+	}
+	if !langCookie.HttpOnly {
+		t.Error("expected lang cookie to be HttpOnly")
+	}
+	if langCookie.Path != "/" {
+		t.Errorf("lang cookie Path = %q, want /", langCookie.Path)
+	}
+	if langCookie.SameSite != http.SameSiteStrictMode {
+		t.Errorf("lang cookie SameSite = %v, want Strict", langCookie.SameSite)
+	}
+
+	// The chosen language must render on the next visit to the login page.
+	req2 := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req2.Header.Set("Cookie", "lang=es")
+	resp2, err := app.Test(req2, 5000)
+	if err != nil {
+		t.Fatalf("GET /login after switch error: %v", err)
+	}
+	defer resp2.Body.Close()
+	body, err := io.ReadAll(resp2.Body)
+	if err != nil {
+		t.Fatalf("read /login body: %v", err)
+	}
+	if !strings.Contains(string(body), `<html lang="es"`) {
+		t.Errorf("login page did not render the chosen language; got: %.200s", body)
+	}
+}
+
+// TestAnonLangSwitch_RedirectsToRefererPath verifies where the anonymous lang
+// switch sends the visitor back to, mirroring the authenticated Referer rules.
+func TestAnonLangSwitch_RedirectsToRefererPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		referer string
+		wantLoc string
+	}{
+		{name: "same-origin referer returns visitor to that page", referer: "http://localhost:8080/register", wantLoc: "/register"},
+		{name: "protocol-relative referer falls back to /login", referer: "//evil.example.com/steal", wantLoc: "/login"},
+		{name: "missing referer falls back to /login", referer: "", wantLoc: "/login"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newIntegrationApp(t, "test-csrf-key", "test-secret")
+			cookiePair, token := csrfHandshake(t, app, "/login")
+
+			form := "lang=es&csrf=" + token
+			req := httptest.NewRequest(http.MethodPost, "/settings/lang", strings.NewReader(form))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Cookie", cookiePair)
+			if tt.referer != "" {
+				req.Header.Set("Referer", tt.referer)
+			}
+			resp, err := app.Test(req, 5000)
+			if err != nil {
+				t.Fatalf("POST /settings/lang error: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != fiber.StatusFound {
+				t.Errorf("status = %d, want 302", resp.StatusCode)
+			}
+			if loc := resp.Header.Get("Location"); loc != tt.wantLoc {
+				t.Errorf("Location = %q, want %q", loc, tt.wantLoc)
+			}
+		})
+	}
+}
+
+// TestAuthPages_RenderLangSwitcherForAnonymous proves the EN|ES switcher is
+// visible before having an account: both auth pages render the two forms with
+// their CSRF inputs while logged out.
+func TestAuthPages_RenderLangSwitcherForAnonymous(t *testing.T) {
+	app := newIntegrationApp(t, "", "test-secret")
+
+	for _, path := range []string{"/login", "/register"} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			resp, err := app.Test(req, 5000)
+			if err != nil {
+				t.Fatalf("GET %s error: %v", path, err)
+			}
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("read %s body: %v", path, err)
+			}
+			bodyStr := string(body)
+
+			if got := strings.Count(bodyStr, `action="/settings/lang"`); got != 2 {
+				t.Errorf("%s renders %d lang switcher forms, want 2", path, got)
+			}
+			if !strings.Contains(bodyStr, `value="en"`) || !strings.Contains(bodyStr, `value="es"`) {
+				t.Errorf("%s lang switcher missing the EN/ES hidden inputs", path)
+			}
+		})
 	}
 }
 

@@ -126,91 +126,81 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 			templ_7745c5c3_Var6 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<!-- Scrim overlay for mobile drawer --><div id=\"nav-scrim\" class=\"fixed inset-0 bg-black/50 z-30 hidden\"></div><nav class=\"bg-gray-800 text-white sticky top-0 z-40 relative\"><!-- Top bar: logo + right-side controls --><div class=\"container mx-auto flex items-center justify-between py-2.5 px-4\"><a href=\"/\" class=\"text-lg font-bold\">HomeAdmin</a><div class=\"flex items-center gap-3\"><button id=\"theme-toggle\" class=\"text-white focus:outline-none p-1 rounded hover:bg-gray-700\" aria-label=\"Toggle dark mode\"><svg id=\"theme-icon-sun\" class=\"w-5 h-5 hidden\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z\"></path></svg> <svg id=\"theme-icon-moon\" class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z\"></path></svg></button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<!-- Scrim overlay for mobile drawer --><div id=\"nav-scrim\" class=\"fixed inset-0 bg-black/50 z-30 hidden\"></div><nav class=\"bg-gray-800 text-white sticky top-0 z-40 relative\"><!-- Top bar: logo + right-side controls --><div class=\"container mx-auto flex items-center justify-between py-2.5 px-4\"><a href=\"/\" class=\"text-lg font-bold\">HomeAdmin</a><div class=\"flex items-center gap-3\"><button id=\"theme-toggle\" class=\"text-white focus:outline-none p-1 rounded hover:bg-gray-700\" aria-label=\"Toggle dark mode\"><svg id=\"theme-icon-sun\" class=\"w-5 h-5 hidden\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z\"></path></svg> <svg id=\"theme-icon-moon\" class=\"w-5 h-5\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z\"></path></svg></button><!-- Lang switcher: always visible, including on the auth pages --><div class=\"flex items-center overflow-hidden rounded-md border border-gray-600 text-xs font-bold\"><form method=\"POST\" action=\"/settings/lang\" class=\"inline\"><input type=\"hidden\" name=\"csrf\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 39, Col: 56}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <input type=\"hidden\" name=\"lang\" value=\"en\"> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if lang == "en" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<button type=\"submit\" class=\"bg-blue-600 text-white px-2 py-0.5\">EN</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<button type=\"submit\" class=\"text-gray-400 hover:text-white px-2 py-0.5 transition-colors\">EN</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</form><span class=\"h-4 w-px bg-gray-600\"></span><form method=\"POST\" action=\"/settings/lang\" class=\"inline\"><input type=\"hidden\" name=\"csrf\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 49, Col: 56}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"> <input type=\"hidden\" name=\"lang\" value=\"es\"> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if lang == "es" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<button type=\"submit\" class=\"bg-blue-600 text-white px-2 py-0.5\">ES</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<button type=\"submit\" class=\"text-gray-400 hover:text-white px-2 py-0.5 transition-colors\">ES</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</form></div><button id=\"nav-menu-button\" class=\"md:hidden text-white focus:outline-none p-1 rounded hover:bg-gray-700\" aria-label=\"Toggle menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button></div></div><!-- Nav links: dropdown on mobile, inline on desktop --><ul id=\"nav-menu\" class=\"hidden md:flex md:items-center md:space-x-2 absolute md:static top-full left-0 w-full md:w-auto bg-gray-800 md:bg-transparent border-t md:border-0 border-gray-700 px-4 md:px-6 py-3 md:py-1 space-y-2 md:space-y-0 z-50\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if email != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<!-- Lang switcher: always visible, compact segmented toggle --> <div class=\"flex items-center overflow-hidden rounded-md border border-gray-600 text-xs font-bold\"><form method=\"POST\" action=\"/settings/lang\" class=\"inline\"><input type=\"hidden\" name=\"csrf\" value=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var7 string
-			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 40, Col: 57}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"> <input type=\"hidden\" name=\"lang\" value=\"en\"> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if lang == "en" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<button type=\"submit\" class=\"bg-blue-600 text-white px-2 py-0.5\">EN</button>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<button type=\"submit\" class=\"text-gray-400 hover:text-white px-2 py-0.5 transition-colors\">EN</button>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</form><span class=\"h-4 w-px bg-gray-600\"></span><form method=\"POST\" action=\"/settings/lang\" class=\"inline\"><input type=\"hidden\" name=\"csrf\" value=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var8 string
-			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 50, Col: 57}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"> <input type=\"hidden\" name=\"lang\" value=\"es\"> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if lang == "es" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<button type=\"submit\" class=\"bg-blue-600 text-white px-2 py-0.5\">ES</button>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<button type=\"submit\" class=\"text-gray-400 hover:text-white px-2 py-0.5 transition-colors\">ES</button>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</form></div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<button id=\"nav-menu-button\" class=\"md:hidden text-white focus:outline-none p-1 rounded hover:bg-gray-700\" aria-label=\"Toggle menu\"><svg class=\"w-6 h-6\" fill=\"none\" stroke=\"currentColor\" viewBox=\"0 0 24 24\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M4 6h16M4 12h16M4 18h16\"></path></svg></button></div></div><!-- Nav links: dropdown on mobile, inline on desktop --><ul id=\"nav-menu\" class=\"hidden md:flex md:items-center md:space-x-2 absolute md:static top-full left-0 w-full md:w-auto bg-gray-800 md:bg-transparent border-t md:border-0 border-gray-700 px-4 md:px-6 py-3 md:py-1 space-y-2 md:space-y-0 z-50\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if email != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<li class=\"md:hidden\"><span class=\"text-gray-400\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<li class=\"md:hidden\"><span class=\"text-gray-400\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(email)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 70, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 68, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span></li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -220,7 +210,7 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -228,7 +218,7 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -236,7 +226,7 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -244,7 +234,7 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -252,33 +242,33 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, " <li><form method=\"POST\" action=\"/logout\" class=\"inline\"><input type=\"hidden\" name=\"csrf\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, " <li><form method=\"POST\" action=\"/logout\" class=\"inline\"><input type=\"hidden\" name=\"csrf\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 80, Col: 56}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 78, Col: 56}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\"> <button type=\"submit\" class=\"block rounded-lg border border-gray-500 px-3 py-1.5 text-sm hover:border-red-400 hover:text-red-300 transition-colors\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\"> <button type=\"submit\" class=\"block rounded-lg border border-gray-500 px-3 py-1.5 text-sm hover:border-red-400 hover:text-red-300 transition-colors\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(lang, "nav.logout"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 81, Col: 182}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/components/nav.templ`, Line: 79, Col: 182}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</button></form></li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</button></form></li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -287,7 +277,7 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, " ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, " ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -296,7 +286,7 @@ func Nav(email string, isAdmin bool, lang string, activePath string, csrfToken s
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</ul></nav><script>\n\t\t(function() {\n\t\t\tvar btn = document.getElementById('nav-menu-button');\n\t\t\tvar menu = document.getElementById('nav-menu');\n\t\t\tvar scrim = document.getElementById('nav-scrim');\n\t\t\tfunction openDrawer() {\n\t\t\t\tmenu.classList.remove('hidden');\n\t\t\t\tscrim.classList.remove('hidden');\n\t\t\t}\n\t\t\tfunction closeDrawer() {\n\t\t\t\tmenu.classList.add('hidden');\n\t\t\t\tscrim.classList.add('hidden');\n\t\t\t}\n\t\t\tif (btn && menu && scrim) {\n\t\t\t\tbtn.addEventListener('click', function() {\n\t\t\t\t\tif (menu.classList.contains('hidden')) {\n\t\t\t\t\t\topenDrawer();\n\t\t\t\t\t} else {\n\t\t\t\t\t\tcloseDrawer();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tscrim.addEventListener('click', closeDrawer);\n\t\t\t\tdocument.addEventListener('keydown', function(e) {\n\t\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\t\tcloseDrawer();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tvar links = menu.querySelectorAll('a');\n\t\t\t\tfor (var i = 0; i < links.length; i++) {\n\t\t\t\t\tlinks[i].addEventListener('click', closeDrawer);\n\t\t\t\t}\n\t\t\t}\n\t\t\tvar themeBtn = document.getElementById('theme-toggle');\n\t\t\tvar sunIcon = document.getElementById('theme-icon-sun');\n\t\t\tvar moonIcon = document.getElementById('theme-icon-moon');\n\t\t\tif (themeBtn && sunIcon && moonIcon) {\n\t\t\t\tthemeBtn.addEventListener('click', function() {\n\t\t\t\t\tvar html = document.documentElement;\n\t\t\t\t\tif (html.classList.contains('dark')) {\n\t\t\t\t\t\thtml.classList.remove('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'light');\n\t\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t\t} else {\n\t\t\t\t\t\thtml.classList.add('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'dark');\n\t\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tif (document.documentElement.classList.contains('dark')) {\n\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t} else {\n\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t}\n\t\t\t}\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</ul></nav><script>\n\t\t(function() {\n\t\t\tvar btn = document.getElementById('nav-menu-button');\n\t\t\tvar menu = document.getElementById('nav-menu');\n\t\t\tvar scrim = document.getElementById('nav-scrim');\n\t\t\tfunction openDrawer() {\n\t\t\t\tmenu.classList.remove('hidden');\n\t\t\t\tscrim.classList.remove('hidden');\n\t\t\t}\n\t\t\tfunction closeDrawer() {\n\t\t\t\tmenu.classList.add('hidden');\n\t\t\t\tscrim.classList.add('hidden');\n\t\t\t}\n\t\t\tif (btn && menu && scrim) {\n\t\t\t\tbtn.addEventListener('click', function() {\n\t\t\t\t\tif (menu.classList.contains('hidden')) {\n\t\t\t\t\t\topenDrawer();\n\t\t\t\t\t} else {\n\t\t\t\t\t\tcloseDrawer();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tscrim.addEventListener('click', closeDrawer);\n\t\t\t\tdocument.addEventListener('keydown', function(e) {\n\t\t\t\t\tif (e.key === 'Escape') {\n\t\t\t\t\t\tcloseDrawer();\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tvar links = menu.querySelectorAll('a');\n\t\t\t\tfor (var i = 0; i < links.length; i++) {\n\t\t\t\t\tlinks[i].addEventListener('click', closeDrawer);\n\t\t\t\t}\n\t\t\t}\n\t\t\tvar themeBtn = document.getElementById('theme-toggle');\n\t\t\tvar sunIcon = document.getElementById('theme-icon-sun');\n\t\t\tvar moonIcon = document.getElementById('theme-icon-moon');\n\t\t\tif (themeBtn && sunIcon && moonIcon) {\n\t\t\t\tthemeBtn.addEventListener('click', function() {\n\t\t\t\t\tvar html = document.documentElement;\n\t\t\t\t\tif (html.classList.contains('dark')) {\n\t\t\t\t\t\thtml.classList.remove('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'light');\n\t\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t\t} else {\n\t\t\t\t\t\thtml.classList.add('dark');\n\t\t\t\t\t\tlocalStorage.setItem('theme', 'dark');\n\t\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t\tif (document.documentElement.classList.contains('dark')) {\n\t\t\t\t\tsunIcon.classList.remove('hidden');\n\t\t\t\t\tmoonIcon.classList.add('hidden');\n\t\t\t\t} else {\n\t\t\t\t\tsunIcon.classList.add('hidden');\n\t\t\t\t\tmoonIcon.classList.remove('hidden');\n\t\t\t\t}\n\t\t\t}\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

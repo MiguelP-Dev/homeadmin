@@ -100,8 +100,11 @@ func main() {
 	app.Post("/register", authHandler.Register)
 	app.Post("/logout", authHandler.Logout)
 
-	// Language switch (WU-5)
-	app.Post("/settings/lang", middleware.RequireAuth(cfg.JWTSecret), authHandler.LangSwitch)
+	// Language switch (WU-5). Public: the switcher also renders on the
+	// login/register nav, so the handler branches on auth state itself —
+	// JWT claim persistence for logged-in users, "lang" cookie for visitors.
+	// CSRF middleware still guards every POST globally.
+	app.Post("/settings/lang", authHandler.LangSwitch)
 
 	// Root redirect — token-aware: authenticated users go to /dashboard,
 	// everyone else to /login.

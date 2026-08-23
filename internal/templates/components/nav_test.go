@@ -321,11 +321,16 @@ func TestNav_LangSwitcher_CSRFTokenIncluded(t *testing.T) {
 	}
 }
 
-// Lang switcher: not shown for unauthenticated users
-func TestNav_LangSwitcher_HiddenForUnauth(t *testing.T) {
+// Lang switcher: shown for unauthenticated users too (auth pages), so
+// visitors can pick their language before having an account.
+func TestNav_LangSwitcher_ShownForUnauth(t *testing.T) {
 	output := renderNav("", false)
-	if strings.Contains(output, "/settings/lang") {
-		t.Error("lang switcher should NOT be shown for unauthenticated users")
+	if !strings.Contains(output, "action=\"/settings/lang\"") {
+		t.Error("lang switcher should be shown for unauthenticated users")
+	}
+	if !strings.Contains(output, "name=\"lang\" value=\"en\"") ||
+		!strings.Contains(output, "name=\"lang\" value=\"es\"") {
+		t.Error("unauthenticated lang switcher should offer both EN and ES forms")
 	}
 }
 

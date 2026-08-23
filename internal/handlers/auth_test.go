@@ -1046,3 +1046,132 @@ func TestLangSwitch_UpdateError_Returns500(t *testing.T) {
 		t.Errorf("expected status 500, got %d", resp.StatusCode)
 	}
 }
+
+// --- Anonymous lang switcher (auth-page nav) ---
+
+// TestResolveAnonLang covers the visitor language resolution precedence:
+// valid "lang" cookie values win, everything else falls back to English.
+// Once logged in, RequireAuth overrides this via the JWT claim.
+func TestResolveAnonLang(t *testing.T) {
+	tests := []struct {
+		name   string
+		cookie string // raw Cookie header value; "" = no cookie
+		want   string
+	}{
+		{name: "no cookie defaults to en", cookie: "", want: "en"},
+		{name: "es cookie resolves es", cookie: "lang=es", want: "es"},
+		{name: "en cookie resolves en", cookie: "lang=en", want: "en"},
+		{name: "unsupported value falls back to en", cookie: "lang=fr", want: "en"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got string
+			app := fiber.New()
+			app.Get("/probe", func(c *fiber.Ctx) error {
+				got = ResolveAnonLang(c)
+				return nil
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/probe", nil)
+			if tt.cookie != "" {
+				req.Header.Set("Cookie", tt.cookie)
+			}
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf("app.Test failed: %v", err)
+			}
+			defer resp.Body.Close()
+
+			if got != tt.want {
+				t.Errorf("ResolveAnonLang = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestShowLogin_RendersAnonLangSwitcher verifies an anonymous GET /login shows
+// both EN|ES forms so visitors can pick a language before having an account.
+func TestShowLogin_RendersAnonLangSwitcher(t *testing.T) {
+	app := setupHandlerApp(&mockUserRepo{})
+
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if got := strings.Count(bodyStr, `action="/settings/lang"`); got != 2 {
+		t.Errorf("login page renders %d lang switcher forms, want 2", got)
+	}
+	if !strings.Contains(bodyStr, `value="en"`) || !strings.Contains(bodyStr, `value="es"`) {
+		t.Error("login page lang switcher missing the EN/ES hidden inputs")
+	}
+}
+
+// TestShowRegister_RendersAnonLangSwitcher verifies the same for /register.
+func TestShowRegister_RendersAnonLangSwitcher(t *testing.T) {
+	app := setupHandlerApp(&mockUserRepo{})
+
+	req := httptest.NewRequest(http.MethodGet, "/register", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if got := strings.Count(bodyStr, `action="/settings/lang"`); got != 2 {
+		t.Errorf("register page renders %d lang switcher forms, want 2", got)
+	}
+}
+
+// TestShowLogin_AnonLangCookie_RendersSpanish verifies the cookie chosen via
+// the anonymous switcher drives the rendered language on /login: document
+// lang attribute plus exactly the ES pill highlighted.
+func TestShowLogin_AnonLangCookie_RendersSpanish(t *testing.T) {
+	app := setupHandlerApp(&mockUserRepo{})
+
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.Header.Set("Cookie", "lang=es")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, `<html lang="es"`) {
+		t.Error("expected <html lang=\"es\"> on login page with lang=es cookie")
+	}
+	if !strings.Contains(bodyStr, `class="bg-blue-600 text-white px-2 py-0.5">ES</button>`) {
+		t.Error("expected ES switcher button to be highlighted as active")
+	}
+	if strings.Contains(bodyStr, `class="bg-blue-600 text-white px-2 py-0.5">EN</button>`) {
+		t.Error("EN switcher button must not be active while lang=es")
+	}
+}
+
+// TestShowRegister_AnonLangCookie_RendersSpanish verifies the same resolution
+// on /register.
+func TestShowRegister_AnonLangCookie_RendersSpanish(t *testing.T) {
+	app := setupHandlerApp(&mockUserRepo{})
+
+	req := httptest.NewRequest(http.MethodGet, "/register", nil)
+	req.Header.Set("Cookie", "lang=es")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), `<html lang="es"`) {
+		t.Error("expected <html lang=\"es\"> on register page with lang=es cookie")
+	}
+}

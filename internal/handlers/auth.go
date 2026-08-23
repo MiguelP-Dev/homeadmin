@@ -57,7 +57,9 @@ func (h *AuthHandler) renderPage(c *fiber.Ctx, title, csrfToken, email string, i
 	c.Type("html")
 	lang, _ := c.Locals("lang").(string)
 	if lang == "" {
-		lang = "en"
+		// Anonymous requests (login/register) carry no JWT claim, so resolve
+		// the language from the visitor's "lang" cookie instead.
+		lang = ResolveAnonLang(c)
 	}
 	activePath := c.Path()
 	base := layouts.Base(title, csrfToken, email, isAdmin, lang, activePath)
@@ -169,26 +171,35 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	return c.Redirect("/login", fiber.StatusFound)
 }
 
-// LangSwitch updates the user's preferred language and re-issues the JWT
-// with the new lang claim. It redirects back to the Referer path when safe
-// (starts with "/" and not "//"), otherwise to /dashboard.
+// LangSwitch handles POST /settings/lang for both authenticated users and
+// anonymous visitors. Authenticated users keep the persisted per-user
+// preference (User.Lang + re-issued JWT claim, WU-5). Anonymous visitors —
+// who can now reach the switcher from the login/register nav — get their
+// choice stored in the one-year "lang" cookie that ShowLogin/ShowRegister
+// honor; once they log in, the JWT claim wins again.
 func (h *AuthHandler) LangSwitch(c *fiber.Ctx) error {
 	lang := c.FormValue("lang")
 	if lang != "en" && lang != "es" {
 		lang = "en" // fallback
 	}
 
-	// Validate JWT from cookie
-	cookie := c.Cookies("jwt")
-	if cookie == "" {
-		return c.Redirect("/login", fiber.StatusFound)
+	// Authenticated branch: a valid JWT cookie selects the per-user flow.
+	if cookie := c.Cookies("jwt"); cookie != "" {
+		if claims, err := services.ValidateToken(cookie, h.JWTSecret); err == nil {
+			return h.langSwitchAuthenticated(c, claims, lang)
+		}
 	}
 
-	claims, err := services.ValidateToken(cookie, h.JWTSecret)
-	if err != nil {
-		return c.Redirect("/login", fiber.StatusFound)
-	}
+	// Anonymous branch: remember the choice in a cookie and send the visitor
+	// back to where they came from (login/register), defaulting to /login.
+	SetAnonLangCookie(c, lang)
+	return c.Redirect(safeRefererPath(c.Get("Referer"), "/login"), fiber.StatusFound)
+}
 
+// langSwitchAuthenticated updates the user's preferred language and re-issues
+// the JWT with the new lang claim. It redirects back to the Referer path when
+// safe (starts with "/" and not "//"), otherwise to /dashboard.
+func (h *AuthHandler) langSwitchAuthenticated(c *fiber.Ctx, claims *services.Claims, lang string) error {
 	// Fetch user from DB
 	user, err := h.UserRepo.FindByID(claims.UserID)
 	if err != nil || user == nil {
@@ -211,9 +222,13 @@ func (h *AuthHandler) LangSwitch(c *fiber.Ctx) error {
 	}
 	SetJWTCookie(c, token)
 
-	// Redirect to Referer path if safe
-	referer := c.Get("Referer")
-	redirectPath := "/dashboard"
+	return c.Redirect(safeRefererPath(c.Get("Referer"), "/dashboard"), fiber.StatusFound)
+}
+
+// safeRefererPath extracts the redirect target from a Referer URL when it is
+// a sane same-origin path (starts with "/" and not "//"), returning fallback
+// otherwise.
+func safeRefererPath(referer, fallback string) string {
 	if len(referer) > 0 {
 		// Extract path from referer URL
 		if idx := strings.Index(referer, "://"); idx > 0 {
@@ -225,9 +240,8 @@ func (h *AuthHandler) LangSwitch(c *fiber.Ctx) error {
 			}
 		}
 		if strings.HasPrefix(referer, "/") && !strings.HasPrefix(referer, "//") {
-			redirectPath = referer
+			return referer
 		}
 	}
-
-	return c.Redirect(redirectPath, fiber.StatusFound)
+	return fallback
 }
