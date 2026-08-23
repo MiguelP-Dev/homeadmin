@@ -10,8 +10,8 @@ Manage shared expenses within households with fine-grained visibility controls:
 - **Visibility rules** — shared editable, shared read-only, or private (owner-only)
 - **Dashboard** — monthly summaries with category breakdown and recent activity
 - **Household management** — create households, invite members, role-based access (owner/admin/member), remove members
-- **Site administration** — read-only admin panel to inspect users and households
-- **Internationalization** — English/Spanish with per-user language preference, translated UI and currency/date formatting
+- **Site administration** — true site-admin experience: global views of every household's transactions grouped by household with member details across dashboard/expenses/savings, plus a site summary panel at `/admin`
+- **Internationalization** — English/Spanish everywhere, including login/register; logged-in users get a per-user preference persisted in JWT, visitors get a language cookie; translated UI and currency/date formatting
 - **Authentication** — email/password with JWT, CSRF protection
 - **Theming** — dark mode toggle with localStorage persistence
 - **Navigation** — responsive drawer (hamburger on mobile), language switcher, aria-current page indicator
@@ -158,13 +158,19 @@ Promote a user to site admin manually:
 go run cmd/promote/main.go -email user@example.com
 ```
 
-Site admins can access `/admin` to view all users and households.
+Site admins get:
+
+- **Global views** — `/dashboard`, `/expenses` and `/savings` render every household's
+  operations grouped by household, with owner email per transaction. Site admins do not
+  need their own household to use any section.
+- **Summary panel** — `/admin` shows site-wide totals (households, users, income,
+  transactions) plus a per-household breakdown with links into each section.
 
 ## Internationalization
 
 - **Languages**: English (default) and Spanish
 - **Per-user preference**: stored in database, persisted in JWT
-- **Nav switcher**: toggle between EN/ES from the navigation drawer
+- **Visitors**: language choice kept in a 1-year cookie; the EN/ES switcher is always visible in the nav, including login and register. Once logged in, the account preference takes over
 - **Locale-aware display**: currency (`$1.234,56` in ES), dates (`2 de enero de 2006`), categories, and visibility labels
 - **Translated errors**: form validation, auth, and household error messages
 
@@ -172,7 +178,7 @@ Site admins can access `/admin` to view all users and households.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/settings/lang` | Switch language (CSRF-protected) |
+| POST | `/settings/lang` | Switch language — authenticated: persists on account + JWT re-issue; anonymous: sets a `lang` cookie (CSRF-protected) |
 | POST | `/household/members/:id/role` | Promote/demote member (owner only) |
 | POST | `/household/members/:id/remove` | Remove member (owner only) |
 
@@ -183,7 +189,7 @@ Site admins can access `/admin` to view all users and households.
 | Owner | Household | Full control: invite, change roles, remove members, view/edit all expenses |
 | Admin | Household | Invite members, view/edit shared expenses |
 | Member | Household | View shared expenses, add own expenses |
-| Site admin | Global | Read-only access to `/admin` (users + households); first registered user gets this automatically |
+| Site admin | Global | Full read access to all households' data across dashboard/expenses/savings plus the `/admin` summary panel; first registered user gets this automatically |
 
 ### Expense visibility
 
@@ -233,9 +239,10 @@ Tracked items that do not block current functionality but are pending
 attention. Captured from review and design findings of the household
 onboarding chain (PR1–PR5, merged to main 2026-08-07).
 
-1. **CSRF round-trip test** — no integration test sends a request with a valid
-    CSRF token through a real handler; household E2E POST flows run with CSRF
-    disabled (`csrfKey` empty) while production mounts CSRF unconditionally.
+1. **CSRF round-trip test coverage** — a full CSRF handshake integration test now
+    exists for `POST /settings/lang` (valid-token success + token-less 403);
+    household E2E POST flows still run with CSRF disabled (`csrfKey` empty) while
+    production mounts CSRF unconditionally — extend the handshake pattern there.
 2. **JWT claim assertion after Join (E2E)** — the integration suite checks the
     re-issued JWT is non-empty after Create but never re-reads its claims after
     Join. Handler-level unit tests already decode claims; add an E2E assert.
