@@ -19,12 +19,12 @@ import (
 // --- Mock UserRepository ---
 
 type mockUserRepo struct {
-	createFn          func(user *database.User) error
-	countAndCreateFn  func(user *database.User) error
-	findByEmailFn     func(email string) (*database.User, error)
-	findByIDFn        func(id uint) (*database.User, error)
-	updateFn          func(user *database.User) error
-	listAllUsersFn    func() ([]database.User, error)
+	createFn         func(user *database.User) error
+	countAndCreateFn func(user *database.User) error
+	findByEmailFn    func(email string) (*database.User, error)
+	findByIDFn       func(id uint) (*database.User, error)
+	updateFn         func(user *database.User) error
+	listAllUsersFn   func() ([]database.User, error)
 }
 
 func (m *mockUserRepo) Create(user *database.User) error {
@@ -61,7 +61,7 @@ func (m *mockUserRepo) Update(user *database.User) error {
 	}
 	return nil
 }
-func (m *mockUserRepo) Delete(id uint) error             { return nil }
+func (m *mockUserRepo) Delete(id uint) error { return nil }
 func (m *mockUserRepo) FindByIDWithHousehold(id uint) (*database.User, error) {
 	return nil, nil
 }
@@ -1171,7 +1171,167 @@ func TestShowRegister_AnonLangCookie_RendersSpanish(t *testing.T) {
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), `<html lang="es"`) {
+	bodyStr := string(body)
+	if !strings.Contains(bodyStr, `<html lang="es"`) {
 		t.Error("expected <html lang=\"es\"> on register page with lang=es cookie")
+	}
+}
+
+// TestLogin_AnonLangCookie_RendersSpanishLabels verifies the login page body
+// itself is translated when the visitor's lang cookie is es (root-cause fix:
+// labels were previously hardcoded English).
+func TestLogin_AnonLangCookie_RendersSpanishLabels(t *testing.T) {
+	app := setupHandlerApp(&mockUserRepo{})
+
+	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req.Header.Set("Cookie", "lang=es")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{"Iniciar sesión", "Correo electrónico:", "Contraseña:", "¿No tienes una cuenta? Regístrate"} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("expected Spanish label %q on login page with lang=es cookie", want)
+		}
+	}
+	if strings.Contains(bodyStr, ">Login</h1>") || strings.Contains(bodyStr, "have an account? Register") {
+		t.Error("login page still renders hardcoded English copy with lang=es")
+	}
+}
+
+// TestRegister_AnonLangCookie_RendersSpanishLabels verifies the same for /register.
+func TestRegister_AnonLangCookie_RendersSpanishLabels(t *testing.T) {
+	app := setupHandlerApp(&mockUserRepo{})
+
+	req := httptest.NewRequest(http.MethodGet, "/register", nil)
+	req.Header.Set("Cookie", "lang=es")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	bodyStr := string(body)
+	for _, want := range []string{"Registrarse", "Nombre:", "¿Ya tienes una cuenta? Inicia sesión"} {
+		if !strings.Contains(bodyStr, want) {
+			t.Errorf("expected Spanish label %q on register page with lang=es cookie", want)
+		}
+	}
+	if strings.Contains(bodyStr, ">Register</h1>") || strings.Contains(bodyStr, "have an account? Login") {
+		t.Error("register page still renders hardcoded English copy with lang=es")
+	}
+}
+
+// TestLogin_FailedLogin_TranslatedErrorPerLang verifies the inline
+// invalid-credentials message follows the visitor's language: English by
+// default, Spanish with the lang=es cookie.
+func TestLogin_FailedLogin_TranslatedErrorPerLang(t *testing.T) {
+	hash, _ := services.HashPassword("correctpass")
+	repo := &mockUserRepo{
+		findByEmailFn: func(email string) (*database.User, error) {
+			return &database.User{
+				ID:           1,
+				Email:        email,
+				PasswordHash: hash,
+				Role:         "member",
+			}, nil
+		},
+	}
+	app := setupHandlerApp(repo)
+
+	postLogin := func(cookie string) string {
+		t.Helper()
+		form := url.Values{}
+		form.Set("email", "user@example.com")
+		form.Set("password", "wrongpassword")
+		req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if cookie != "" {
+			req.Header.Set("Cookie", cookie)
+		}
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("app.Test failed: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("expected status 200 for failed login, got %d", resp.StatusCode)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		return string(body)
+	}
+
+	enBody := postLogin("")
+	if !strings.Contains(enBody, "Invalid credentials") {
+		t.Error("expected 'Invalid credentials' in English failed-login render")
+	}
+	if strings.Contains(enBody, "Credenciales inválidas") {
+		t.Error("English render must not contain the Spanish message")
+	}
+
+	esBody := postLogin("lang=es")
+	if !strings.Contains(esBody, "Credenciales inválidas") {
+		t.Error("expected 'Credenciales inválidas' in Spanish failed-login render")
+	}
+	if strings.Contains(esBody, "Invalid credentials") {
+		t.Error("Spanish render must not contain the English message")
+	}
+}
+
+// TestRegister_DuplicateEmail_TranslatedErrorPerLang verifies the duplicate
+// email inline message follows the visitor's language.
+func TestRegister_DuplicateEmail_TranslatedErrorPerLang(t *testing.T) {
+	existingUser := &database.User{
+		ID:           1,
+		Email:        "existing@example.com",
+		PasswordHash: "somehash",
+		Role:         "member",
+	}
+	repo := &mockUserRepo{
+		findByEmailFn: func(email string) (*database.User, error) {
+			if email == "existing@example.com" {
+				return existingUser, nil
+			}
+			return nil, nil
+		},
+	}
+	app := setupHandlerApp(repo)
+
+	postRegister := func(cookie string) string {
+		t.Helper()
+		form := url.Values{}
+		form.Set("email", "existing@example.com")
+		form.Set("password", "securepass123")
+		form.Set("name", "Existing User")
+		req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		if cookie != "" {
+			req.Header.Set("Cookie", cookie)
+		}
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatalf("app.Test failed: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("expected status 200 for duplicate email, got %d", resp.StatusCode)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		return string(body)
+	}
+
+	enBody := postRegister("")
+	if !strings.Contains(enBody, "Email already registered") {
+		t.Error("expected 'Email already registered' in English duplicate-email render")
+	}
+
+	esBody := postRegister("lang=es")
+	if !strings.Contains(esBody, "El correo ya está registrado") {
+		t.Error("expected 'El correo ya está registrado' in Spanish duplicate-email render")
 	}
 }

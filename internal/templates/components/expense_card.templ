@@ -24,9 +24,9 @@ templ ExpenseCard(e database.Expense, lang string) {
 				<div class="font-semibold text-gray-900 dark:text-gray-100">{ i18n.FormatCurrency(lang, e.Amount) }</div>
 				<span class={ "text-xs px-2 py-0.5 rounded-full " + visibilityBadgeClass(e.Visibility) }>{ i18n.VisibilityLabel(lang, e.Visibility) }</span>
 			</div>
-			<form method="POST" action={ fmt.Sprintf("/expenses/%d/delete", e.ID) } class="inline" onclick="return confirm('Are you sure?')">
+			<form method="POST" action={ fmt.Sprintf("/expenses/%d/delete", e.ID) } class="inline" { confirmAttrs(i18n.T(lang, "common.confirm_delete"))... }>
 				<input type="hidden" name="csrf" value=""/>
-				<button type="submit" class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" aria-label="Delete">
+				<button type="submit" class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" aria-label={ i18n.T(lang, "common.delete") }>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
 					</svg>
@@ -50,9 +50,9 @@ templ ExpenseCardWithCSRF(e database.Expense, lang string, csrfToken string) {
 				<div class="font-semibold text-gray-900 dark:text-gray-100">{ i18n.FormatCurrency(lang, e.Amount) }</div>
 				<span class={ "text-xs px-2 py-0.5 rounded-full " + visibilityBadgeClass(e.Visibility) }>{ i18n.VisibilityLabel(lang, e.Visibility) }</span>
 			</div>
-			<form method="POST" action={ fmt.Sprintf("/expenses/%d/delete", e.ID) } class="inline" onclick="return confirm('Are you sure?')">
+			<form method="POST" action={ fmt.Sprintf("/expenses/%d/delete", e.ID) } class="inline" { confirmAttrs(i18n.T(lang, "common.confirm_delete"))... }>
 				<input type="hidden" name="csrf" value={ csrfToken }/>
-				<button type="submit" class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" aria-label="Delete">
+				<button type="submit" class="ml-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" aria-label={ i18n.T(lang, "common.delete") }>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
 					</svg>

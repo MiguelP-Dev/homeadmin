@@ -1,6 +1,18 @@
 package components
 
-import "github.com/homeadmin/internal/database"
+import (
+	"github.com/a-h/templ"
+	"github.com/homeadmin/internal/database"
+)
+
+// confirmAttrs builds the translated onclick confirmation dialog for delete
+// forms. Spread the result into the element tag with
+// `{ confirmAttrs(msg)... }` so templ renders a real onclick attribute.
+// Mirrors pages.confirmAttrs (kept local: pages cannot be imported from
+// components without an import cycle).
+func confirmAttrs(msg string) templ.Attributes {
+	return templ.Attributes(map[string]any{"onclick": "return confirm('" + msg + "')"})
+}
 
 // visibilityBadgeClass returns Tailwind CSS classes for the expense visibility badge.
 func visibilityBadgeClass(visibility database.VisibilityType) string {

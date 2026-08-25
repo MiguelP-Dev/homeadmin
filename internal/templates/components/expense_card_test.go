@@ -159,3 +159,50 @@ func TestExpenseCard_StoredValuesUntouched(t *testing.T) {
 		t.Error("stored visibility was mutated by locale rendering")
 	}
 }
+
+// --- Localized delete confirmation + aria-label (replaces hardcoded
+// 'Are you sure?' / aria-label="Delete") ---
+
+func TestExpenseCard_LocalizedDeleteConfirm(t *testing.T) {
+	tests := []struct {
+		name        string
+		lang        string
+		wantConfirm string
+		wantLabel   string
+	}{
+		{
+			name:        "english",
+			lang:        "en",
+			wantConfirm: "return confirm(&#39;Are you sure?&#39;)",
+			wantLabel:   `aria-label="Delete"`,
+		},
+		{
+			name:        "spanish",
+			lang:        "es",
+			wantConfirm: "return confirm(&#39;¿Estás seguro?&#39;)",
+			wantLabel:   `aria-label="Eliminar"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := database.Expense{ID: 7, Description: "Rent", Amount: 100, Category: "rent", Date: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)}
+			for name, output := range map[string]string{
+				"card":     mustRenderExpenseCard(e, tt.lang),
+				"csrfCard": mustRenderExpenseCardWithCSRF(e, tt.lang, "token"),
+			} {
+				if !strings.Contains(output, tt.wantConfirm) {
+					t.Errorf("%s/%s: missing translated onclick %q in output", name, tt.lang, tt.wantConfirm)
+				}
+				if strings.Contains(output, "Are you sure?'") && tt.lang == "es" {
+					t.Errorf("%s/es: legacy hardcoded English confirm still present", name)
+				}
+				if !strings.Contains(output, tt.wantLabel) {
+					t.Errorf("%s/%s: missing translated aria-label %q", name, tt.lang, tt.wantLabel)
+				}
+				if strings.Contains(output, `aria-label="Delete"`) && tt.lang == "es" {
+					t.Errorf("%s/es: hardcoded English aria-label still present", name)
+				}
+			}
+		})
+	}
+}

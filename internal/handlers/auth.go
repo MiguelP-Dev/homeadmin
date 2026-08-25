@@ -6,6 +6,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
 	"github.com/homeadmin/internal/database"
+	"github.com/homeadmin/internal/i18n"
 	"github.com/homeadmin/internal/middleware"
 	"github.com/homeadmin/internal/repositories"
 	"github.com/homeadmin/internal/services"
@@ -52,15 +53,23 @@ func NewAuthHandler(repo repositories.UserRepository, jwtSecret string) *AuthHan
 	}
 }
 
-// renderPage renders a templ component wrapped in the base layout.
-func (h *AuthHandler) renderPage(c *fiber.Ctx, title, csrfToken, email string, isAdmin bool, content templ.Component) error {
-	c.Type("html")
+// resolvePageLang resolves the render language for auth pages: the JWT lang
+// claim wins when present (authenticated requests), otherwise the visitor's
+// anonymous "lang" cookie decides (login/register flows).
+func resolvePageLang(c *fiber.Ctx) string {
 	lang, _ := c.Locals("lang").(string)
 	if lang == "" {
 		// Anonymous requests (login/register) carry no JWT claim, so resolve
 		// the language from the visitor's "lang" cookie instead.
-		lang = ResolveAnonLang(c)
+		return ResolveAnonLang(c)
 	}
+	return lang
+}
+
+// renderPage renders a templ component wrapped in the base layout.
+func (h *AuthHandler) renderPage(c *fiber.Ctx, title, csrfToken, email string, isAdmin bool, content templ.Component) error {
+	c.Type("html")
+	lang := resolvePageLang(c)
 	activePath := c.Path()
 	base := layouts.Base(title, csrfToken, email, isAdmin, lang, activePath)
 	ctx := templ.WithChildren(c.Context(), content)
@@ -70,13 +79,17 @@ func (h *AuthHandler) renderPage(c *fiber.Ctx, title, csrfToken, email string, i
 // ShowLogin renders the login form via templ templates.
 func (h *AuthHandler) ShowLogin(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	return h.renderPage(c, "Login", csrfToken, "", false, pages.Login(csrfToken, ""))
+	lang := resolvePageLang(c)
+	title := pageTitle(lang, "title.login")
+	return h.renderPage(c, title, csrfToken, "", false, pages.Login(csrfToken, "", lang))
 }
 
 // ShowRegister renders the registration form via templ templates.
 func (h *AuthHandler) ShowRegister(c *fiber.Ctx) error {
 	csrfToken, _ := c.Locals("csrfToken").(string)
-	return h.renderPage(c, "Register", csrfToken, "", false, pages.Register(csrfToken, ""))
+	lang := resolvePageLang(c)
+	title := pageTitle(lang, "title.register")
+	return h.renderPage(c, title, csrfToken, "", false, pages.Register(csrfToken, "", lang))
 }
 
 // Login validates credentials, sets JWT cookie, and redirects by household.
@@ -91,7 +104,9 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	if user == nil || !h.AuthService.CheckPassword(password, user.PasswordHash) {
 		csrfToken, _ := c.Locals("csrfToken").(string)
-		return h.renderPage(c, "Login", csrfToken, "", false, pages.Login(csrfToken, "Invalid credentials"))
+		lang := resolvePageLang(c)
+		title := pageTitle(lang, "title.login")
+		return h.renderPage(c, title, csrfToken, "", false, pages.Login(csrfToken, i18n.T(lang, "error.invalid_credentials"), lang))
 	}
 
 	token, err := h.AuthService.CreateToken(user.ID, user.HouseholdID, user.Role, user.Email, user.Lang, user.IsAdmin, h.JWTSecret, 24)
@@ -134,7 +149,9 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	}
 	if existing != nil {
 		csrfToken, _ := c.Locals("csrfToken").(string)
-		return h.renderPage(c, "Register", csrfToken, "", false, pages.Register(csrfToken, "Email already registered"))
+		lang := resolvePageLang(c)
+		title := pageTitle(lang, "title.register")
+		return h.renderPage(c, title, csrfToken, "", false, pages.Register(csrfToken, i18n.T(lang, "error.email_already_registered"), lang))
 	}
 
 	hash, err := h.AuthService.HashPassword(password)

@@ -79,10 +79,10 @@ func TestDashboard_ZeroMonthlyTotal(t *testing.T) {
 
 func TestDashboard_ShowsCategoryBreakdown(t *testing.T) {
 	s := &services.DashboardSummary{
-		MonthlyTotal: 350.00,
-		TotalIncome:  500.00,
+		MonthlyTotal:  350.00,
+		TotalIncome:   500.00,
 		TotalExpenses: 150.00,
-		Balance:      350.00,
+		Balance:       350.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "groceries", Total: 200.00},
 			{Category: "rent", Total: 150.00},
@@ -115,10 +115,10 @@ func TestDashboard_ShowsEmptyCategoryState(t *testing.T) {
 
 func TestDashboard_ShowsRecentExpenses(t *testing.T) {
 	s := &services.DashboardSummary{
-		MonthlyTotal: 50.00,
-		TotalIncome:  100.00,
+		MonthlyTotal:  50.00,
+		TotalIncome:   100.00,
 		TotalExpenses: 50.00,
-		Balance:      50.00,
+		Balance:       50.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "food", Total: 50.00},
 		},
@@ -138,10 +138,10 @@ func TestDashboard_ShowsRecentExpenses(t *testing.T) {
 
 func TestDashboard_ShowsEmptyRecentExpenses(t *testing.T) {
 	s := &services.DashboardSummary{
-		MonthlyTotal:   0,
-		TotalIncome:    0,
-		TotalExpenses:  0,
-		Balance:        0,
+		MonthlyTotal:  0,
+		TotalIncome:   0,
+		TotalExpenses: 0,
+		Balance:       0,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "food", Total: 0},
 		},
@@ -185,10 +185,10 @@ func TestDashboard_HasAddExpenseCTA(t *testing.T) {
 
 func TestDashboard_ShowsCategoryTotalAmount(t *testing.T) {
 	s := &services.DashboardSummary{
-		MonthlyTotal: 500.00,
-		TotalIncome:  680.00,
+		MonthlyTotal:  500.00,
+		TotalIncome:   680.00,
 		TotalExpenses: 180.00,
-		Balance:      500.00,
+		Balance:       500.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "utilities", Total: 180.00},
 		},
@@ -220,20 +220,20 @@ func TestDashboard_Triangulation_DifferentMonthlyTotals(t *testing.T) {
 
 func TestDashboard_Triangulation_DifferentCategories(t *testing.T) {
 	s1 := &services.DashboardSummary{
-		MonthlyTotal: 100.00,
-		TotalIncome:  200.00,
+		MonthlyTotal:  100.00,
+		TotalIncome:   200.00,
 		TotalExpenses: 100.00,
-		Balance:      100.00,
+		Balance:       100.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "groceries", Total: 100.00},
 		},
 		RecentExpenses: []database.Expense{},
 	}
 	s2 := &services.DashboardSummary{
-		MonthlyTotal: 200.00,
-		TotalIncome:  400.00,
+		MonthlyTotal:  200.00,
+		TotalIncome:   400.00,
 		TotalExpenses: 200.00,
-		Balance:      200.00,
+		Balance:       200.00,
 		CategoryTotals: []repositories.CategoryTotal{
 			{Category: "rent", Total: 200.00},
 		},
