@@ -23,7 +23,7 @@ type mockExpenseRepoForHandlers struct {
 	all []repositories.ExpenseWithUser
 }
 
-func (m *mockExpenseRepoForHandlers) Create(expense *database.Expense) error     { return nil }
+func (m *mockExpenseRepoForHandlers) Create(expense *database.Expense) error      { return nil }
 func (m *mockExpenseRepoForHandlers) FindByID(id uint) (*database.Expense, error) { return nil, nil }
 func (m *mockExpenseRepoForHandlers) FindByHousehold(userID, householdID uint, viewerRole string, filters database.ExpenseFilters) ([]database.Expense, error) {
 	return nil, nil

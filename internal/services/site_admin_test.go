@@ -64,7 +64,7 @@ type mockUserRepoForSiteAdmin struct {
 	all     []database.User
 }
 
-func (m *mockUserRepoForSiteAdmin) Create(user *database.User) error { return nil }
+func (m *mockUserRepoForSiteAdmin) Create(user *database.User) error         { return nil }
 func (m *mockUserRepoForSiteAdmin) CountAndCreate(user *database.User) error { return nil }
 func (m *mockUserRepoForSiteAdmin) FindByID(id uint) (*database.User, error) {
 	for _, u := range m.all {
@@ -81,47 +81,65 @@ func (m *mockUserRepoForSiteAdmin) FindByEmail(email string) (*database.User, er
 	}
 	return nil, nil
 }
-func (m *mockUserRepoForSiteAdmin) FindByIDWithHousehold(id uint) (*database.User, error) { return nil, nil }
+func (m *mockUserRepoForSiteAdmin) FindByIDWithHousehold(id uint) (*database.User, error) {
+	return nil, nil
+}
 func (m *mockUserRepoForSiteAdmin) Update(user *database.User) error {
 	if m.byEmail != nil {
 		m.byEmail[user.Email] = user
 	}
 	return nil
 }
-func (m *mockUserRepoForSiteAdmin) Delete(id uint) error                        { return nil }
-func (m *mockUserRepoForSiteAdmin) ListAllUsers() ([]database.User, error)       { return m.all, nil }
+func (m *mockUserRepoForSiteAdmin) Delete(id uint) error                   { return nil }
+func (m *mockUserRepoForSiteAdmin) ListAllUsers() ([]database.User, error) { return m.all, nil }
 
 // mockHouseholdRepoForSiteAdmin satisfies HouseholdRepository for tests.
 type mockHouseholdRepoForSiteAdmin struct {
 	all []database.Household
 }
 
-func (m *mockHouseholdRepoForSiteAdmin) Create(h *database.Household) error       { return nil }
-func (m *mockHouseholdRepoForSiteAdmin) FindByID(id uint) (*database.Household, error) { return nil, nil }
-func (m *mockHouseholdRepoForSiteAdmin) FindByUserID(userID uint) (*database.Household, error) { return nil, nil }
-func (m *mockHouseholdRepoForSiteAdmin) FindByName(name string) (*database.Household, error) { return nil, nil }
-func (m *mockHouseholdRepoForSiteAdmin) FindByInviteCode(code string) (*database.InviteCode, error) { return nil, nil }
-func (m *mockHouseholdRepoForSiteAdmin) CreateInviteCode(invite *database.InviteCode) error { return nil }
-func (m *mockHouseholdRepoForSiteAdmin) MarkUsed(inviteID, userID uint) error     { return nil }
-func (m *mockHouseholdRepoForSiteAdmin) GetMembers(householdID uint) ([]database.User, error) { return nil, nil }
-func (m *mockHouseholdRepoForSiteAdmin) Update(h *database.Household) error      { return nil }
-func (m *mockHouseholdRepoForSiteAdmin) Delete(id uint) error                    { return nil }
-func (m *mockHouseholdRepoForSiteAdmin) AddMember(householdID, userID uint, role string) error { return nil }
+func (m *mockHouseholdRepoForSiteAdmin) Create(h *database.Household) error { return nil }
+func (m *mockHouseholdRepoForSiteAdmin) FindByID(id uint) (*database.Household, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForSiteAdmin) FindByUserID(userID uint) (*database.Household, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForSiteAdmin) FindByName(name string) (*database.Household, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForSiteAdmin) FindByInviteCode(code string) (*database.InviteCode, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForSiteAdmin) CreateInviteCode(invite *database.InviteCode) error {
+	return nil
+}
+func (m *mockHouseholdRepoForSiteAdmin) MarkUsed(inviteID, userID uint) error { return nil }
+func (m *mockHouseholdRepoForSiteAdmin) GetMembers(householdID uint) ([]database.User, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForSiteAdmin) Update(h *database.Household) error { return nil }
+func (m *mockHouseholdRepoForSiteAdmin) Delete(id uint) error               { return nil }
+func (m *mockHouseholdRepoForSiteAdmin) AddMember(householdID, userID uint, role string) error {
+	return nil
+}
 func (m *mockHouseholdRepoForSiteAdmin) RemoveMember(householdID, userID uint) error { return nil }
-func (m *mockHouseholdRepoForSiteAdmin) ListAllHouseholds() ([]database.Household, error) { return m.all, nil }
+func (m *mockHouseholdRepoForSiteAdmin) ListAllHouseholds() ([]database.Household, error) {
+	return m.all, nil
+}
 
 // mockExpenseRepoForSiteAdmin satisfies ExpenseRepository for overview tests.
 type mockExpenseRepoForSiteAdmin struct {
 	all []repositories.ExpenseWithUser
 }
 
-func (m *mockExpenseRepoForSiteAdmin) Create(expense *database.Expense) error                { return nil }
-func (m *mockExpenseRepoForSiteAdmin) FindByID(id uint) (*database.Expense, error)            { return nil, nil }
+func (m *mockExpenseRepoForSiteAdmin) Create(expense *database.Expense) error      { return nil }
+func (m *mockExpenseRepoForSiteAdmin) FindByID(id uint) (*database.Expense, error) { return nil, nil }
 func (m *mockExpenseRepoForSiteAdmin) FindByHousehold(userID, householdID uint, viewerRole string, filters database.ExpenseFilters) ([]database.Expense, error) {
 	return nil, nil
 }
-func (m *mockExpenseRepoForSiteAdmin) Update(expense *database.Expense) error                 { return nil }
-func (m *mockExpenseRepoForSiteAdmin) Delete(id uint) error                                   { return nil }
+func (m *mockExpenseRepoForSiteAdmin) Update(expense *database.Expense) error { return nil }
+func (m *mockExpenseRepoForSiteAdmin) Delete(id uint) error                   { return nil }
 func (m *mockExpenseRepoForSiteAdmin) MonthlyTotal(userID, householdID uint, viewerRole string, year int, month time.Month) (float64, error) {
 	return 0, nil
 }
@@ -237,8 +255,8 @@ func TestBuildAdminSummary_TotalsAndRows(t *testing.T) {
 			},
 		},
 		{
-			Household:     database.Household{ID: 2, Name: "Beta"},
-			SavingsTotal:  50,
+			Household:    database.Household{ID: 2, Name: "Beta"},
+			SavingsTotal: 50,
 			Expenses: []repositories.ExpenseWithUser{
 				{Expense: database.Expense{Amount: 200, Type: database.TransactionTypeIncome}},
 			},

@@ -1,9 +1,9 @@
 package handlers
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"io"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -105,29 +105,47 @@ type mockUserRepoForAdminTest struct {
 	users []database.User
 }
 
-func (m *mockUserRepoForAdminTest) Create(user *database.User) error                          { return nil }
-func (m *mockUserRepoForAdminTest) CountAndCreate(user *database.User) error                  { return nil }
-func (m *mockUserRepoForAdminTest) FindByID(id uint) (*database.User, error)                  { return nil, nil }
-func (m *mockUserRepoForAdminTest) FindByEmail(email string) (*database.User, error)           { return nil, nil }
-func (m *mockUserRepoForAdminTest) FindByIDWithHousehold(id uint) (*database.User, error)      { return nil, nil }
-func (m *mockUserRepoForAdminTest) Update(user *database.User) error                          { return nil }
-func (m *mockUserRepoForAdminTest) Delete(id uint) error                                      { return nil }
-func (m *mockUserRepoForAdminTest) ListAllUsers() ([]database.User, error)                     { return m.users, nil }
+func (m *mockUserRepoForAdminTest) Create(user *database.User) error                 { return nil }
+func (m *mockUserRepoForAdminTest) CountAndCreate(user *database.User) error         { return nil }
+func (m *mockUserRepoForAdminTest) FindByID(id uint) (*database.User, error)         { return nil, nil }
+func (m *mockUserRepoForAdminTest) FindByEmail(email string) (*database.User, error) { return nil, nil }
+func (m *mockUserRepoForAdminTest) FindByIDWithHousehold(id uint) (*database.User, error) {
+	return nil, nil
+}
+func (m *mockUserRepoForAdminTest) Update(user *database.User) error       { return nil }
+func (m *mockUserRepoForAdminTest) Delete(id uint) error                   { return nil }
+func (m *mockUserRepoForAdminTest) ListAllUsers() ([]database.User, error) { return m.users, nil }
 
 type mockHouseholdRepoForAdminTest struct {
 	households []database.Household
 }
 
-func (m *mockHouseholdRepoForAdminTest) Create(h *database.Household) error                  { return nil }
-func (m *mockHouseholdRepoForAdminTest) FindByID(id uint) (*database.Household, error)        { return nil, nil }
-func (m *mockHouseholdRepoForAdminTest) FindByUserID(userID uint) (*database.Household, error) { return nil, nil }
-func (m *mockHouseholdRepoForAdminTest) FindByName(name string) (*database.Household, error)  { return nil, nil }
-func (m *mockHouseholdRepoForAdminTest) FindByInviteCode(code string) (*database.InviteCode, error) { return nil, nil }
-func (m *mockHouseholdRepoForAdminTest) CreateInviteCode(invite *database.InviteCode) error   { return nil }
-func (m *mockHouseholdRepoForAdminTest) MarkUsed(inviteID, userID uint) error                 { return nil }
-func (m *mockHouseholdRepoForAdminTest) GetMembers(householdID uint) ([]database.User, error) { return nil, nil }
-func (m *mockHouseholdRepoForAdminTest) Update(h *database.Household) error                  { return nil }
-func (m *mockHouseholdRepoForAdminTest) Delete(id uint) error                                { return nil }
-func (m *mockHouseholdRepoForAdminTest) AddMember(householdID, userID uint, role string) error { return nil }
-func (m *mockHouseholdRepoForAdminTest) RemoveMember(householdID, userID uint) error          { return nil }
-func (m *mockHouseholdRepoForAdminTest) ListAllHouseholds() ([]database.Household, error)     { return m.households, nil }
+func (m *mockHouseholdRepoForAdminTest) Create(h *database.Household) error { return nil }
+func (m *mockHouseholdRepoForAdminTest) FindByID(id uint) (*database.Household, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForAdminTest) FindByUserID(userID uint) (*database.Household, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForAdminTest) FindByName(name string) (*database.Household, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForAdminTest) FindByInviteCode(code string) (*database.InviteCode, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForAdminTest) CreateInviteCode(invite *database.InviteCode) error {
+	return nil
+}
+func (m *mockHouseholdRepoForAdminTest) MarkUsed(inviteID, userID uint) error { return nil }
+func (m *mockHouseholdRepoForAdminTest) GetMembers(householdID uint) ([]database.User, error) {
+	return nil, nil
+}
+func (m *mockHouseholdRepoForAdminTest) Update(h *database.Household) error { return nil }
+func (m *mockHouseholdRepoForAdminTest) Delete(id uint) error               { return nil }
+func (m *mockHouseholdRepoForAdminTest) AddMember(householdID, userID uint, role string) error {
+	return nil
+}
+func (m *mockHouseholdRepoForAdminTest) RemoveMember(householdID, userID uint) error { return nil }
+func (m *mockHouseholdRepoForAdminTest) ListAllHouseholds() ([]database.Household, error) {
+	return m.households, nil
+}

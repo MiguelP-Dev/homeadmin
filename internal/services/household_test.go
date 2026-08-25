@@ -689,11 +689,11 @@ func TestRemoveMember(t *testing.T) {
 	otherHousehold := &database.User{ID: 5, HouseholdID: ptr(uint(99)), Role: database.RoleMember}
 
 	tests := []struct {
-		name         string
-		owner        *database.User
-		target       *database.User
-		wantErr      error
-		wantRemove   bool
+		name       string
+		owner      *database.User
+		target     *database.User
+		wantErr    error
+		wantRemove bool
 	}{
 		{
 			name:       "owner removes member",

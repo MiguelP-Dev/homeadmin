@@ -271,10 +271,10 @@ func TestSavingsList_MemberStaysHouseholdScoped(t *testing.T) {
 	app := setupAdminBranchApp(handler.List, map[string]any{
 		"userID":      uint(2),
 		"householdID": &hh,
-		"email":        "member@example.com",
-		"isAdmin":      false,
-		"csrfToken":    "tok",
-		"lang":         "en",
+		"email":       "member@example.com",
+		"isAdmin":     false,
+		"csrfToken":   "tok",
+		"lang":        "en",
 	})
 
 	status, body := getBody(t, app)

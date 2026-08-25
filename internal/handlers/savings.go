@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/a-h/templ"
@@ -35,7 +34,7 @@ func (h *SavingsHandler) List(c *fiber.Ctx) error {
 
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
-		return middleware.BadRequest("household required")
+		return middleware.Keyed(fiber.StatusBadRequest, "savings.household_required")
 	}
 	hhID := *householdID
 
@@ -59,7 +58,7 @@ func (h *SavingsHandler) List(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.Savings(savings, total, lang, csrfToken)
-	page := layouts.Base("Savings — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.savings"), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -84,7 +83,7 @@ func (h *SavingsHandler) listGlobal(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.SavingsGlobal(blocks, lang)
-	page := layouts.Base("Savings — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.savings"), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -102,7 +101,7 @@ func (h *SavingsHandler) ShowNew(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.SavingsForm(csrfToken, "/savings", i18n.T(lang, "savings.create"), "", lang)
-	page := layouts.Base(fmt.Sprintf("%s — HomeAdmin", i18n.T(lang, "savings.create")), csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "savings.create"), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -117,7 +116,7 @@ func (h *SavingsHandler) Create(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
-		return middleware.BadRequest("household required")
+		return middleware.Keyed(fiber.StatusBadRequest, "savings.household_required")
 	}
 	hhID := *householdID
 
@@ -125,7 +124,9 @@ func (h *SavingsHandler) Create(c *fiber.Ctx) error {
 	amountStr := c.FormValue("amount")
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
-		return middleware.Unprocessable("invalid amount")
+		// Reuses expense.invalid_amount: identical generic wording in both
+		// dictionaries ("Invalid amount." / "Monto inválido.").
+		return middleware.Keyed(fiber.StatusUnprocessableEntity, "expense.invalid_amount")
 	}
 
 	targetStr := c.FormValue("target")
@@ -133,13 +134,14 @@ func (h *SavingsHandler) Create(c *fiber.Ctx) error {
 	if targetStr != "" {
 		target, err = strconv.ParseFloat(targetStr, 64)
 		if err != nil {
-			return middleware.Unprocessable("invalid target")
+			return middleware.Keyed(fiber.StatusUnprocessableEntity, "savings.invalid_target")
 		}
 	}
 
 	if err := h.Service.Create(userID, hhID, description, amount, target); err != nil {
 		if err == services.ErrValidation {
-			return middleware.Unprocessable(err.Error())
+			// Generic validation wording shared with the expenses dictionary.
+			return middleware.Keyed(fiber.StatusUnprocessableEntity, "expense.validation_failed")
 		}
 		return middleware.Internal("failed to create savings")
 	}
@@ -151,7 +153,7 @@ func (h *SavingsHandler) Create(c *fiber.Ctx) error {
 func (h *SavingsHandler) Delete(c *fiber.Ctx) error {
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
-		return middleware.BadRequest("household required")
+		return middleware.Keyed(fiber.StatusBadRequest, "savings.household_required")
 	}
 	hhID := *householdID
 
@@ -162,10 +164,10 @@ func (h *SavingsHandler) Delete(c *fiber.Ctx) error {
 
 	if err := h.Service.Delete(hhID, uint(savingsID)); err != nil {
 		if err == services.ErrPermission {
-			return middleware.Forbidden(err.Error())
+			return middleware.Keyed(fiber.StatusForbidden, "savings.permission")
 		}
 		if err == services.ErrNotFound {
-			return middleware.NotFound("savings not found")
+			return middleware.Keyed(fiber.StatusNotFound, "savings.not_found")
 		}
 		return middleware.Internal("failed to delete savings")
 	}

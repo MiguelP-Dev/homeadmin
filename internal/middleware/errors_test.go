@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -165,6 +166,42 @@ func TestErrorHandlerHtmxSetsTriggerHeader(t *testing.T) {
 	}
 	if !containsStr(trigger, `"level":"error"`) {
 		t.Errorf("HX-Trigger missing level field: %s", trigger)
+	}
+}
+
+// TestErrorHandlerHtmxTriggerQuoteSafe proves the HX-Trigger payload stays
+// valid JSON when the message contains quotes: raw fmt.Sprintf interpolation
+// used to emit invalid JSON for such messages; json.Marshal escapes them.
+func TestErrorHandlerHtmxTriggerQuoteSafe(t *testing.T) {
+	app := newTestApp()
+	app.Get("/test", func(c *fiber.Ctx) error {
+		return BadRequest(`say "hello" now`)
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("HX-Request", "true")
+	req.Header.Set("Accept", "application/json")
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test failed: %v", err)
+	}
+
+	trigger := resp.Header.Get("HX-Trigger")
+	if trigger == "" {
+		t.Fatal("expected HX-Trigger header on HTMX request, got empty")
+	}
+	var decoded struct {
+		Message string `json:"message"`
+		Level   string `json:"level"`
+	}
+	if err := json.Unmarshal([]byte(trigger), &decoded); err != nil {
+		t.Fatalf("HX-Trigger is not valid JSON (%v): %s", err, trigger)
+	}
+	if decoded.Message != `say "hello" now` {
+		t.Errorf("HX-Trigger message = %q, want %q", decoded.Message, `say "hello" now`)
+	}
+	if decoded.Level != "error" {
+		t.Errorf("HX-Trigger level = %q, want %q", decoded.Level, "error")
 	}
 }
 

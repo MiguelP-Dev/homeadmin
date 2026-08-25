@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
@@ -94,9 +95,14 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 		fmt.Printf("[ERROR] %d %s\n", status, message)
 	}
 
-	// For HTMX requests, set HX-Trigger header with toast data
+	// For HTMX requests, set HX-Trigger header with toast data.
+	// json.Marshal keeps the payload valid even when the message contains
+	// quotes or other characters that raw fmt.Sprintf interpolation would break.
 	if isHtmxRequest(c) {
-		c.Set("HX-Trigger", fmt.Sprintf(`{"message":"%s","level":"error"}`, message))
+		trigger, jsonErr := json.Marshal(hxTrigger{Message: message, Level: "error"})
+		if jsonErr == nil {
+			c.Set("HX-Trigger", string(trigger))
+		}
 	}
 
 	// Content negotiation via Accept header
@@ -107,6 +113,13 @@ func ErrorHandler(c *fiber.Ctx, err error) error {
 	}
 
 	return c.Status(status).JSON(fiber.Map{"error": message})
+}
+
+// hxTrigger is the JSON payload sent in the HX-Trigger header so client-side
+// JS can render a toast for HTMX requests.
+type hxTrigger struct {
+	Message string `json:"message"`
+	Level   string `json:"level"`
 }
 
 // isHtmxRequest checks if the request originated from HTMX.
@@ -135,14 +148,18 @@ func containsHTML(accept string) bool {
 	return false
 }
 
-// errorPageHTML renders a minimal HTML error page.
+// errorPageHTML renders a minimal HTML error page. Title and home-link labels
+// localize through the dead keys error.title/error.home; lang is resolved by
+// the caller from c.Locals("lang").
 func errorPageHTML(status int, message string, lang string) string {
+	title := fmt.Sprintf("%s %d", i18n.T(lang, "error.title"), status)
+	home := i18n.T(lang, "error.home")
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="%s">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error %d</title>
+    <title>%s</title>
     <style>
         body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
         .error-container { text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -156,8 +173,8 @@ func errorPageHTML(status int, message string, lang string) string {
     <div class="error-container">
         <h1>%d</h1>
         <p>%s</p>
-        <p><a href="/">Home</a></p>
+        <p><a href="/">%s</a></p>
     </div>
 </body>
-</html>`, lang, status, status, message)
+</html>`, lang, title, status, message, home)
 }

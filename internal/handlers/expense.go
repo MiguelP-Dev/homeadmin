@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -38,6 +39,18 @@ func NewExpenseHandler(svc expenseServiceInterface) *ExpenseHandler {
 	return &ExpenseHandler{Service: svc}
 }
 
+// unprocessableKeyed re-maps a validation failure onto 422 while preserving
+// its i18n Key, so the failure localizes at render time instead of being
+// flattened through err.Error() (which drops the Key).
+func unprocessableKeyed(err error) error {
+	var appErr *middleware.AppError
+	if errors.As(err, &appErr) && appErr.Key != "" {
+		appErr.Status = fiber.StatusUnprocessableEntity
+		return appErr
+	}
+	return middleware.Unprocessable(err.Error())
+}
+
 // Create handles POST /expenses — parses form data and delegates to service.
 // Valid submissions redirect (303) to /expenses; invalid payloads re-render the
 // form with errors at 422 without persisting (RF-3).
@@ -49,14 +62,14 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
-		return middleware.BadRequest("household required")
+		return middleware.Keyed(fiber.StatusBadRequest, "expense.household_required")
 	}
 	hhID := *householdID
 
 	amountStr := c.FormValue("amount")
 	amount, err := strconv.ParseFloat(amountStr, 64)
 	if err != nil {
-		return middleware.Unprocessable("invalid amount")
+		return middleware.Keyed(fiber.StatusUnprocessableEntity, "expense.invalid_amount")
 	}
 
 	description := c.FormValue("description")
@@ -71,7 +84,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 		middleware.ValidateRequired(category, "category"),
 		middleware.ValidateIn(category, "category", database.AllCategories(txType)),
 	); err != nil {
-		return middleware.Unprocessable(err.Error())
+		return unprocessableKeyed(err)
 	}
 
 	dateStr := c.FormValue("date")
@@ -82,7 +95,7 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 	if dateStr != "" {
 		date, err = time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			return middleware.Unprocessable("invalid date format, use YYYY-MM-DD")
+			return middleware.Keyed(fiber.StatusUnprocessableEntity, "expense.invalid_date")
 		}
 	} else {
 		date = time.Now()
@@ -97,10 +110,10 @@ func (h *ExpenseHandler) Create(c *fiber.Ctx) error {
 
 	if err := h.Service.Create(userID, hhID, amount, description, category, date, visibility, isFixed, txType); err != nil {
 		if err == services.ErrPermission {
-			return middleware.Forbidden(err.Error())
+			return middleware.Keyed(fiber.StatusForbidden, "expense.permission")
 		}
 		if err == services.ErrValidation {
-			return middleware.Unprocessable(err.Error())
+			return middleware.Keyed(fiber.StatusUnprocessableEntity, "expense.validation_failed")
 		}
 		return middleware.Internal("failed to create expense")
 	}
@@ -118,7 +131,7 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
-		return middleware.BadRequest("household required")
+		return middleware.Keyed(fiber.StatusBadRequest, "expense.household_required")
 	}
 	hhID := *householdID
 
@@ -151,7 +164,7 @@ func (h *ExpenseHandler) List(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.Expenses(expenses, lang, csrfToken)
-	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.expenses"), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -176,7 +189,7 @@ func (h *ExpenseHandler) listGlobal(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.ExpensesGlobal(blocks, lang)
-	page := layouts.Base("Expenses — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.expenses"), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -194,7 +207,7 @@ func (h *ExpenseHandler) ShowNew(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.ExpenseForm(csrfToken, "/expenses", i18n.T(lang, "expenses.create"), "", pages.ExpenseFormValuesFrom(nil), lang)
-	page := layouts.Base(fmt.Sprintf("%s — HomeAdmin", i18n.T(lang, "expenses.create")), csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "expenses.create"), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -206,7 +219,7 @@ func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
-		return middleware.BadRequest("household required")
+		return middleware.Keyed(fiber.StatusBadRequest, "expense.household_required")
 	}
 	hhID := *householdID
 
@@ -218,10 +231,10 @@ func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
 	expense, err := h.Service.FindByID(userID, hhID, uint(expenseID))
 	if err != nil {
 		if err == services.ErrPermission {
-			return middleware.Forbidden(err.Error())
+			return middleware.Keyed(fiber.StatusForbidden, "expense.permission")
 		}
 		if err == services.ErrNotFound {
-			return middleware.NotFound("expense not found")
+			return middleware.Keyed(fiber.StatusNotFound, "expense.not_found")
 		}
 		return middleware.Internal("failed to load expense")
 	}
@@ -236,7 +249,7 @@ func (h *ExpenseHandler) ShowEdit(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.ExpenseForm(csrfToken, fmt.Sprintf("/expenses/%d/update", expenseID), i18n.T(lang, "expenses.update"), "", pages.ExpenseFormValuesFrom(expense), lang)
-	page := layouts.Base(fmt.Sprintf("%s — HomeAdmin", i18n.T(lang, "expenses.edit")), csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "expenses.edit"), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -258,7 +271,7 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	if v := c.FormValue("amount"); v != "" {
 		amount, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return middleware.Unprocessable("invalid amount")
+			return middleware.Keyed(fiber.StatusUnprocessableEntity, "expense.invalid_amount")
 		}
 		fields.Amount = &amount
 	}
@@ -271,7 +284,7 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 	if v := c.FormValue("date"); v != "" {
 		date, err := time.Parse("2006-01-02", v)
 		if err != nil {
-			return middleware.Unprocessable("invalid date format, use YYYY-MM-DD")
+			return middleware.Keyed(fiber.StatusUnprocessableEntity, "expense.invalid_date")
 		}
 		fields.Date = &date
 	}
@@ -289,13 +302,13 @@ func (h *ExpenseHandler) Update(c *fiber.Ctx) error {
 
 	if err := h.Service.Update(userID, uint(expenseID), fields); err != nil {
 		if err == services.ErrPermission {
-			return middleware.Forbidden(err.Error())
+			return middleware.Keyed(fiber.StatusForbidden, "expense.permission")
 		}
 		if err == services.ErrValidation {
-			return middleware.Unprocessable(err.Error())
+			return middleware.Keyed(fiber.StatusUnprocessableEntity, "expense.validation_failed")
 		}
 		if err == services.ErrNotFound {
-			return middleware.NotFound("expense not found")
+			return middleware.Keyed(fiber.StatusNotFound, "expense.not_found")
 		}
 		return middleware.Internal("failed to update expense")
 	}
@@ -315,10 +328,10 @@ func (h *ExpenseHandler) Delete(c *fiber.Ctx) error {
 
 	if err := h.Service.Delete(userID, uint(expenseID)); err != nil {
 		if err == services.ErrPermission {
-			return middleware.Forbidden(err.Error())
+			return middleware.Keyed(fiber.StatusForbidden, "expense.permission")
 		}
 		if err == services.ErrNotFound {
-			return middleware.NotFound("expense not found")
+			return middleware.Keyed(fiber.StatusNotFound, "expense.not_found")
 		}
 		return middleware.Internal("failed to delete expense")
 	}
@@ -336,7 +349,7 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(uint)
 	householdID, ok := c.Locals("householdID").(*uint)
 	if !ok || householdID == nil {
-		return middleware.BadRequest("household required")
+		return middleware.Keyed(fiber.StatusBadRequest, "expense.household_required")
 	}
 	hhID := *householdID
 
@@ -356,7 +369,7 @@ func (h *ExpenseHandler) Dashboard(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.Dashboard(summary, viewerRole, lang, csrfToken)
-	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.dashboard"), csrfToken, username, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -380,7 +393,7 @@ func (h *ExpenseHandler) dashboardGlobal(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.DashboardGlobal(blocks, lang)
-	page := layouts.Base("Dashboard — HomeAdmin", csrfToken, username, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.dashboard"), csrfToken, username, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())

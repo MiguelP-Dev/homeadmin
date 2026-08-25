@@ -143,8 +143,10 @@ func TestCreateHandler_ValidationError(t *testing.T) {
 	}
 
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "validation failed") {
-		t.Error("expected error message in response body")
+	// Service-level ErrValidation maps to the keyed expense.validation_failed
+	// error, rendered through ErrorHandler as the localized English message.
+	if !strings.Contains(string(body), "Please correct the errors below and try again.") {
+		t.Errorf("expected localized validation_failed message in response body, got: %s", string(body))
 	}
 }
 
@@ -201,8 +203,9 @@ func TestCreateHandler_InvalidAmount(t *testing.T) {
 	}
 
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "invalid amount") {
-		t.Errorf("expected 'invalid amount' in response, got: %s", string(body))
+	// Keyed expense.invalid_amount renders as the localized English message.
+	if !strings.Contains(string(body), "Invalid amount.") {
+		t.Errorf("expected localized 'Invalid amount.' in response, got: %s", string(body))
 	}
 }
 
@@ -712,10 +715,10 @@ func TestDashboardHandler_Success(t *testing.T) {
 	svc := &mockExpenseService{
 		getDashboardSummaryFn: func(userID, householdID uint) (*services.DashboardSummary, error) {
 			return &services.DashboardSummary{
-				MonthlyTotal: 350.50,
-				TotalIncome:  500.00,
+				MonthlyTotal:  350.50,
+				TotalIncome:   500.00,
 				TotalExpenses: 149.50,
-				Balance:      350.50,
+				Balance:       350.50,
 				CategoryTotals: []repositories.CategoryTotal{
 					{Category: "Groceries", Total: 200.00},
 					{Category: "Rent", Total: 150.50},
@@ -882,8 +885,10 @@ func TestExpenseHandlers_NilHouseholdLocals_RequiresHousehold(t *testing.T) {
 			}
 
 			body, _ := io.ReadAll(resp.Body)
-			if !strings.Contains(string(body), "household required") {
-				t.Errorf("expected 'household required' in body, got: %s", string(body))
+			// Keyed expense.household_required renders as the localized
+			// English message instead of the former raw "household required".
+			if !strings.Contains(string(body), "You must join a household before creating expenses.") {
+				t.Errorf("expected localized household_required message in body, got: %s", string(body))
 			}
 		})
 	}

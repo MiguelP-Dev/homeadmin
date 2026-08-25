@@ -17,12 +17,12 @@ import (
 // --- Mock HouseholdService ---
 
 type mockHouseholdService struct {
-	createFn         func(userID uint, name string) (*database.Household, error)
-	inviteFn         func(userID uint) (string, error)
-	joinFn           func(userID uint, code string) (*database.Household, error)
-	showFn           func(userID uint) (*services.HouseholdView, error)
-	setMemberRoleFn  func(ownerID, targetID uint, role string) error
-	removeMemberFn   func(ownerID, targetID uint) error
+	createFn        func(userID uint, name string) (*database.Household, error)
+	inviteFn        func(userID uint) (string, error)
+	joinFn          func(userID uint, code string) (*database.Household, error)
+	showFn          func(userID uint) (*services.HouseholdView, error)
+	setMemberRoleFn func(ownerID, targetID uint, role string) error
+	removeMemberFn  func(ownerID, targetID uint) error
 }
 
 func (m *mockHouseholdService) Create(userID uint, name string) (*database.Household, error) {

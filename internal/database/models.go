@@ -18,8 +18,8 @@ type InviteCode struct {
 
 // Household represents a shared group (family, roommates)
 type Household struct {
-	ID        uint           `gorm:"primaryKey"`
-	Name      string         `gorm:"size:100;not null"`
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"size:100;not null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
@@ -38,18 +38,18 @@ const (
 
 // User represents an authenticated user
 type User struct {
-	ID           uint           `gorm:"primaryKey"`
-	Email        string         `gorm:"size:255;uniqueIndex;not null"`
-	PasswordHash string         `gorm:"size:255;not null"`
-	Role         string         `gorm:"size:20;default:'member'"`
+	ID           uint   `gorm:"primaryKey"`
+	Email        string `gorm:"size:255;uniqueIndex;not null"`
+	PasswordHash string `gorm:"size:255;not null"`
+	Role         string `gorm:"size:20;default:'member'"`
 	// IsAdmin marks a site-wide administrator (RF-9). It is independent of the
 	// per-household Role: a member can be a site admin, an owner need not be.
 	// Additive AutoMigrate column; defaults to false so registration never
 	// grants site-admin.
-	IsAdmin     bool `gorm:"default:false"`
-	Lang        string          `gorm:"size:5;default:'en';not null"`
-	HouseholdID *uint           `gorm:"default:null"`
-	Household   *Household      `gorm:"foreignKey:HouseholdID"`
+	IsAdmin     bool       `gorm:"default:false"`
+	Lang        string     `gorm:"size:5;default:'en';not null"`
+	HouseholdID *uint      `gorm:"default:null"`
+	Household   *Household `gorm:"foreignKey:HouseholdID"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

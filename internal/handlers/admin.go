@@ -43,7 +43,7 @@ func (h *AdminHandler) Show(c *fiber.Ctx) error {
 	activePath := c.Path()
 
 	component := pages.Admin(users, &summary, lang)
-	page := layouts.Base("Admin — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.admin"), csrfToken, email, isAdmin, lang, activePath)
 	c.Type("html")
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())

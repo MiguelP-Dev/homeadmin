@@ -63,13 +63,13 @@ func (h *HouseholdHandler) Show(c *fiber.Ctx) error {
 
 	if view == nil {
 		component := pages.HouseholdSetup(csrfToken, "", lang)
-		page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+		page := layouts.Base(pageTitle(lang, "title.household"), csrfToken, email, isAdmin, lang, activePath)
 		ctx := templ.WithChildren(c.Context(), component)
 		return page.Render(ctx, c.Response().BodyWriter())
 	}
 
 	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, "", lang)
-	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.household"), csrfToken, email, isAdmin, lang, activePath)
 	ctx := templ.WithChildren(c.Context(), component)
 	return page.Render(ctx, c.Response().BodyWriter())
 }
@@ -137,7 +137,7 @@ func (h *HouseholdHandler) Invite(c *fiber.Ctx) error {
 	}
 	component := pages.HouseholdShow(view.Household, view.Members, view.ViewerRole, csrfToken, code, lang)
 	activePath := c.Path()
-	page := layouts.Base("Household — HomeAdmin", csrfToken, email, isAdmin, lang, activePath)
+	page := layouts.Base(pageTitle(lang, "title.household"), csrfToken, email, isAdmin, lang, activePath)
 	ctx := templ.WithChildren(c.Context(), component)
 	c.Type("html")
 	return page.Render(ctx, c.Response().BodyWriter())
@@ -164,7 +164,7 @@ func (h *HouseholdHandler) SetMemberRole(c *fiber.Ctx) error {
 		case errors.Is(err, services.ErrNotMember):
 			return middleware.Keyed(404, "household.member_not_found")
 		default:
-			return middleware.BadRequest("Invalid role")
+			return middleware.Keyed(400, "household.role.invalid")
 		}
 	}
 
